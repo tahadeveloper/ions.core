@@ -60,7 +60,7 @@ class Path extends Singleton
      */
     public static function core(string $file): string
     {
-        return  dirname(__DIR__ . DIRECTORY_SEPARATOR. '..' )   . DIRECTORY_SEPARATOR . $file;
+        return  realpath(__DIR__ . DIRECTORY_SEPARATOR. '..' )   . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
