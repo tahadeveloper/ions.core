@@ -1,0 +1,31 @@
+<?php
+
+namespace {{ namespace }};
+
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
+
+class {{ class }} extends Migration
+{
+    protected string $table_name = '{{ table }}';
+
+    public function up(): void
+    {
+        if (!Schema::hasTable($this->table_name)) {
+            Schema::create($this->table_name, static function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('title');
+                $table->timestamp('created_at')->useCurrent();
+                $table->timestamp('updated_at')->useCurrent();
+
+                $table->engine = 'InnoDB';
+            });
+        }
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists($this->table_name);
+    }
+}

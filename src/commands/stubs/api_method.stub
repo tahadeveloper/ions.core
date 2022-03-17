@@ -1,0 +1,28 @@
+
+    public function {{ name }}(Request $request): void
+    {
+        $id = $request->get('id');
+        $inputs = toObject($request->inputs());
+
+        $this->routeMethod("get", function () use ($id) {
+            if ($id) {
+                $this->display({{ class }}::single($id)->toJson());
+            }
+            $this->display({{ class }}::show()->toJson());
+        });
+
+        $this->routeMethod("post", function () use ($inputs) {
+            $this->display({{ class }}::store($inputs)->toJson());
+        });
+
+        $this->routeMethod("put", function () use ($inputs) {
+            $this->display({{ class }}::update($inputs)->toJson());
+        });
+
+        $this->routeMethod("delete", function () use ($id) {
+            $this->display({{ class }}::delete($id)->toJson());
+        });
+
+        $this->notFoundResponse(['error' => 'Must use supported methods']);
+    }
+}

@@ -1,0 +1,4 @@
+{{ route_name }}:
+  path: /{{ route_path }}/{method}/{id}
+  controller: {{ class }}
+  defaults: { method: 'index',id: 0 }

@@ -1,0 +1,17 @@
+<?php
+
+namespace {{ namespace }};
+
+use Ions\Foundation\BaseController;
+use Ions\Support\Request;
+
+class {{ class }} extends BaseController
+{
+    /**
+     * @throws Throwable
+     */
+    public function index(Request $request): void
+    {
+        $this->{{ template }}->display('{{ html_name }}/index{{ html_ext }}');
+    }
+}

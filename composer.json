@@ -5,7 +5,10 @@
     "autoload": {
         "psr-4": {
             "Ions\\": "src/"
-        }
+        },
+        "classmap": [
+            "src/commands"
+        ]
     },
     "authors": [
         {

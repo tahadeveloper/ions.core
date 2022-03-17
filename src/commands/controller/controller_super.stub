@@ -1,0 +1,65 @@
+<?php
+
+namespace {{ namespace }};
+
+use Ions\Foundation\BaseController;
+use Ions\Support\Request;
+use App\Http\super\Auth\SharedData;
+
+class {{ class }} extends BaseController
+{
+    protected string $view_folder = '@super/';
+    protected string $locale_folder = 'super';
+
+    public function _loadedState(Request $request): void
+    {
+        SharedData::shared($this->twig);
+        SharedData::accessApprove(['index' => ['view','render'],'add' => 'save', 'edit' => 'update', 'destroy' => 'destroyMulti']);
+    }
+
+    public function index(Request $request): void
+    {
+        $columns = datatableCols(['check_box', 'id', 'name', 'email', 'created_at', 'updated_at', 'actions']);
+        $this->{{ template }}->display('{{ html_name }}/index{{ html_ext }}', ['columns' => $columns]);
+    }
+
+    public function render(Request $request): void
+    {
+        // render ajax datatable
+    }
+
+    public function add(Request $request): void
+    {
+        // add form
+    }
+
+    public function save(Request $request): void
+    {
+        // submit add
+    }
+
+    public function view(Request $request): void
+    {
+        // show details
+    }
+
+    public function edit(Request $request): void
+    {
+        // edit form
+    }
+
+    public function update(Request $request): void
+    {
+        // submit edit
+    }
+
+    public function destroy(Request $request): void
+    {
+        // delete item
+    }
+
+    public function destroyMulti(Request $request): void
+    {
+        // delete multi items
+    }
+}

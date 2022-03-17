@@ -1,0 +1,31 @@
+<?php
+
+namespace {{ namespace }};
+
+use Faker\Factory;
+use Ions\Support\DB;
+
+class {{ class }}
+{
+    protected string $table = '{{ table }}';
+
+    public function seed(): void
+    {
+        $faker = Factory::create();
+        $items = [];
+        for ($i = 0; $i < 30; $i++) {
+            $items[] = [
+                'title' => $faker->name,
+            ];
+        }
+        echo DB::table($this->table)->insert($items);
+    }
+
+    public function wipe(): void
+    {
+        DB::connection()->statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table($this->table)->truncate();
+        DB::connection()->statement('SET FOREIGN_KEY_CHECKS=1;');
+    }
+
+}
