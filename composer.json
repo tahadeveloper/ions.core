@@ -1,5 +1,5 @@
 {
-    "name": "ionzile/ions",
+    "name": "ionzile/core",
     "description": "Ionzile core library",
     "type": "library",
     "autoload": {
