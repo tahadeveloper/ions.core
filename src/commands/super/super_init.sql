@@ -1,15 +1,15 @@
 INSERT INTO `controls`
-VALUES (1, NULL, 'index', 1, 'index', 'bi bi-file-spreadsheet-fill', 'index', 0, '2021-07-08 17:42:15', '2022-02-07 08:58:44');
+VALUES (1, NULL, 'index', 1, 0, 'index', 'bi bi-file-spreadsheet-fill', 'index', 0, '2021-07-08 17:42:15', '2022-02-07 08:58:44');
 INSERT INTO `controls`
-VALUES (2, NULL, 'ion_setting', 1, 'ion_setting', 'bi bi-gear-wide-connected', 'ion_setting', 0, '2021-07-08 17:45:53', '2022-02-07 08:57:53');
+VALUES (2, NULL, 'ion_setting', 1, 0, 'ion_setting', 'bi bi-gear-wide-connected', 'ion_setting', 0, '2021-07-08 17:45:53', '2022-02-07 08:57:53');
 INSERT INTO `controls`
-VALUES (3, 2, 'control', 1, 'control', '', 'control', 0, '2021-07-08 17:49:35', '2022-02-07 08:56:59');
+VALUES (3, 2, 'control', 1, 0, 'control', '', 'control', 0, '2021-07-08 17:49:35', '2022-02-07 08:56:59');
 INSERT INTO `controls`
-VALUES (4, 2, 'role', 1, 'role', '', 'role', 0, '2021-07-08 17:53:06', '2022-02-07 09:00:29');
+VALUES (4, 2, 'role', 1, 0, 'role', '', 'role', 0, '2021-07-08 17:53:06', '2022-02-07 09:00:29');
 INSERT INTO `controls`
-VALUES (5, NULL, 'user', 1, 'user', 'bi bi-people', 'user', 0, '2021-07-08 18:03:05', '2022-02-07 09:01:25');
+VALUES (5, NULL, 'user', 1, 0, 'user', 'bi bi-people', 'user', 0, '2021-07-08 18:03:05', '2022-02-07 09:01:25');
 INSERT INTO `controls`
-VALUES (6, NULL, 'profile', 0, 'profile', '', 'profile', 4, '2022-02-25 09:49:25', '2022-02-25 09:55:32');
+VALUES (6, NULL, 'profile', 0, 0, 'profile', '', 'profile', 4, '2022-02-25 09:49:25', '2022-02-25 09:55:32');
 
 
 INSERT INTO `controls_languages`

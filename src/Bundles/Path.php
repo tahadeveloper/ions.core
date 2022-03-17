@@ -208,7 +208,7 @@ class Path extends Singleton
      */
     public static function bin(string $file): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . $file;
+        return realpath(__DIR__ . DIRECTORY_SEPARATOR. '..' ) . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -219,7 +219,7 @@ class Path extends Singleton
      */
     public static function auth(string $file): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'core' . DIRECTORY_SEPARATOR . 'Auth' . DIRECTORY_SEPARATOR . $file;
+        return realpath(__DIR__ . DIRECTORY_SEPARATOR. '..' ) . DIRECTORY_SEPARATOR . 'Auth' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
