@@ -59,7 +59,7 @@ class Kernel extends Singleton
     public static function boot(): void
     {
         try {
-            static::$environmentPath = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+            static::$environmentPath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR. '..' . DIRECTORY_SEPARATOR. '..' . DIRECTORY_SEPARATOR. '..') . DIRECTORY_SEPARATOR;
 
             static::structureBone();
 
@@ -145,6 +145,7 @@ class Kernel extends Singleton
         if (empty(static::$config) && !static::$config instanceof Config) {
             try {
                 $config_files = Storage::files(Path::config());
+
                 $configs = [];
                 foreach ($config_files as $config_file) {
                     $configs[File::name($config_file)] = include($config_file);

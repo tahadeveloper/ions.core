@@ -6,7 +6,7 @@ use Ions\Foundation\Singleton;
 
 class Path extends Singleton
 {
-    protected static string $environmentPath =  __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+    protected static string $environmentPath =  __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
 
     /**
      * config folder in app folder
@@ -60,7 +60,7 @@ class Path extends Singleton
      */
     public static function core(string $file): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'core' . DIRECTORY_SEPARATOR . $file;
+        return  dirname(__DIR__ . DIRECTORY_SEPARATOR. '..' )   . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
