@@ -49,7 +49,7 @@ class Kernel extends Singleton
     protected static Config|array $config = [];
     protected static Container $app;
 
-    public static string $env_name = '.env.ion';
+    public static string $env_name = '.env';
 
     /**
      * boot app with evn properties.
@@ -424,7 +424,8 @@ class Kernel extends Singleton
         // add namespace to controller if didn't have
         if ($namespace && $controller !== 'App\Schedule' && !Str::contains($controller, $namespace)) {
             // check if super or api
-            if (Str::contains($controller, 'super') || Str::contains($controller, 'api')) {
+            if (Str::contains($controller, 'super')
+                || Str::contains($controller, 'api') || Str::contains($namespace, 'Api') ) {
                 $controller = $namespace . $controller;
             } else {
                 $controller = $namespace . 'Controllers\\' . $controller;

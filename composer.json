@@ -19,7 +19,6 @@
   "require": {
     "php": "^8.0",
     "ext-openssl": "*",
-    "ext-pdo": "*",
     "ext-zip": "*",
     "cartalyst/sentinel": "^v6.0",
     "illuminate/cache": "v9.0.2",

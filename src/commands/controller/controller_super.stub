@@ -8,7 +8,7 @@ use App\Http\super\Auth\SharedData;
 
 class {{ class }} extends BaseController
 {
-    protected string $view_folder = '@super/';
+    protected string $viewSpace = '@super/';
     protected string $locale_folder = 'super';
 
     public function _loadedState(Request $request): void

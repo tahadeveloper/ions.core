@@ -74,7 +74,7 @@ class ControllerCommand extends Command
 
         $this->info('Controller created successfully, happy to see you.');
 
-        $pre_folder = 'Controllers\\';
+        $pre_folder = '';
         if ($path) {
             $pre_folder = $path.'\\';
         }

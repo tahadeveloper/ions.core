@@ -3,6 +3,7 @@
 namespace {{ namespace }};
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Date;
 {{ import }}
 /**
  * Class {{ class }}

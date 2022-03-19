@@ -39,8 +39,6 @@ class RollBackCommand extends Command
                 exit();
             }
             $this->info('There are no migration file with steps for rollback');
-            ray($target_rollback);
-
             exit();
         }
         $this->info('There are no migration for rollback');

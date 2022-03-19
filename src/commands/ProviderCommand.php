@@ -32,8 +32,7 @@ class ProviderCommand extends Command
                 return '"' . $item . '"';
             });
             $fields = "'" . implode("','", $fields) . "'";
-        } catch (Throwable $exception) {
-            ray($exception->getMessage());
+        } catch (Throwable) {
             $fields = '';
         }
 
