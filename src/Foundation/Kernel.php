@@ -127,7 +127,7 @@ class Kernel extends Singleton
      */
     private static function preloads(): void
     {
-        $loads_files = static::config()->get('preloads');
+        $loads_files = static::config()->get('app.preloads');
         if (!empty($loads_files)) {
             foreach ($loads_files as $loads_file) {
                 if (Storage::exists(Path::src($loads_file))) {
