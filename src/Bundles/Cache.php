@@ -17,4 +17,8 @@ class Cache extends Repository
         );
         parent::__construct($file_store);
     }
+
+    public static function app(){
+        return new self();
+    }
 }
