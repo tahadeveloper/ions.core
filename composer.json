@@ -32,12 +32,12 @@
     "lcobucci/jwt": "^4.1.5",
     "monolog/monolog": "^2.4.0",
     "peppeocchi/php-cron-scheduler": "^4.0",
-    "symfony/config": "^v6.0.6",
-    "symfony/mailer": "^6.0.6",
-    "symfony/routing": "^v6.0.6",
-    "symfony/security-csrf": "^v6.0.6",
+    "symfony/config": "^v6.0.3",
+    "symfony/mailer": "^6.0.5",
+    "symfony/routing": "^v6.0.5",
+    "symfony/security-csrf": "^v6.0.3",
     "symfony/translation": "^v6.0.6",
-    "symfony/yaml": "^6.0.6",
+    "symfony/yaml": "^6.0.3",
     "vlucas/phpdotenv": "^v5.4.1"
   },
   "require-dev": {
