@@ -2244,12 +2244,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/config.git",
-                "reference": "749ec0899a5469dd8cd3cdbf9f91e5ded69a612a"
+                "reference": "0332d340b8173fc4305f3f1c0efe6b4633ee89e3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/config/zipball/749ec0899a5469dd8cd3cdbf9f91e5ded69a612a",
-                "reference": "749ec0899a5469dd8cd3cdbf9f91e5ded69a612a",
+                "url": "https://api.github.com/repos/symfony/config/zipball/0332d340b8173fc4305f3f1c0efe6b4633ee89e3",
+                "reference": "0332d340b8173fc4305f3f1c0efe6b4633ee89e3",
                 "shasum": ""
             },
             "require": {
@@ -2313,7 +2313,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2022-03-09T21:54:56+00:00"
+            "time": "2022-03-22T16:20:03+00:00"
         },
         {
             "name": "symfony/console",
@@ -7211,5 +7211,5 @@
         "ext-zip": "*"
     },
     "platform-dev": [],
-    "plugin-api-version": "2.1.0"
+    "plugin-api-version": "2.2.0"
 }

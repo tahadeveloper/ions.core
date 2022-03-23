@@ -2,7 +2,6 @@
     public function {{ name }}(Request $request): void
     {
         $id = $request->get('id');
-        $inputs = $request->inputs() ? toObject($request->inputs()) : null;
 
         $this->routeMethod("get", function () use ($id) {
             if ($id) {
@@ -11,12 +10,12 @@
             $this->display({{ class }}::show()->toJson());
         });
 
-        $this->routeMethod("post", function () use ($inputs) {
-            $this->display({{ class }}::store($inputs)->toJson());
+        $this->routeMethod("post", function () {
+            $this->display({{ class }}::store($this->inputs)->toJson());
         });
 
-        $this->routeMethod("put", function () use ($inputs) {
-            $this->display({{ class }}::update($inputs)->toJson());
+        $this->routeMethod("put", function () {
+            $this->display({{ class }}::update($this->inputs)->toJson());
         });
 
         $this->routeMethod("delete", function () use ($id) {
