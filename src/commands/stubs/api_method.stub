@@ -2,7 +2,7 @@
     public function {{ name }}(Request $request): void
     {
         $id = $request->get('id');
-        $inputs = toObject($request->inputs());
+        $inputs = $request->inputs() ? toObject($request->inputs()) : null;
 
         $this->routeMethod("get", function () use ($id) {
             if ($id) {

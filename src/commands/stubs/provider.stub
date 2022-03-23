@@ -16,7 +16,7 @@ class {{ class }} extends ProviderController
     private static string $tbl = '{{ table }}';
     private static array $columns = [{{ columns }}];
 
-    #[Pure]
+    #[Pure(true)]
     private static function rules($items = []): array
     {
         $rules = [
