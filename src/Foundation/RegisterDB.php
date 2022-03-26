@@ -70,13 +70,12 @@ class RegisterDB extends Singleton
     protected static function redBeanConnection(): void
     {
         $databases = new Config(include(Path::config('database.php')));
+        $default_database = config('database.default', 'mysql');
         foreach ($databases['connections'] as $key => $connection) {
-            if ($key === 'default') {
-                R::setup($connection['driver'] . ':host=' . $connection['host'] . ';dbname=' . $connection['database'],
-                    $connection['username'], $connection['password']); //for both mysql or mariaDB
+            if ($key === $default_database) {
+                self::RedBeanDriverSetup($connection);
             } else {
-                R::addDatabase($key, $connection['driver'] . ':host=' . $connection['host'] . ';dbname=' . $connection['database'],
-                    $connection['username'], $connection['password']);
+                self::RedBeanDriverConnection($connection, $key);
             }
         }
 
@@ -88,6 +87,47 @@ class RegisterDB extends Singleton
             });
         } catch (RedException) {
             die('Can not connect by redbean');
+        }
+    }
+
+    /**
+     * @param mixed $connection
+     * @return void
+     * @throws RedException
+     */
+    protected static function RedBeanDriverSetup(mixed $connection): void
+    {
+        if ($connection['driver'] === 'mysql') {
+            R::setup('mysql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
+                $connection['username'], $connection['password']); //for both mysql or mariaDB
+        } elseif ($connection['driver'] === 'sqlite') {
+            R::setup('sqlite:'.$connection['database'], null, null);
+        } elseif ($connection['driver'] === 'pgsql') {
+            R::setup('pgsql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
+                $connection['username'], $connection['password']);
+        } else {
+            throw new RedException('Invalid database driver');
+        }
+    }
+
+    /**
+     * @param mixed $connection
+     * @param int|string $key
+     * @return void
+     * @throws RedException
+     */
+    protected static function RedBeanDriverConnection(mixed $connection, int|string $key): void
+    {
+        if ($connection['driver'] === 'mysql') {
+            R::addDatabase($key, 'mysql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
+                $connection['username'], $connection['password']);
+        } elseif ($connection['driver'] === 'sqlite') {
+            R::addDatabase($key, 'sqlite:'.$connection['database']);
+        } elseif ($connection['driver'] === 'pgsql') {
+            R::addDatabase($key, 'pgsql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
+                $connection['username'], $connection['password']);
+        } else {
+            throw new RedException('Unsupported database driver: ' . $connection['driver']);
         }
     }
 }
