@@ -95,7 +95,7 @@ class Path extends Singleton
     public static function root(string $file, bool $url = false): string
     {
         if ($url) {
-            return env('APP_URL') . DIRECTORY_SEPARATOR . $file;
+            return env('APP_URL') . '/' . $file;
         }
         return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . $file;
     }
@@ -110,9 +110,9 @@ class Path extends Singleton
     public static function rootFolder(string $file, string $folder_name = null): string
     {
         if ($folder_name) {
-            return env('APP_URL') . DIRECTORY_SEPARATOR . $folder_name . DIRECTORY_SEPARATOR . $file;
+            return env('APP_URL') . '/' . $folder_name . '/' . $file;
         }
-        return env('APP_URL') . DIRECTORY_SEPARATOR . $file;
+        return env('APP_URL') . '/' . $file;
     }
 
     /**
@@ -135,7 +135,7 @@ class Path extends Singleton
      */
     public static function assets(string $file, string $folder_name = 'default'): string
     {
-        return env('APP_URL') . DIRECTORY_SEPARATOR . 'views' . DIRECTORY_SEPARATOR . $folder_name . DIRECTORY_SEPARATOR . $file;
+        return env('APP_URL') . '/' . 'views' . '/' . $folder_name . '/' . $file;
     }
 
     /**
@@ -147,7 +147,7 @@ class Path extends Singleton
     public static function public(string $file = '', bool $url = false): string
     {
         if ($url) {
-            return env('APP_URL') . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . $file;
+            return env('APP_URL') . '/' . 'public' . '/' . $file;
         }
         return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . $file;
     }
@@ -184,7 +184,7 @@ class Path extends Singleton
     public static function files(string $file, bool $url = false): string
     {
         if ($url) {
-            return env('APP_URL') . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $file;
+            return env('APP_URL') . '/' . 'public' . '/' . 'uploads' . '/' . $file;
         }
         return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $file;
     }
