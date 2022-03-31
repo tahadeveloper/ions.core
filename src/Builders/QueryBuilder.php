@@ -150,7 +150,7 @@ class QueryBuilder extends Singleton
      * @param $ids
      * @return void
      */
-    protected function withRelation($collection, $ids): void
+    protected function withRelation($collection, $ids, $is_sole = false): void
     {
         if ($this->with) {
             foreach ($this->with as $item) {
@@ -164,13 +164,17 @@ class QueryBuilder extends Singleton
 
                 $relation_many = $this->getRelation_many($item, $columns, $ids, $sorts);
 
-                $collection->map(static function ($row) use ($item, $relation_many) {
-                    if (!isset($row->{$item['second']})) {
-                        return null;
-                    }
-                    $row->{$item['table']} = $relation_many->where($item['first'], $item['operator'], $row->{$item['second']})->toArray();
-                    return $row;
-                });
+                if ($is_sole) {
+                    $collection->{$item['table']} = $relation_many->where($item['first'], $item['operator'], $collection->{$item['second']})->toArray();
+                } else {
+                    $collection->map(static function ($row) use ($item, $relation_many) {
+                        if (!isset($row->{$item['second']})) {
+                            return null;
+                        }
+                        $row->{$item['table']} = $relation_many->where($item['first'], $item['operator'], $row->{$item['second']})->toArray();
+                        return $row;
+                    });
+                }
             }
         }
     }
@@ -213,7 +217,7 @@ class QueryBuilder extends Singleton
      * @param $collection
      * @return void
      */
-    protected function withSoleRelation($collection): void
+    protected function withSoleRelation($collection, $is_sole = false): void
     {
         if ($this->withSole) {
             foreach ($this->withSole as $item) {
@@ -224,7 +228,11 @@ class QueryBuilder extends Singleton
 
                 $columns = $this->getColumns($item, false);
 
-                $relation_ids = $collection->pluck($item['first'])->unique();
+                if ($is_sole) {
+                    $relation_ids = [$collection->{$item['first']}];
+                } else {
+                    $relation_ids = $collection->pluck($item['first'])->unique();
+                }
 
                 $relation_sole = DB::table($item['table'])
                     ->select($columns)
@@ -236,13 +244,17 @@ class QueryBuilder extends Singleton
                     })
                     ->get();
 
-                $collection->map(static function ($row) use ($item, $relation_sole) {
-                    if (!isset($row->{$item['first']})) {
-                        return null;
-                    }
-                    $row->{$item['table']} = $relation_sole->where($item['second'], $item['operator'], $row->{$item['first']})->first();
-                    return $row;
-                });
+                if ($is_sole) {
+                    $collection->{$item['table']} = $relation_sole->where($item['second'], $item['operator'], $collection->{$item['first']})->first();
+                } else {
+                    $collection->map(static function ($row) use ($item, $relation_sole) {
+                        if (!isset($row->{$item['first']})) {
+                            return null;
+                        }
+                        $row->{$item['table']} = $relation_sole->where($item['second'], $item['operator'], $row->{$item['first']})->first();
+                        return $row;
+                    });
+                }
             }
         }
     }
@@ -293,7 +305,7 @@ class QueryBuilder extends Singleton
      * @param $ids
      * @return void
      */
-    protected function withManyRelation($collection, $ids): void
+    protected function withManyRelation($collection, $ids, $is_sole = false): void
     {
         if ($this->withMany) {
             foreach ($this->withMany as $item) {
@@ -305,10 +317,14 @@ class QueryBuilder extends Singleton
                 $sorts = $this->request->sorts();
                 $relation_many = $this->getManyRelation_many($item, $ids, $sorts);
 
-                $collection->map(static function ($row) use ($item, $relation_many) {
-                    $row->{$item['table']} = $relation_many->where($item['first'], '=', $row->id)->toArray();
-                    return $row;
-                });
+                if ($is_sole) {
+                    $collection->{$item['table']} = $relation_many->where($item['first'], '=', $collection->id)->toArray();
+                } else {
+                    $collection->map(static function ($row) use ($item, $relation_many) {
+                        $row->{$item['table']} = $relation_many->where($item['first'], '=', $row->id)->toArray();
+                        return $row;
+                    });
+                }
             }
         }
     }
@@ -376,12 +392,12 @@ class QueryBuilder extends Singleton
     public function sole(int $id): object
     {
         $theQuery = $this->query;
-        $theQuery->where('id',$id);
+        $theQuery->where('id', $id);
         $collection = $theQuery->first();
         $ids = [$id];
-        $this->withManyRelation($collection, $ids);
-        $this->withRelation($collection, $ids);
-        $this->withSoleRelation($collection);
+        $this->withManyRelation($collection, $ids, true);
+        $this->withRelation($collection, $ids, true);
+        $this->withSoleRelation($collection, true);
         return $collection;
     }
 
@@ -427,6 +443,4 @@ class QueryBuilder extends Singleton
         return $relation_query_many->get();
     }
 
-
 }
-

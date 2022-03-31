@@ -16,8 +16,7 @@ class {{ class }} extends ProviderController
     private static string $tbl = '{{ table }}';
     private static array $columns = [{{ columns }}];
 
-    #[Pure(true)]
-    private static function rules($items = []): array
+    private static function rules($items = [], $expect = false): array
     {
         $rules = [
             'name' => 'required',
@@ -25,7 +24,8 @@ class {{ class }} extends ProviderController
             'ids' => 'required|array'
         ];
 
-        return $items ? Arr::only($rules, $items) : $rules;
+        $selectRules = $expect ? Arr::except($rules, $items) : Arr::only($rules, $items);
+        return $items ? $selectRules : $rules;
     }
 
     public static function store(stdClass $param): static
@@ -36,7 +36,7 @@ class {{ class }} extends ProviderController
         }
 
         try {
-            DB::table('roles')->insert([
+            DB::table(static::$tbl)->insert([
                 'title' => $param->title,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now()

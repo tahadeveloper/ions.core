@@ -112,6 +112,14 @@ abstract class ProviderController extends Singleton
             'data' => $data
         ];
 
+        // empty request query
+        Kernel::request()->query->remove(config('query-builder.parameters.include','include'));
+        Kernel::request()->query->remove(config('query-builder.parameters.filter','filter'));
+        Kernel::request()->query->remove(config('query-builder.parameters.sort','sort'));
+        Kernel::request()->query->remove(config('query-builder.parameters.limit','limit'));
+        Kernel::request()->query->remove(config('query-builder.parameters.fields','fields'));
+        Kernel::request()->query->remove(config('query-builder.parameters.append','append'));
+
         $response = Kernel::response();
         $response->setStatusCode($status);
         $response->send();
