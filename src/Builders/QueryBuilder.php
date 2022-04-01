@@ -370,11 +370,14 @@ class QueryBuilder extends Singleton
             $limit = $this->request->get('limit', 15);
             $page = $this->request->get('page', 1);
             $collection = $this->query->paginate($limit, ['*'], $pageName, $page);
+            $this->tableTotal = $collection->total();
+            $this->queryLimit = $limit;
+            $this->queryOffset = $page;
             $ids = $collection->pluck('id')->unique();
             $this->withManyRelation($collection, $ids);
             $this->withRelation($collection, $ids);
             $this->withSoleRelation($collection);
-            return $this->tableInfo() + ['items' => $collection];
+            return  $this->tableInfo() +['items' => $collection];
         }
 
         $theQuery = $this->query;
@@ -387,7 +390,6 @@ class QueryBuilder extends Singleton
         $this->withSoleRelation($collection);
         return $this->tableInfo() + ['items' => $collection];
     }
-
 
     public function sole(int $id): object
     {
@@ -442,5 +444,4 @@ class QueryBuilder extends Singleton
 
         return $relation_query_many->get();
     }
-
 }
