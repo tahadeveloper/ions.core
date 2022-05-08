@@ -122,7 +122,7 @@ abstract class ProviderController extends Singleton
 
         $response = Kernel::response();
         $response->setStatusCode($status);
-        $response->send();
+        //$response->send();
     }
 }
 
