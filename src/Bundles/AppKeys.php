@@ -33,7 +33,7 @@ class AppKeys extends Singleton
 
     public static function configJWT(): Configuration|null
     {
-        if(Storage::exists(Path::var('key.pem'))){
+        if (Storage::exists(Path::var('key.pem'))) {
             $key = InMemory::file(Path::var('key.pem'));
             return Configuration::forSymmetricSigner(new Sha256(), $key);
         }
@@ -43,13 +43,12 @@ class AppKeys extends Singleton
     public static function createJWT(): Plain|null
     {
         $config_jwt = self::configJWT();
-        if($config_jwt){
-
+        if ($config_jwt) {
             $now = new DateTimeImmutable();
 
             return $config_jwt->builder()
-                ->issuedBy(config('app.app_url'))
-                ->permittedFor(config('app.app_url'))
+                ->issuedBy(env('APP_NAME'))
+                ->permittedFor(env('APP_NAME'))
                 ->identifiedBy(config('app.app_id'))
                 ->issuedAt($now)
                 ->getToken($config_jwt->signer(), $config_jwt->signingKey());
@@ -60,12 +59,11 @@ class AppKeys extends Singleton
     public static function validateJWT($token): array
     {
         $config_jwt = self::configJWT();
-        if($config_jwt){
-
+        if ($config_jwt) {
             $parse_token = $config_jwt->parser()->parse($token);
 
-            $issue_by = new IssuedBy(config('app.app_url'));
-            $permitted_for = new PermittedFor(config('app.app_url'));
+            $issue_by = new IssuedBy(env('APP_NAME'));
+            $permitted_for = new PermittedFor(env('APP_NAME'));
             $identified_by = new IdentifiedBy(config('app.app_id'));
             $config_jwt->setValidationConstraints($issue_by, $permitted_for, $identified_by);
 

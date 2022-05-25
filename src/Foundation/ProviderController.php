@@ -106,7 +106,7 @@ abstract class ProviderController extends Singleton
     private static function returnStructure(array|object $data, bool $success, $error = [], $status = ResponseAlias::HTTP_OK): void
     {
         static::$result = [
-            'status_code' => $status,
+            'code' => $status,
             'success' => $success,
             'error' => $error,
             'data' => $data
