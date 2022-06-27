@@ -90,12 +90,12 @@ class IonUpload extends Singleton
         return new self();
     }
 
-    public static function update($file_name, $file_original_name, $file, $path): static
+    public static function update($file_name, $file_original_name, $file, $path, array $options = []): static
     {
         $request = Kernel::request();
         $image_name = $request->get($file_name);
         $original_name = $request->get($file_original_name);
-        $upload_file = static::store($file, $path);
+        $upload_file = static::store($file, $path, $options);
         $upload_result = $upload_file::$output;
         if ((int)$upload_result['error'] === 0) {
             if ($image_name) {
