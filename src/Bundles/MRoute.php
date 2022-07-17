@@ -55,6 +55,26 @@ class MRoute extends Singleton
         return new self();
     }
 
+    public static function patch($path, $action, $other_defaults = []): static
+    {
+        static::$path = self::checkPrefix() . $path;
+        static::$action = $action;
+        static::$defaults = $other_defaults;
+        static::$methods = 'patch';
+
+        return new self();
+    }
+
+    public static function options($path, $action, $other_defaults = []): static
+    {
+        static::$path = self::checkPrefix() . $path;
+        static::$action = $action;
+        static::$defaults = $other_defaults;
+        static::$methods = 'options';
+
+        return new self();
+    }
+
     public static function delete($path, $action, $other_defaults = []): static
     {
         static::$path = self::checkPrefix() . $path;
@@ -98,6 +118,11 @@ class MRoute extends Singleton
 
     public static function prefix(string $prefix): static
     {
+        if (isset(static::$prefix)) {
+            static::$prefix = static::$prefix . $prefix;
+            return new self();
+        }
+
         static::$prefix = $prefix;
         return new self();
     }
@@ -126,7 +151,7 @@ class MRoute extends Singleton
         $prefix = null;
         if (!empty(static::$prefix)) {
             //. DIRECTORY_SEPARATOR
-            $prefix = static::$prefix ;
+            $prefix = static::$prefix;
         }
         return $prefix;
     }
@@ -154,7 +179,7 @@ class MRoute extends Singleton
     private static function route($name, $path, $action, $defaults, $where, $method): void
     {
         static::$collection->add($name,
-            new Route($path, ['_controller' => $action] + $defaults, $where, [], '', [], $method)
+            new Route(path: $path, defaults: ['_controller' => $action] + $defaults, requirements: $where, options: [], host: '', schemes: [], methods: $method)
         );
     }
 
