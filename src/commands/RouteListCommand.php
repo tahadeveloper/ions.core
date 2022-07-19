@@ -1,6 +1,6 @@
 <?php
 
-namespace Ions\commands;
+namespace Illuminate\Foundation\Console;
 
 use Closure;
 use Illuminate\Console\Command;
