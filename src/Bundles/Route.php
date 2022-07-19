@@ -89,6 +89,7 @@ class Route extends Singleton
     private function _group(Closure $closure): void
     {
         $closure();
+        array_pop(static::$prefix);
         array_pop(static::$controls);
     }
 
