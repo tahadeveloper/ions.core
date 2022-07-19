@@ -16,6 +16,7 @@
       "email": "taha.developer@outlook.com"
     }
   ],
+  "license": "MIT",
   "require": {
     "php": "^8.0",
     "ext-openssl": "*",

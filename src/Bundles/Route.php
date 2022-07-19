@@ -11,14 +11,14 @@ use Symfony\Component\Routing\Route as SRoute;
 /**
  * Class Route
  * @package Ions\Bundles
- * @method static Route get(string $path, string $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
- * @method static Route post(string $path, string $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
- * @method static Route put(string $path, string $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
- * @method static Route delete(string $path, string $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
- * @method static Route patch(string $path, string $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
- * @method static Route options(string $path, string $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
- * @method static Route any(string $path, string $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
- * @method static Route match(array $methods, string $path, string $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
+ * @method static Route get(string $path, string|Closure $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
+ * @method static Route post(string $path, string|Closure $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
+ * @method static Route put(string $path, string|Closure $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
+ * @method static Route delete(string $path, string|Closure $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
+ * @method static Route patch(string $path, string|Closure $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
+ * @method static Route options(string $path, string|Closure $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
+ * @method static Route any(string $path, string|Closure $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
+ * @method static Route match(array $methods, string $path, string|Closure $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
  * @method static Route prefix(string $name, ?string $controls = null, ?Closure $closure = null): static
  * @method Route group(Closure $closure): void
  */
