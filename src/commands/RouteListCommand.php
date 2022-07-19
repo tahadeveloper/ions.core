@@ -1,12 +1,13 @@
 <?php
 
-namespace Illuminate\Foundation\Console;
+namespace Ions\commands;
 
 use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Ions\Bundles\MRoute;
 use Ions\Bundles\Path;
+use Ions\Foundation\Kernel;
 use Ions\Support\Arr;
 use Ions\Support\Storage;
 use Ions\Support\Str;
@@ -77,7 +78,7 @@ class RouteListCommand extends Command
 
         if ($target === 'php') {
             include_once $path;
-            $routes = MRoute::$collection;
+            $routes = Kernel::RouteCollection();//MRoute::$collection;
         } else {
             $fileLocator = new FileLocator([__DIR__]);
             $loader = new YamlFileLoader($fileLocator);

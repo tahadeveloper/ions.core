@@ -48,6 +48,7 @@ class Kernel extends Singleton
     protected static ?Response $response = null;
     protected static Config|array $config = [];
     protected static Container $app;
+    protected static RouteCollection $collection;
 
     public static string $env_name = '.env';
 
@@ -67,6 +68,8 @@ class Kernel extends Singleton
 
             static::Container();
             static::captureConfig();
+
+            static::$collection = new RouteCollection();
 
             include_once Path::core('helpers.php');
 
@@ -99,6 +102,14 @@ class Kernel extends Singleton
     public static function config(): Config
     {
         return static::$config;
+    }
+
+    /**
+     * @return RouteCollection
+     */
+    public static function RouteCollection(): RouteCollection
+    {
+        return static::$collection;
     }
 
     /**
@@ -350,7 +361,8 @@ class Kernel extends Singleton
 
         if ($target === 'php') {
             include_once Path::route($target_folder . '.' . $target);
-            $routes = MRoute::$collection;
+            //$routes = MRoute::$collection;
+            $routes = static::RouteCollection();
         } else {
             $fileLocator = new FileLocator([__DIR__]);
             $loader = new YamlFileLoader($fileLocator);
