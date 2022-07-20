@@ -10,6 +10,7 @@ use Ions\Foundation\Kernel;
 use Ions\Support\Arr;
 use Ions\Support\DB;
 use Ions\Support\JsonResponse;
+use Ions\Traits\Twig;
 use JetBrains\PhpStorm\NoReturn;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
@@ -346,5 +347,32 @@ if (!function_exists('datatableCols')) {
         }
 
         return toJson($dt_cols);
+    }
+}
+
+if (!function_exists('render')) {
+    /**
+     * only work with twig
+     * @param string $name
+     * @param array $parameters
+     * @param string[] $locales
+     * @return void
+     */
+    function render(string $name, array $parameters = [], array $locales = ['locale' => 'en', 'folder' => 'web']): void
+    {
+        $config_locale = config('app.localization.locale', $locales['locale']);
+        Localization::init($locales['folder'], $config_locale);
+        $trans_json = Localization::localeJson($config_locale);
+
+        $allow_templates = config('app.templates', ['twig']);
+        if (in_array('twig', $allow_templates, true)) {
+            $twig = (new class {
+                use Twig;
+            });
+            $twig->TwigInit();
+            !$trans_json ?: $twig->twig->addGlobal('tJson', $trans_json);
+
+            $twig->twig->display($name, $parameters);
+        }
     }
 }
