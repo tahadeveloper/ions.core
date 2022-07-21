@@ -412,8 +412,14 @@ class Kernel extends Singleton
      */
     private static function handleRouteRequest(array $matcher_params, string $namespace): array
     {
-        // action -> as text : NameController::action
-        $ex_controller_method = explode('::', $matcher_params['_controller']);
+        // check if using :: or @ for method
+        if (str_contains($matcher_params['_controller'], '::')) {
+            // action -> as text : NameController::action
+            $ex_controller_method = explode('::', $matcher_params['_controller']);
+        } else if (str_contains($matcher_params['_controller'], '@')) {
+            // action -> as text : NameController@action
+            $ex_controller_method = explode('@', $matcher_params['_controller']);
+        }
 
         $controller = $ex_controller_method[0] ?? $matcher_params['_controller'];
         $method = $ex_controller_method[1] ?? $matcher_params['method'];
