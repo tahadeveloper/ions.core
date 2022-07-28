@@ -1,2 +1,2 @@
 
-MRoute::get('/{{ route_path }}/{method}/{id}', '{{ class }}',['method' => 'index', 'id' => 0])->name('{{ route_name }}')->save();
+Route::get('/{{ route_path }}/{method}/{id}', '{{ class }}',['method' => 'index', 'id' => 0])->name('{{ route_name }}')->save();
