@@ -9,14 +9,14 @@ use Ions\Support\Str;
 
 trait BuilderFields
 {
-
     protected ?Collection $allowedFields = null;
 
     /**
      * @param $fields
+     * @param bool $all
      * @return $this
      */
-    public function allowedFields($fields): static
+    public function allowedFields($fields, bool $all = false): static
     {
         $fields = is_array($fields) ? $fields : func_get_args();
 
@@ -27,7 +27,7 @@ trait BuilderFields
 
         $this->ensureAllFieldsExist();
 
-        $this->addRequestedModelFieldsToQuery();
+        $this->addRequestedModelFieldsToQuery($all);
 
         return $this;
     }
@@ -55,7 +55,7 @@ trait BuilderFields
     /**
      * @return void
      */
-    protected function addRequestedModelFieldsToQuery(): void
+    protected function addRequestedModelFieldsToQuery($all): void
     {
         $modelTableName = $this->query->from;
         $modelFields = $this->request->fields()->get($modelTableName);
@@ -63,14 +63,13 @@ trait BuilderFields
             $modelFields = $this->allowedFields->toArray();
         }
         $prependedFields = $this->prependFieldsWithTableName($modelFields, $modelTableName);
-
         $prependedFieldsTable = collect($prependedFields)->filter(function ($item) use ($modelTableName) {
             if (Str::contains($item, $modelTableName)) {
                 return $item;
             }
             return null;
         })->toArray();
-        $this->query->select($prependedFieldsTable);
+        $this->query->select($all ? $prependedFields : $prependedFieldsTable);
     }
 
     /**

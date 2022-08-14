@@ -339,7 +339,7 @@ class QueryBuilder extends Singleton
     {
         $relation_query_many = DB::table($item['table'])
             ->join($item['relateTable'], $item['table'] . '.id', '=', $item['second'])
-            ->select($item['table'] . '.*', $item['relateTable'] . '.' . $item['first'])
+            ->select($item['table'] . '.*', $item['relateTable'] . '.' . $item['first'], $item['relateTable'] . '.id as ' . $item['relateTable'] . '_id')
             ->whereIn($item['first'], $ids)
             ->where(function ($query) use ($item) {
                 if ($item['wheres']) {

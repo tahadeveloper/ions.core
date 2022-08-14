@@ -4,7 +4,7 @@ namespace Ions\Traits;
 
 use Illuminate\Support\Collection;
 use Ions\Support\Str;
-use Spatie\QueryBuilder\Exceptions\InvalidSortQuery;
+use Ions\Exceptions\InvalidSortQuery;
 
 trait BuilderSort
 {

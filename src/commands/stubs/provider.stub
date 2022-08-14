@@ -7,20 +7,18 @@ use Ions\Builders\QueryBuilder;
 use Ions\Foundation\ProviderController;
 use Ions\Support\Arr;
 use Ions\Support\DB;
-use JetBrains\PhpStorm\Pure;
 use stdClass;
 use Throwable;
 
 class {{ class }} extends ProviderController
 {
-    private static string $tbl = '{{ table }}';
     private static array $columns = [{{ columns }}];
 
     private static function rules($items = [], $expect = false): array
     {
         $rules = [
             'name' => 'required',
-            'id' => 'required|numeric|not_in:0|exists:' . static::$tbl . ',id',
+            'id' => 'required|numeric|not_in:0|exists:{{ table }},id',
             'ids' => 'required|array'
         ];
 
@@ -36,7 +34,7 @@ class {{ class }} extends ProviderController
         }
 
         try {
-            DB::table(static::$tbl)->insert([
+            DB::table({{ table }})->insert([
                 'title' => $param->title,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now()
@@ -56,25 +54,31 @@ class {{ class }} extends ProviderController
             return new self();
         }
 
-        $item = QueryBuilder::for(static::$tbl)
-            ->allowedFields(self::$columns)
-            ->allowFilters()
-            ->sole($id);
-        self::successResponse($item);
-
+        try {
+            $item = QueryBuilder::for({{ table }})
+                ->allowedFields(self::$columns)
+                ->allowFilters()
+                ->sole($id);
+            self::successResponse($item);
+        } catch (Throwable $exception) {
+            self::serverError($exception->getMessage());
+        }
         return new self();
     }
 
     public static function show(): static
     {
-        $data = QueryBuilder::for(static::$tbl)
-            ->allowedFields(self::$columns)
-            ->allowFilters()
-            ->allowedSorts(self::$columns)
-            ->get();
-        $paging = ['total' => $data['total'], 'limit' => $data['limit'], 'offset' => $data['offset']];
-
-        self::successResponse(array_merge($paging, ['items' => $data['items']]));
+        try {
+            $data = QueryBuilder::for({{ table }})
+                ->allowedFields(self::$columns)
+                ->allowFilters()
+                ->allowedSorts(self::$columns)
+                ->get();
+            $paging = ['total' => $data['total'], 'limit' => $data['limit'], 'offset' => $data['offset']];
+            self::successResponse(array_merge($paging, ['items' => $data['items']]));
+        } catch (Throwable $exception) {
+            self::serverError($exception->getMessage());
+        }
         return new self();
     }
 
@@ -86,7 +90,7 @@ class {{ class }} extends ProviderController
         }
 
         try {
-            DB::table(static::$tbl)
+            DB::table({{ table }})
                 ->where('id', $param->id)->update([
                     'title' => $param->title,
                     'updated_at' => Carbon::now()
@@ -107,7 +111,7 @@ class {{ class }} extends ProviderController
         }
 
         try {
-            DB::table(static::$tbl)->where('id', $id)->delete();
+            DB::table({{ table }})->where('id', $id)->delete();
             self::deletedResponse(['response' => trans('delete_success', [], 'provider')]);
         } catch (Throwable $exception) {
             self::serverError($exception->getMessage());
@@ -123,7 +127,7 @@ class {{ class }} extends ProviderController
         }
 
         try {
-            DB::table(static::$tbl)->whereIn('id', $ids)->delete();
+            DB::table({{ table }})->whereIn('id', $ids)->delete();
             self::deletedResponse(['response' => trans('delete_success', [], 'provider')]);
         } catch (Throwable $exception) {
             self::serverError($exception->getMessage());
