@@ -103,6 +103,8 @@ class QueryBuilder extends Singleton
 
         if ($this->request->limits()->get($this->query->from)) {
             $limit_field = (int)$this->request->limits()->get($this->query->from);
+        } elseif ($this->request->get('limit') === 'all') {
+            $limit_field = (int)$this->query->count();
         } elseif ($this->request->get('limit')) {
             $limit_field = (int)$this->request->get('limit');
         } else {
@@ -377,7 +379,7 @@ class QueryBuilder extends Singleton
             $this->withManyRelation($collection, $ids);
             $this->withRelation($collection, $ids);
             $this->withSoleRelation($collection);
-            return  $this->tableInfo() +['items' => $collection];
+            return $this->tableInfo() + ['items' => $collection];
         }
 
         $theQuery = $this->query;
