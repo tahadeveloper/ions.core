@@ -1,5 +1,6 @@
 <?php
 
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -22,12 +23,14 @@ class SchemaCommand extends Command
             File::makeDirectory(Path::database('Schema'), 0755, true, true);
         }
 
-        $new_file = Path::database('Schema/'.$name.'.php');
+        $unique_name = '_'.Carbon::now()->toObject()->timestamp.'_'.$name;
+
+        $new_file = Path::database('Schema/'.$unique_name.'.php');
         Storage::copy(Path::bin('commands/stubs/schema.stub'), $new_file);
 
         $replace = Str::replace(
             ['{{ namespace }}', '{{ class }}', '{{ table }}'],
-            ['App\\Database\\Schema', $name, $name_lower],
+            ['App\\Database\\Schema', $unique_name, $name_lower],
             Storage::get($new_file));
 
         Storage::put($new_file, $replace);

@@ -5,6 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Ions\Bundles\Path;
 use Ions\Foundation\Kernel;
+use Ions\Support\DB;
 
 class MigrateCommand extends Command
 {
@@ -53,15 +54,19 @@ class MigrateCommand extends Command
             foreach (glob(Path::database('Schema').'/*.php') as $file)
             {
                 $class = basename($file, '.php');
-                $load_class = 'App\Database\Schema\\'.$class;
-                $obj = new $load_class;
-                Schema::connection($db_name)->enableForeignKeyConstraints();
-                $obj->up();
-
-                $this->info('Schema class '.$class.' run successfully.');
+                //check if migration is already installed
+                $migration_installed = DB::table($table_name)->where('migration', $class)->first();
+                if(!$migration_installed){
+                    $load_class = 'App\Database\Schema\\'.$class;
+                    $obj = new $load_class;
+                    Schema::connection($db_name)->enableForeignKeyConstraints();
+                    $obj->up();
+                    DB::table($table_name)->insert(['migration' => $class, 'batch' => 1]);
+                    $this->info('Schema class '.$class.' installed successfully.');
+                }
             }
 
-            $this->info('Schema created tables successfully.');
+            $this->info('Migrated successfully.');
         }
     }
 }
