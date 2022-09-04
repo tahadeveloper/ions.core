@@ -94,16 +94,18 @@ if (!function_exists('validate')) {
             $translator = new Translation\Translator($fileLoader, $locale);
             $factory = new Validation\Factory($translator);
             if ($app->has('db')) {
-                $presenceVerifier = new Validation\DatabasePresenceVerifier($app->get('db')->getDatabaseManager());
+                $presenceVerifier = new Validation\DatabasePresenceVerifier($app->get('db')?->getDatabaseManager());
                 $factory->setPresenceVerifier($presenceVerifier);
             }
-            $validator = $factory->make((array)$params, $rules, $messages);
+            $validator = $factory->make(json_decode(json_encode($params, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR), $rules, $messages);
             if ($validator->fails()) {
                 $errors = $validator->errors();
                 $response = $errors->all();
             }
-        } catch (NotFoundExceptionInterface|ContainerExceptionInterface $exception) {
-            $response = ['validation not working, no database connected.' . $exception->getMessage()];
+        } catch (NotFoundExceptionInterface|ContainerExceptionInterface $e) {
+            $response = ['validation not working, no database connected.' . $e->getMessage()];
+        } catch (JsonException $e) {
+            $response = ['validation not working, Json error.' . $e->getMessage()];
         }
 
         return $response;
