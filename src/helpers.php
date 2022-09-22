@@ -32,16 +32,17 @@ if (!function_exists('ionToken')) {
     /**
      * create csrf token
      * @param string $form_name
+     * @param string $input_name
      * @return string
      */
-    function ionToken(string $form_name = ''): string
+    function ionToken(string $form_name = '',string $input_name = '_ion_token'): string
     {
         // csrf create
         $csrfGenerator = new UriSafeTokenGenerator();
         $csrfStorage = new NativeSessionTokenStorage();
         $csrfManager = new CsrfTokenManager($csrfGenerator, $csrfStorage);
 
-        return '<input type="hidden" value="' . $csrfManager->getToken($form_name) . '" name="_ion_token" id="_ion_token"/>';
+        return '<input type="hidden" value="' . $csrfManager->getToken($form_name) . '" name="'.$input_name.'" id="'.$input_name.'"/>';
     }
 }
 
@@ -51,15 +52,16 @@ if (!function_exists('csrfCheck')) {
      * @param $id
      * @param string $token
      * @param int $request
+     * @param string $input_name
      * @return bool
      */
-    function csrfCheck($id, string $token = '', int $request = 1): bool
+    function csrfCheck($id, string $token = '', int $request = 1,string $input_name = '_ion_token'): bool
     {
         $csrfGenerator = new UriSafeTokenGenerator();
         $csrfStorage = new NativeSessionTokenStorage();
         $csrfManager = new CsrfTokenManager($csrfGenerator, $csrfStorage);
         if ($request === 1) {
-            $token = Kernel::request()->get('_ion_token');
+            $token = Kernel::request()->get($input_name);
         }
 
         $is_valid = false;

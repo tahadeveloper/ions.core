@@ -77,7 +77,7 @@ trait Twig
         $environment->addFunction(new TwigFunction('files', fn(string $url) => Path::files($url, true)));
         $environment->addFunction(new TwigFunction('appUrl', fn(string $url = '',string $folder = null) => Path::rootFolder($url, $folder)));
         $environment->addFunction(new TwigFunction('ionToken',
-            fn(string $form_name) => new Markup(ionToken($form_name), 'UTF-8')));
+            fn(string $form_name,string $input_name = '_ion_token') => new Markup(ionToken($form_name,$input_name), 'UTF-8')));
         $environment->addGlobal('appUrl', config('app.app_url'));
         $environment->addGlobal('_trans', trans());
     }
