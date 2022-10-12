@@ -405,6 +405,18 @@ class QueryBuilder extends Singleton
         return $collection;
     }
 
+    public function count(): int
+    {
+        $theQuery = $this->query;
+        $this->tableTotal = $theQuery->count();
+        $collection = $theQuery->get();
+        $ids = $collection->pluck('id')->unique();
+        $this->withManyRelation($collection, $ids);
+        $this->withRelation($collection, $ids);
+        $this->withSoleRelation($collection);
+        return $this->tableTotal;
+    }
+
     /**
      * @param Collection $sorts
      * @param Builder $relation_query_many

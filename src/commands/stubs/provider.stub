@@ -14,7 +14,13 @@ class {{ class }} extends ProviderController
 {
     private static array $columns = [{{ columns }}];
 
-    private static function rules($items = [], $expect = false): array
+    /**
+     * @param array $items
+     * @param bool $expect = false
+     * @return string[]
+     * @noinspection PhpSameParameterValueInspection
+     */
+    private static function rules(array $items = [], bool $expect = false): array
     {
         $rules = [
             'title' => 'required',
@@ -26,6 +32,10 @@ class {{ class }} extends ProviderController
         return $items ? $selectRules : $rules;
     }
 
+    /**
+     * @param stdClass $params
+     * @return static
+     */
     public static function store(stdClass $param): static
     {
         if ($validated = validate($param, static::rules(['name']))) {
@@ -47,7 +57,11 @@ class {{ class }} extends ProviderController
         return new self();
     }
 
-    public static function single($id): static
+    /**
+     * @param int $id
+     * @return static
+     */
+    public static function single(int $id): static
     {
         if ($validated = validate(['id' => $id],self::rules(['id']))) {
             self::badRequest($validated);
@@ -66,6 +80,9 @@ class {{ class }} extends ProviderController
         return new self();
     }
 
+    /**
+     * @return static
+     */
     public static function show(): static
     {
         try {
@@ -82,6 +99,10 @@ class {{ class }} extends ProviderController
         return new self();
     }
 
+    /**
+     * @param stdClass $param
+     * @return static
+     */
     public static function update(stdClass $param): static
     {
         if ($validated = validate($param, static::rules(['id', 'name']))) {
@@ -103,15 +124,32 @@ class {{ class }} extends ProviderController
         return new self();
     }
 
-    public static function delete($id): static
+    /**
+     * @param int|array $param
+     * @param bool $multi
+     * @return static
+     */
+    public static function delete(int|array $param, bool $multi = false): static
     {
-        if ($validation = validate(['id' => $id], self::rules(['id']))) {
+        if ($multi) {
+            $options = ['items' => ['ids', $param], 'rules' => self::rules(['ids'])];
+        } else {
+            $options = ['items' => ['id', $param], 'rules' => self::rules(['id'])];
+        }
+        if ($validation = validate($options['items'], $options['rules'])) {
             self::badRequest($validation);
             return new self();
         }
 
         try {
-            DB::table('{{ table }}')->where('id', $id)->delete();
+            $builder = DB::table('{{ table }}');
+            if ($multi) {
+                $builder->whereIn('id', $param);
+            } else {
+                $builder->where('id', $param);
+            }
+
+            $builder->delete();
             self::deletedResponse(['response' => trans('delete_success', [], 'provider')]);
         } catch (Throwable $exception) {
             self::serverError($exception->getMessage());
@@ -119,16 +157,17 @@ class {{ class }} extends ProviderController
         return new self();
     }
 
-    public static function deleteAll($ids): static
+    /**
+     * @return static
+     */
+    public static function count(): static
     {
-        if ($validation = validate(['ids' => $ids], self::rules(['ids']))) {
-            self::badRequest($validation);
-            return new self();
-        }
-
         try {
-            DB::table('{{ table }}')->whereIn('id', $ids)->delete();
-            self::deletedResponse(['response' => trans('delete_success', [], 'provider')]);
+            $count = QueryBuilder::for('{{ table }}')
+                ->allowedFields(self::$columns)
+                ->allowFilters()
+                ->count();
+            self::successResponse(['count' => $count]);
         } catch (Throwable $exception) {
             self::serverError($exception->getMessage());
         }
