@@ -393,10 +393,10 @@ class QueryBuilder extends Singleton
         return $this->tableInfo() + ['items' => $collection];
     }
 
-    public function sole(int $id): object
+    public function sole(int $id, string $column = 'id'): object
     {
         $theQuery = $this->query;
-        $theQuery->where('id', $id);
+        $theQuery->where($column, $id);
         $collection = $theQuery->first();
         $ids = [$id];
         $this->withManyRelation($collection, $ids, true);
