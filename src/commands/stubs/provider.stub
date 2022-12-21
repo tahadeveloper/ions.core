@@ -132,9 +132,9 @@ class {{ class }} extends ProviderController
     public static function delete(int|array $param, bool $multi = false): static
     {
         if ($multi) {
-            $options = ['items' => ['ids', $param], 'rules' => self::rules(['ids'])];
+            $options = ['items' => ['ids'=> $param], 'rules' => self::rules(['ids'])];
         } else {
-            $options = ['items' => ['id', $param], 'rules' => self::rules(['id'])];
+            $options = ['items' => ['id'=> $param], 'rules' => self::rules(['id'])];
         }
         if ($validation = validate($options['items'], $options['rules'])) {
             self::badRequest($validation);

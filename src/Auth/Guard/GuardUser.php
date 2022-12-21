@@ -107,6 +107,8 @@ class GuardUser extends Singleton
                 $register->save();
             }
 
+            return $register;
+
         });
 
     }
