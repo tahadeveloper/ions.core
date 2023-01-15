@@ -24,7 +24,7 @@ abstract class ApiController implements BluePrint
     {
         $this->response = Kernel::response();
 
-        $response_info = $this->response;
+        /*$response_info = $this->response;
         $response_info->headers->set('Content-Type', 'application/json');
         $response_info->headers->set('Access-Control-Allow-Origin', "*");
         $response_info->headers->set('Access-Control-Allow-Credentials', 'true');
@@ -38,7 +38,7 @@ abstract class ApiController implements BluePrint
             $response_info->headers->set('HTTP/1.1', "200 OK");
             $response_info->send();
             die();
-        }
+        }*/
 
         $this->request = Kernel::request();
 
