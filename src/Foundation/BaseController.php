@@ -14,7 +14,7 @@ abstract class BaseController implements BluePrint
     use Twig, Smarty;
 
     public Session $session;
-    protected string $locale_folder = 'web';
+    protected string $localeFolder = 'web';
     protected string $locale = 'en';
 
     public function __construct()
@@ -37,19 +37,20 @@ abstract class BaseController implements BluePrint
             appSetLocale($this->session->get('_super')['_locale']);
         }
 
-        $config_locale = config('app.localization.locale', $this->locale);
-        Localization::init($this->locale_folder, $config_locale);
-        $trans_json = Localization::localeJson($config_locale);
+        $configLocale = config('app.localization.locale', $this->locale);
+        /** @noinspection PhpUndefinedFieldInspection */
+        Localization::init(($this->localeFolder ?? $this->locale_folder), $configLocale);
+        $transJson = Localization::localeJson($configLocale);
 
-        $allow_templates = config('app.templates', ['twig']);
-        if (in_array('twig', $allow_templates, true)) {
+        $allowTemplates = config('app.templates', ['twig']);
+        if (in_array('twig', $allowTemplates, true)) {
             $this->TwigInit();
-            !$trans_json ?: $this->twig->addGlobal('tJson', $trans_json);
+            !$transJson ?: $this->twig->addGlobal('tJson', $transJson);
         }
 
-        if (in_array('smarty', $allow_templates, true)) {
+        if (in_array('smarty', $allowTemplates, true)) {
             $this->smartyInit();
-            !$trans_json ?: $this->smarty->assignGlobal('tJson', $trans_json);
+            !$transJson ?: $this->smarty->assignGlobal('tJson', $transJson);
         }
     }
 
@@ -69,6 +70,7 @@ abstract class BaseController implements BluePrint
      * @param string $method
      * @param array $parameters
      * @return void
+     * @noinspection PhpUnused
      */
     public function callAction(string $method, array $parameters): void
     {
@@ -82,12 +84,10 @@ abstract class BaseController implements BluePrint
      * @param array $parameters
      * @return mixed
      *
-     * @throws \BadMethodCallException
+     * @throws BadMethodCallException
      */
     public function __call(string $method, array $parameters)
     {
-        throw new BadMethodCallException(sprintf(
-            'Method %s::%s does not exist.', static::class, $method
-        ));
+        throw new BadMethodCallException(sprintf('Method %s::%s does not exist.', static::class, $method));
     }
 }
