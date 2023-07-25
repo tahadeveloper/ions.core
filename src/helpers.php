@@ -99,7 +99,11 @@ if (!function_exists('validate')) {
                 $presenceVerifier = new Validation\DatabasePresenceVerifier($app->get('db')?->getDatabaseManager());
                 $factory->setPresenceVerifier($presenceVerifier);
             }
-            $validator = $factory->make(json_decode(json_encode($params, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR), $rules, $messages);
+            // check if params is array or object
+            if (is_object($params)) {
+                $params = json_decode(json_encode($params,JSON_THROW_ON_ERROR),true, 512, JSON_THROW_ON_ERROR);
+            }
+            $validator = $factory->make($params, $rules, $messages);
             if ($validator->fails()) {
                 $errors = $validator->errors();
                 $response = $errors->all();
