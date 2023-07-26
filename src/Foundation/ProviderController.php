@@ -120,6 +120,15 @@ abstract class ProviderController extends Singleton
         Kernel::request()->query->remove(config('query-builder.parameters.fields','fields'));
         Kernel::request()->query->remove(config('query-builder.parameters.append','append'));
 
+        // get all request query
+        $query = Kernel::request()->all();
+        // remove all request query
+        // loop through all request query
+        foreach ($query as $key => $value) {
+            // remove all request query
+            Kernel::request()->query->remove($key);
+        }
+
         $response = Kernel::response();
         $response->setStatusCode($status);
         //$response->send();
