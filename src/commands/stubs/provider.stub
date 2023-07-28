@@ -33,7 +33,7 @@ class {{ class }} extends ProviderController
     }
 
     /**
-     * @param stdClass $params
+     * @param stdClass $param
      * @return static
      */
     public static function store(stdClass $param): static
@@ -110,10 +110,12 @@ class {{ class }} extends ProviderController
             return new self();
         }
 
+        $elements = (array) $param;
+        $elements = Arr::except($elements, ['id']);
+
         try {
             DB::table('{{ table }}')
-                ->where('id', $param->id)->update([
-                    'title' => $param->title,
+                ->where('id', $param->id)->update($elements + [
                     'updated_at' => Carbon::now()
                 ]);
             self::updatedResponse(['response' => trans('update_success', [], 'provider')]);
