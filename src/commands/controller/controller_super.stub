@@ -10,7 +10,7 @@ use Throwable;
 class {{ class }} extends BaseController
 {
     protected string $viewSpace = '@super/';
-    protected string $locale_folder = 'super';
+    protected string $localeFolder = 'super';
 
     public function _loadedState(Request $request): void
     {
@@ -34,43 +34,4 @@ class {{ class }} extends BaseController
         }
     }
 
-    public function render(Request $request): void
-    {
-        // render ajax datatable
-    }
-
-    public function add(Request $request): void
-    {
-        // add form
-    }
-
-    public function save(Request $request): void
-    {
-        // submit add
-    }
-
-    public function view(Request $request): void
-    {
-        // show details
-    }
-
-    public function edit(Request $request): void
-    {
-        // edit form
-    }
-
-    public function update(Request $request): void
-    {
-        // submit edit
-    }
-
-    public function destroy(Request $request): void
-    {
-        // delete item
-    }
-
-    public function destroyMulti(Request $request): void
-    {
-        // delete multi items
-    }
 }
