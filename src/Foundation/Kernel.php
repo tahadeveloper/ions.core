@@ -50,7 +50,7 @@ class Kernel extends Singleton
     protected static Container $app;
     protected static RouteCollection $collection;
 
-    public static string $env_name = '.env';
+    public static string $envName = '.env';
 
     /**
      * boot app with evn properties.
@@ -64,7 +64,7 @@ class Kernel extends Singleton
 
             static::structureBone();
 
-            (Dotenv::createImmutable(realpath(static::$environmentPath), static::$env_name))->safeLoad();
+            (Dotenv::createImmutable(realpath(static::$environmentPath), static::$envName))->safeLoad();
 
             static::Container();
             static::captureConfig();
@@ -138,9 +138,9 @@ class Kernel extends Singleton
      */
     private static function preloads(): void
     {
-        $loads_files = static::config()->get('app.preloads');
-        if (!empty($loads_files)) {
-            foreach ($loads_files as $loads_file) {
+        $loadsFiles = static::config()->get('app.preloads');
+        if (!empty($loadsFiles)) {
+            foreach ($loadsFiles as $loads_file) {
                 if (Storage::exists(Path::src($loads_file))) {
                     include_once Path::src($loads_file);
                 }
@@ -155,10 +155,10 @@ class Kernel extends Singleton
     {
         if (empty(static::$config) && !static::$config instanceof Config) {
             try {
-                $config_files = Storage::files(Path::config());
+                $configFiles = Storage::files(Path::config());
 
                 $configs = [];
-                foreach ($config_files as $config_file) {
+                foreach ($configFiles as $config_file) {
                     $configs[File::name($config_file)] = include($config_file);
                 }
                 static::$config = new Config($configs);
@@ -258,8 +258,8 @@ class Kernel extends Singleton
             $whoops = new Run;
             $whoops->pushHandler(new JsonResponseHandler());
             $whoops->pushHandler(function ($e) {
-                $status_code = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 501;
-                static::response()->setStatusCode($status_code)->send();
+                $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 501;
+                static::response()->setStatusCode($statusCode)->send();
             });
             $whoops->register();
         } else {
@@ -292,26 +292,26 @@ class Kernel extends Singleton
     {
         self::request()->wantsJson() ? static::errorDebugApi() : static::errorDebug();
 
-        self::request()->segment(1) === 'api' ? $target_folder = 'api' : $target_folder = 'web';
+        self::request()->segment(1) === 'api' ? $targetFolder = 'api' : $targetFolder = 'web';
         self::request()->segment(1) !== 'api' ?: $namespace .= 'Api\\';
 
         try {
-            $routes = static::captureRoute($target_folder);
+            $routes = static::captureRoute($targetFolder);
             $context = new RequestContext();
             $context->fromRequest(static::$request);
             $matcher = new UrlMatcher($routes, $context);
-            $matcher_params = $matcher->match($context->getPathInfo());
+            $matcherParams = $matcher->match($context->getPathInfo());
 
             // run closure #1st choice
-            if ($matcher_params['_controller'] instanceof Closure) {
-                $closure = $matcher_params['_controller'];
+            if ($matcherParams['_controller'] instanceof Closure) {
+                $closure = $matcherParams['_controller'];
                 $closure(static::$request);
                 exit();
             }
 
             static::$response->setVary(['Accept-Encoding', 'gzip, compress, br']);
             static::$response->setVary(['Content-Encoding', 'br']);
-            [$controller, $method] = self::handleRouteRequest($matcher_params, $namespace);
+            [$controller, $method] = self::handleRouteRequest($matcherParams, $namespace);
 
             self::instanceTheController($controller, $method);
 
@@ -332,50 +332,50 @@ class Kernel extends Singleton
 
     /**
      * @param string $error
-     * @param int $status_code
+     * @param int $statusCode
      * @return void
      */
-    #[NoReturn] private static function makeError(string $error, int $status_code): void
+    #[NoReturn] private static function makeError(string $error, int $statusCode): void
     {
         if (self::request()->wantsJson()) {
             static::$response->setContent(toJson(['message' => $error]));
         } else {
             static::$response->setContent(static::HtmlErrorRender([
                 'statusText' => $error,
-                'statusCode' => $status_code,
+                'statusCode' => $statusCode,
             ]));
         }
-        static::$response->setStatusCode($status_code);
+        static::$response->setStatusCode($statusCode);
         static::$response->send();
         die();
     }
 
     /**
-     * @param string $target_folder
+     * @param string $targetFolder
      * @return RouteCollection
      */
-    private static function captureRoute(string $target_folder): RouteCollection
+    private static function captureRoute(string $targetFolder): RouteCollection
     {
-        file_exists(Path::route($target_folder . '.php')) ? $target = 'php' : $target = 'yaml';
+        file_exists(Path::route($targetFolder . '.php')) ? $target = 'php' : $target = 'yaml';
         MRoute::$collection = new RouteCollection();
 
         if ($target === 'php') {
-            include_once Path::route($target_folder . '.' . $target);
+            include_once Path::route($targetFolder . '.' . $target);
             //$routes = MRoute::$collection;
             $routes = static::RouteCollection();
         } else {
             $fileLocator = new FileLocator([__DIR__]);
             $loader = new YamlFileLoader($fileLocator);
-            $routes = $loader->load(Path::route($target_folder . '.' . $target));
+            $routes = $loader->load(Path::route($targetFolder . '.' . $target));
         }
 
         // attributes routing
-        $target_folder === 'web' ? $attributes_path = Path::src('Http') : $attributes_path = Path::api();
-        if (Storage::exists($attributes_path)) {
-            $loader = new AnnotationDirectoryLoader(new FileLocator($attributes_path), new AnnotatedRouteControllerLoader());
-            $attributes_routes = $loader->load($attributes_path);
-            if ($attributes_routes !== null && !empty($attributes_routes->all())) {
-                $routes->addCollection($attributes_routes);
+        $targetFolder === 'web' ? $attributesPath = Path::src('Http') : $attributesPath = Path::api();
+        if (Storage::exists($attributesPath)) {
+            $loader = new AnnotationDirectoryLoader(new FileLocator($attributesPath), new AnnotatedRouteControllerLoader());
+            $attributesRoutes = $loader->load($attributesPath);
+            if ($attributesRoutes !== null && !empty($attributesRoutes->all())) {
+                $routes->addCollection($attributesRoutes);
             }
         }
 
@@ -399,51 +399,51 @@ class Kernel extends Singleton
         !method_exists($instance, '_loadedState') ?: $instance->_loadedState(static::$request);
         if (method_exists($instance, 'callAction')) {
             $instance->callAction($method, [static::$request]);
-        } else if (method_exists($instance, $method)) {
+        } elseif (method_exists($instance, $method)) {
             $instance->{$method}(...array_values([static::$request]));
         }
         !method_exists($instance, '_endState') ?: $instance->_endState(static::$request);
     }
 
     /**
-     * @param array $matcher_params
+     * @param array $matcherParams
      * @param string $namespace
      * @return array
      */
-    private static function handleRouteRequest(array $matcher_params, string $namespace): array
+    private static function handleRouteRequest(array $matcherParams, string $namespace): array
     {
         // check if using :: or @ for method
-        if (str_contains($matcher_params['_controller'], '::')) {
+        if (str_contains($matcherParams['_controller'], '::')) {
             // action -> as text : NameController::action
-            $ex_controller_method = explode('::', $matcher_params['_controller']);
-        } else if (str_contains($matcher_params['_controller'], '@')) {
+            $exControllerMethod = explode('::', $matcherParams['_controller']);
+        } elseif (str_contains($matcherParams['_controller'], '@')) {
             // action -> as text : NameController@action
-            $ex_controller_method = explode('@', $matcher_params['_controller']);
+            $exControllerMethod = explode('@', $matcherParams['_controller']);
         }
 
-        $controller = $ex_controller_method[0] ?? $matcher_params['_controller'];
-        $method = $ex_controller_method[1] ?? $matcher_params['method'];
+        $controller = $exControllerMethod[0] ?? $matcherParams['_controller'];
+        $method = $exControllerMethod[1] ?? $matcherParams['method'];
 
         static::config()->set('app._method', $method);
 
         // remove id from parameters when 0 value
-        $matcher_params = Arr::where($matcher_params, static function ($value, $key) {
+        $matcherParams = Arr::where($matcherParams, static function ($value, $key) {
             return !($key === 'id' && $value === 0);
         });
 
         // add matcher to request parameters
-        static::$request->attributes->add($matcher_params);
+        static::$request->attributes->add($matcherParams);
 
         // secure app, accept request from app_url
         if (static::$request->getSchemeAndHttpHost() . env('APP_FOLDER') !== env('APP_URL')) {
             throw new EncryptException('App host does not exist!.');
         }
 
+        $needles = array_merge(['super', 'api', 'Api'], static::config()->get('app.needles', []));
         // add namespace to controller if didn't have
         if ($namespace && $controller !== 'App\Schedule' && !Str::contains($controller, $namespace)) {
             // check if super or api
-            if (Str::contains($controller, 'super')
-                || Str::contains($controller, 'api') || Str::contains($namespace, 'Api') ) {
+            if (Str::contains($controller, $needles,true)|| Str::contains($namespace, 'Api')) {
                 $controller = $namespace . $controller;
             } else {
                 $controller = $namespace . 'Controllers\\' . $controller;
@@ -455,5 +455,4 @@ class Kernel extends Singleton
 
         return array($controller, $method);
     }
-
 }
