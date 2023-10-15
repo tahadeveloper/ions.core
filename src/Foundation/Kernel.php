@@ -435,7 +435,11 @@ class Kernel extends Singleton
         static::$request->attributes->add($matcherParams);
 
         // secure app, accept request from app_url
-        if (static::$request->getSchemeAndHttpHost() . env('APP_FOLDER') !== env('APP_URL')) {
+        $host = static::$request->headers->get('host') . env('APP_FOLDER');
+        // remove http:// or https:// from APP_URL
+        $removeProtcals = ['http://', 'https://'];
+        $appUrl = Str::remove($removeProtcals, env('APP_URL'));
+        if ($host !== $appUrl) {
             throw new EncryptException('App host does not exist!.');
         }
 

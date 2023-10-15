@@ -21,7 +21,7 @@
     "php": "^8.0",
     "ext-openssl": "*",
     "ext-zip": "*",
-    "cartalyst/sentinel": "^v6.0.0",
+    "cartalyst/sentinel": "^v6.0.1",
     "illuminate/cache": "v9.52.4",
     "illuminate/console": "v9.52.4",
     "illuminate/database": "v9.52.4",
@@ -42,7 +42,7 @@
     "vlucas/phpdotenv": "^v5.5.0"
   },
   "require-dev": {
-    "pestphp/pest": "^v1.22.3"
+    "pestphp/pest": "^v1.23.1"
   },
   "config": {
     "optimize-autoloader": true,
