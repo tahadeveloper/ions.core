@@ -184,7 +184,7 @@ class GuardControl
             ->table(self::$tables_names['controls'])
             ->select(self::$tables_names['controls'] . '.*', 'c2.count')
             ->leftJoin(DB::connection(self::$connection_name)
-                ->raw('(SELECT parent_id, COUNT(*) AS count FROM `' . self::$tables_names['controls'] . '` GROUP BY parent_id) c2'),
+                ->raw('(SELECT parent_id, COUNT(*) AS count FROM `' . DB::connection(self::$connection_name)->getTablePrefix() . self::$tables_names['controls'] . '` GROUP BY parent_id) ' . DB::connection(self::$connection_name)->getTablePrefix() . 'c2'),
                 function ($join) {
                     $join->on(self::$tables_names['controls'] . '.id', 'c2.parent_id');
                 })
