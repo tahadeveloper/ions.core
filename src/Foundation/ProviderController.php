@@ -89,6 +89,56 @@ abstract class ProviderController extends Singleton
         }
     }
 
+    protected static function notFound($response): void
+    {
+        static::returnStructure([], false, $response, ResponseAlias::HTTP_NOT_FOUND);
+    }
+
+    protected static function unauthorized($response): void
+    {
+        static::returnStructure([], false, $response, ResponseAlias::HTTP_UNAUTHORIZED);
+    }
+
+    protected static function forbidden($response): void
+    {
+        static::returnStructure([], false, $response, ResponseAlias::HTTP_FORBIDDEN);
+    }
+
+    protected static function conflict($response): void
+    {
+        static::returnStructure([], false, $response, ResponseAlias::HTTP_CONFLICT);
+    }
+
+    protected static function unprocessableEntity($response): void
+    {
+        static::returnStructure([], false, $response, ResponseAlias::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    protected static function noContent($response): void
+    {
+        static::returnStructure([], true, [], ResponseAlias::HTTP_NO_CONTENT);
+    }
+
+    protected static function created($response): void
+    {
+        static::returnStructure($response, true, [], ResponseAlias::HTTP_CREATED);
+    }
+
+    protected static function success($response): void
+    {
+        static::returnStructure($response, true);
+    }
+
+    protected static function updated($response): void
+    {
+        static::returnStructure($response, true, [], ResponseAlias::HTTP_ACCEPTED);
+    }
+
+    protected static function deleted($response): void
+    {
+        static::returnStructure($response, true, [], ResponseAlias::HTTP_ACCEPTED);
+    }
+
     protected static function createdResponse($response): void
     {
         static::returnStructure($response, true, [], ResponseAlias::HTTP_CREATED);
@@ -127,7 +177,6 @@ abstract class ProviderController extends Singleton
             'fields',
             'append',
         ];
-
         foreach ($queryParametersToRemove as $param) {
             Kernel::request()->query->remove(config("query-builder.parameters.$param", $param));
         }
