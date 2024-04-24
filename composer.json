@@ -31,7 +31,7 @@
     "illuminate/pagination": "v9.52.4",
     "illuminate/validation": "v9.52.4",
     "lcobucci/jwt": "^4.3.0",
-    "monolog/monolog": "^2.9.1",
+    "monolog/monolog": "^2.9.3",
     "peppeocchi/php-cron-scheduler": "^4.0",
     "symfony/config": "^v6.0.19",
     "symfony/mailer": "^6.0.19",
@@ -39,7 +39,9 @@
     "symfony/security-csrf": "^v6.0.19",
     "symfony/translation": "^v6.0.19",
     "symfony/yaml": "^6.0.19",
-    "vlucas/phpdotenv": "^v5.5.0"
+    "vlucas/phpdotenv": "^v5.6.0",
+    "league/flysystem": "^3.27",
+    "league/flysystem-aws-s3-v3": "^3.27"
   },
   "require-dev": {
     "pestphp/pest": "^v1.23.1"

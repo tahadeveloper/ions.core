@@ -33,10 +33,16 @@ abstract class ProviderController extends Singleton
         return $instance;
     }
 
+    public static function request(array $query): self
+    {
+        Kernel::request()->query->add($query);
+        return new static();
+    }
+
     public static function _constructStatic(): void
     {
         $locale = config('app.localization.locale', 'en');
-        Localization::fileTranslate('provider', $locale,'provider');
+        Localization::fileTranslate('provider', $locale, 'provider');
     }
 
     public function toJson(): bool|string
@@ -112,18 +118,23 @@ abstract class ProviderController extends Singleton
             'data' => $data
         ];
 
-        // empty request query
-        Kernel::request()->query->remove(config('query-builder.parameters.include','include'));
-        Kernel::request()->query->remove(config('query-builder.parameters.filter','filter'));
-        Kernel::request()->query->remove(config('query-builder.parameters.sort','sort'));
-        Kernel::request()->query->remove(config('query-builder.parameters.limit','limit'));
-        Kernel::request()->query->remove(config('query-builder.parameters.fields','fields'));
-        Kernel::request()->query->remove(config('query-builder.parameters.append','append'));
+        // Clear specific request query parameters
+        $queryParametersToRemove = [
+            'include',
+            'filter',
+            'sort',
+            'limit',
+            'fields',
+            'append',
+        ];
+
+        foreach ($queryParametersToRemove as $param) {
+            Kernel::request()->query->remove(config("query-builder.parameters.$param", $param));
+        }
 
         // get all request query
         $query = Kernel::request()->all();
         // remove all request query
-        // loop through all request query
         foreach ($query as $key => $value) {
             // remove all request query
             Kernel::request()->query->remove($key);
@@ -131,7 +142,6 @@ abstract class ProviderController extends Singleton
 
         $response = Kernel::response();
         $response->setStatusCode($status);
-        //$response->send();
     }
 }
 
