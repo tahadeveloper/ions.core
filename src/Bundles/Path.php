@@ -6,7 +6,7 @@ use Ions\Foundation\Singleton;
 
 class Path extends Singleton
 {
-    protected static string $environmentPath =  __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
+    protected static string $environmentPath = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
 
     /**
      * config folder in app folder
@@ -16,7 +16,7 @@ class Path extends Singleton
      */
     public static function config(string $file = ''): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -27,7 +27,7 @@ class Path extends Singleton
      */
     public static function src(string $file): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -38,7 +38,7 @@ class Path extends Singleton
      */
     public static function views(string $file): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'views' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'views' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -49,7 +49,7 @@ class Path extends Singleton
      */
     public static function api(string $file = ''): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . '/src/Http/Api' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . '/src/Http/Api' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -60,7 +60,7 @@ class Path extends Singleton
      */
     public static function core(string $file): string
     {
-        return  realpath(__DIR__ . DIRECTORY_SEPARATOR. '..' )   . DIRECTORY_SEPARATOR . $file;
+        return realpath(__DIR__ . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -71,7 +71,7 @@ class Path extends Singleton
      */
     public static function var(string $file): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -82,7 +82,7 @@ class Path extends Singleton
      */
     public static function route(string $file = ''): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR  . 'routes' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'routes' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -97,7 +97,7 @@ class Path extends Singleton
         if ($url) {
             return env('APP_URL') . '/' . $file;
         }
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -123,7 +123,7 @@ class Path extends Singleton
      */
     public static function cache(string $file): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -149,7 +149,7 @@ class Path extends Singleton
         if ($url) {
             return env('APP_URL') . '/' . 'public' . '/' . $file;
         }
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -160,7 +160,7 @@ class Path extends Singleton
      */
     public static function locale(string $file = ''): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'lang' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'lang' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -171,7 +171,7 @@ class Path extends Singleton
      */
     public static function logs(string $file): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -181,12 +181,39 @@ class Path extends Singleton
      * @param bool $url
      * @return string
      */
-    public static function files(string $file, bool $url = false): string
+    public static function files(string $file, bool $url = false, string $mainFolder = ''): string
     {
+        if (env('FILESYSTEM_DISK', 'local') === 's3' && env('AWS_BASE_PATH')) {
+            $mainFolder = env('AWS_BASE_PATH');
+            $file = $mainFolder . '/' . $file;
+        }
+        if (env('FILESYSTEM_DISK', 'local') === 's3') {
+            if ($url) {
+                return IonDisk::getSignedUrl($file);
+            }
+            return $file;
+        }
         if ($url) {
             return env('APP_URL') . '/' . 'public' . '/' . 'uploads' . '/' . $file;
         }
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $file;
+    }
+
+    public static function filesRoot(string $file, bool $url = false, string $mainFolder = ''): string
+    {
+        if (env('FILESYSTEM_DISK', 'local') === 's3' && $mainFolder) {
+            $file = $mainFolder . '/' . $file;
+        }
+        if (env('FILESYSTEM_DISK', 'local') === 's3') {
+            if ($url) {
+                return IonDisk::getSignedUrl($file);
+            }
+            return IonDisk::getSignedUrl($file);
+        }
+        if ($url) {
+            return env('APP_URL') . '/' . $file;
+        }
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -197,7 +224,7 @@ class Path extends Singleton
      */
     public static function database(string $file): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -208,7 +235,7 @@ class Path extends Singleton
      */
     public static function bin(string $file): string
     {
-        return realpath(__DIR__ . DIRECTORY_SEPARATOR. '..' ) . DIRECTORY_SEPARATOR . $file;
+        return realpath(__DIR__ . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -219,7 +246,7 @@ class Path extends Singleton
      */
     public static function auth(string $file): string
     {
-        return realpath(__DIR__ . DIRECTORY_SEPARATOR. '..' ) . DIRECTORY_SEPARATOR . 'Auth' . DIRECTORY_SEPARATOR . $file;
+        return realpath(__DIR__ . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR . 'Auth' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -230,6 +257,6 @@ class Path extends Singleton
      */
     public static function templates(string $file): string
     {
-        return realpath(self::$environmentPath). DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR . $file;
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'templates' . DIRECTORY_SEPARATOR . $file;
     }
 }

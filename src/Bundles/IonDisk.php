@@ -5,9 +5,11 @@ namespace Ions\Bundles;
 use Aws\S3\S3Client;
 use Exception;
 use InvalidArgumentException;
+use Ions\Support\File;
 use Ions\Support\Str;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\Filesystem;
+use League\Flysystem\FilesystemException;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -17,11 +19,15 @@ class IonDisk
 {
     private static string $type;
     private static $filesystem;
+    private static $basePath;
+    private static $bucket;
 
     public static function init(): void
     {
         // Initialize properties
         self::$type = self::getTypeFromEnv();
+        self::$basePath = config('filesystem.disks.local.root');
+        self::$bucket = config('filesystem.disks.s3.bucket');
         self::$filesystem = self::initializeFilesystem();
     }
 
@@ -49,8 +55,8 @@ class IonDisk
                     'secret' => config('filesystem.disks.s3.secret'),
                 ],
             ];
-            $adapter = new AwsS3V3Adapter(new S3Client($options), config('filesystem.disks.s3.bucket'),
-                config('filesystem.disks.s3.base_path', 'app'));
+            $adapter = new AwsS3V3Adapter(new S3Client($options), self::$bucket,
+                self::$basePath);
             return new Filesystem($adapter);
         }
 
@@ -64,7 +70,7 @@ class IonDisk
         // get extension
         $extension = pathinfo($originalFilename, PATHINFO_EXTENSION);
         $randomName .= '.' . $extension;
-        $filePath = "{$userProvidedPath}/{$randomName}";
+        $filePath = "$userProvidedPath/$randomName";
 
         // Upload the file to the specified path
         try {
@@ -147,11 +153,11 @@ class IonDisk
             case 's3':
                 $s3Client = self::getS3Client();
                 // Create the Flysystem adapter
-                $adapter = new AwsS3V3Adapter($s3Client, config('filesystem.disks.s3.bucket'),
-                    config('filesystem.disks.s3.base_path', 'app'));
+                $adapter = new AwsS3V3Adapter($s3Client, self::$bucket,
+                    self::$basePath);
                 return new Filesystem($adapter);
             default:
-                throw new InvalidArgumentException("Unsupported disk type: $type");
+                throw new InvalidArgumentException("Unsupported disk type: " . self::$type);
         }
 
         return null;
@@ -285,6 +291,173 @@ class IonDisk
         // Get the actual resigned-url
         return $url;
     }
+
+    public static function exists($path, $defaultOptions = null): bool
+    {
+        if ($defaultOptions) {
+            if ($defaultOptions->has('bucket')) {
+                self::$bucket = $defaultOptions->get('bucket');
+            }
+            if ($defaultOptions->has('basePath')) {
+                self::$basePath = $defaultOptions->get('basePath');
+            }
+        }
+        $disk = self::flySystem();
+
+        if ($disk === null) {
+            if ($defaultOptions && $defaultOptions->has('target')) {
+                $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
+            } else {
+                $path = Path::files($path);
+            }
+            return File::exists($path);
+        }
+
+        return $disk->has($path);
+    }
+
+    public static function createDirectory($path, $defaultOptions = null): bool
+    {
+        if ($defaultOptions) {
+            if ($defaultOptions->has('bucket')) {
+                self::$bucket = $defaultOptions->get('bucket');
+            }
+            if ($defaultOptions->has('basePath')) {
+                self::$basePath = $defaultOptions->get('basePath');
+            }
+        }
+        $disk = self::flySystem();
+
+        if ($disk === null) {
+            if ($defaultOptions && $defaultOptions->has('target')) {
+                $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
+            } else {
+                $path = Path::files($path);
+            }
+            return File::makeDirectory($path, 0777, true);
+        }
+
+        try {
+            $disk->createDirectory($path);
+        } catch (FilesystemException $e) {
+            throw new RuntimeException('Failed to create directory: ' . $e->getMessage());
+            return false;
+        }
+        return true;
+    }
+
+    public static function copy($sourcePath, $destinationPath, $defaultOptions = null): bool
+    {
+        if ($defaultOptions) {
+            if ($defaultOptions->has('bucket')) {
+                self::$bucket = $defaultOptions->get('bucket');
+            }
+            if ($defaultOptions->has('basePath')) {
+                self::$basePath = $defaultOptions->get('basePath');
+            }
+            if ($defaultOptions->has('removePath')) {
+                self::$basePath = '';
+                if ($defaultOptions->has('fromPath') && $defaultOptions->has('toPath')) {
+                    $sourcePath = $defaultOptions->get('fromPath') . '/' . $sourcePath;
+                    $destinationPath = $defaultOptions->get('toPath') . '/' . $destinationPath;
+                }
+            }
+        }
+
+        $disk = self::flySystem();
+
+        if ($disk === null) {
+            // remove fromPath from sourcePath
+            $sourcePath = str_replace($defaultOptions->get('fromPath') . '/', '', $sourcePath);
+            $destinationPath = str_replace($defaultOptions->get('toPath') . '/', '', $destinationPath);
+
+            if ($defaultOptions->has('targetFrom')) {
+                $sourcePath = Path::filesRoot($defaultOptions->get('targetFrom') . '/' . $sourcePath);
+            } else {
+                $sourcePath = Path::files($sourcePath);
+            }
+            if ($defaultOptions->has('targetTo')) {
+                $destinationPath = Path::filesRoot($defaultOptions->get('targetTo') . '/' . $destinationPath);
+            } else {
+                $destinationPath = Path::files($destinationPath);
+            }
+            return File::copy($sourcePath, $destinationPath);
+        }
+
+        try {
+            if ($defaultOptions && $defaultOptions->get('bucket') && $defaultOptions->has('otherBucket')) {
+                $client = self::getS3Client();
+                $client->copyObject([
+                    'Bucket' => $defaultOptions->get('otherBucket'),
+                    'CopySource' => $defaultOptions->get('bucket') . '/' . $sourcePath,
+                    'Key' => $destinationPath,
+                ]);
+            } else {
+                $disk->copy($sourcePath, $destinationPath);
+            }
+        } catch (FilesystemException $e) {
+            throw new RuntimeException('Failed to copy file: ' . $e->getMessage());
+            return false;
+        }
+        return true;
+    }
+
+    public static function move($sourcePath, $destinationPath, $defaultOptions = null): bool
+    {
+        if ($defaultOptions) {
+            if ($defaultOptions->has('bucket')) {
+                self::$bucket = $defaultOptions->get('bucket');
+            }
+            if ($defaultOptions->has('basePath')) {
+                self::$basePath = $defaultOptions->get('basePath');
+            }
+            if ($defaultOptions->has('removePath')) {
+                self::$basePath = '';
+                if ($defaultOptions->has('fromPath') && $defaultOptions->has('toPath')) {
+                    $sourcePath = $defaultOptions->get('fromPath') . '/' . $sourcePath;
+                    $destinationPath = $defaultOptions->get('toPath') . '/' . $destinationPath;
+                }
+            }
+        }
+
+        $disk = self::flySystem();
+
+        if ($disk === null) {
+            // remove fromPath from sourcePath
+            $sourcePath = str_replace($defaultOptions->get('fromPath') . '/', '', $sourcePath);
+            $destinationPath = str_replace($defaultOptions->get('toPath') . '/', '', $destinationPath);
+
+            if ($defaultOptions->has('targetFrom')) {
+                $sourcePath = Path::filesRoot($defaultOptions->get('targetFrom') . '/' . $sourcePath);
+            } else {
+                $sourcePath = Path::files($sourcePath);
+            }
+            if ($defaultOptions->has('targetTo')) {
+                $destinationPath = Path::filesRoot($defaultOptions->get('targetTo') . '/' . $destinationPath);
+            } else {
+                $destinationPath = Path::files($destinationPath);
+            }
+            return File::move($sourcePath, $destinationPath);
+        }
+
+        try {
+            if ($defaultOptions && $defaultOptions->get('bucket') && $defaultOptions->has('otherBucket')) {
+                $client = self::getS3Client();
+                $client->copyObject([
+                    'Bucket' => $defaultOptions->get('otherBucket'),
+                    'CopySource' => $defaultOptions->get('bucket') . '/' . $sourcePath,
+                    'Key' => $destinationPath,
+                ]);
+            } else {
+                $disk->move($sourcePath, $destinationPath);
+            }
+        } catch (FilesystemException $e) {
+            throw new RuntimeException('Failed to move file: ' . $e->getMessage());
+            return false;
+        }
+        return true;
+    }
+
 }
 
 IonDisk::init();
