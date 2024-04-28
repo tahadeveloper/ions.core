@@ -97,6 +97,28 @@ class IonDisk
         }
     }
 
+    public static function download($filePath, $downloadPath): array|string
+    {
+        // Retrieve file content or secure URL
+        try {
+            ray($filePath, $downloadPath);
+            if (self::$filesystem->has($filePath)) {
+                $stream = fopen($downloadPath, 'r');
+                self::$filesystem->writeStream($filePath, $stream);
+                fclose($stream);
+                // Downloaded file is available at $downloadPath
+                return ['success' => true];
+            } else {
+                // Handle the case where the file doesn't exist
+                return ['error' => 'File not found'];
+            }
+        } catch (Exception $e) {
+            // Handle any errors (e.g., file not found)
+            return ['error' => $e->getMessage()];
+        }
+    }
+
+
     public static function deleteFile($filePath): array
     {
         // Delete a file
@@ -240,8 +262,6 @@ class IonDisk
             // Cloud storage handling (using Flysystem)
             if ($disk->has($path)) {
                 $disk->delete($path);
-            } else {
-                throw new RuntimeException("File does not exist: $path");
             }
         }
     }
@@ -273,8 +293,32 @@ class IonDisk
         }
     }
 
-    public static function getSignedUrl($path, $expirationTime = 3600): string // 1 hour
+    public static function getObject($path): array|string
     {
+        $client = self::getS3Client();
+        try {
+            $result = $client->getObject([
+                'Bucket' => self::$bucket,
+                'Key' => $path,
+            ]);
+
+            // Print the contents of the file
+            return $result['Body'];
+        } catch (\Exception $e) {
+            return ['error' => $e->getMessage()];
+        }
+    }
+
+    public static function getSignedUrl($path, $expirationTime = 3600, $defaultOptions = null): string // 1 hour
+    {
+        if ($defaultOptions) {
+            if ($defaultOptions->has('bucket')) {
+                self::$bucket = $defaultOptions->get('bucket');
+            }
+            if ($defaultOptions->has('basePath')) {
+                self::$basePath = $defaultOptions->get('basePath');
+            }
+        }
         $disk = self::flySystem();
 
         if ($disk === null) {
@@ -283,13 +327,37 @@ class IonDisk
 
         $s3Client = self::getS3Client();
         $command = $s3Client->getCommand('GetObject', [
-            'Bucket' => config('filesystem.disks.s3.bucket'),
+            'Bucket' => self::$bucket,
             'Key' => $path,
         ]);
-        $url = $s3Client->getObjectUrl(config('filesystem.disks.s3.bucket'), $path);
+        $url = $s3Client->getObjectUrl(self::$bucket, $path);
         //$request = $s3Client->createPresignedRequest($command, $expirationTime);
         // Get the actual resigned-url
         return $url;
+    }
+
+    public static function getUrl(string $path, $defaultOptions = null): string
+    {
+        if ($defaultOptions) {
+            if ($defaultOptions->has('bucket')) {
+                self::$bucket = $defaultOptions->get('bucket');
+            }
+            if ($defaultOptions->has('basePath')) {
+                self::$basePath = $defaultOptions->get('basePath');
+            }
+        }
+        $s3Client = self::getS3Client();
+
+        if ($defaultOptions && $defaultOptions->has('cdn_base_url')) {
+            return $defaultOptions->get('cdn_base_url') . '/' . $path;
+        }
+
+        try {
+            $result = $s3Client->getObjectUrl(self::$bucket, $path);
+            return $result;
+        } catch (AwsException $e) {
+            throw new RuntimeException('Failed to get URL: ' . $e->getMessage());
+        }
     }
 
     public static function exists($path, $defaultOptions = null): bool
@@ -314,6 +382,54 @@ class IonDisk
         }
 
         return $disk->has($path);
+    }
+
+    public static function size($path, $defaultOptions = null): int
+    {
+        if ($defaultOptions) {
+            if ($defaultOptions->has('bucket')) {
+                self::$bucket = $defaultOptions->get('bucket');
+            }
+            if ($defaultOptions->has('basePath')) {
+                self::$basePath = $defaultOptions->get('basePath');
+            }
+        }
+        $disk = self::flySystem();
+
+        if ($disk === null) {
+            if ($defaultOptions && $defaultOptions->has('target')) {
+                $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
+            } else {
+                $path = Path::files($path);
+            }
+            return File::size($path);
+        }
+
+        return $disk->fileSize($path);
+    }
+
+    public static function mimeType($path, $defaultOptions = null): string
+    {
+        if ($defaultOptions) {
+            if ($defaultOptions->has('bucket')) {
+                self::$bucket = $defaultOptions->get('bucket');
+            }
+            if ($defaultOptions->has('basePath')) {
+                self::$basePath = $defaultOptions->get('basePath');
+            }
+        }
+        $disk = self::flySystem();
+
+        if ($disk === null) {
+            if ($defaultOptions && $defaultOptions->has('target')) {
+                $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
+            } else {
+                $path = Path::files($path);
+            }
+            return File::mimeType($path);
+        }
+
+        return $disk->mimeType($path);
     }
 
     public static function createDirectory($path, $defaultOptions = null): bool

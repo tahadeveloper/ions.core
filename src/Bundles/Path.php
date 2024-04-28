@@ -189,7 +189,12 @@ class Path extends Singleton
         }
         if (env('FILESYSTEM_DISK', 'local') === 's3') {
             if ($url) {
-                return IonDisk::getSignedUrl($file);
+                // get cdn url if available
+                $options = [];
+                if (env('AWS_CDN_URL')) {
+                    $options['cdn_base_url'] = env('AWS_CDN_URL');
+                }
+                return IonDisk::getUrl($file, collect($options));
             }
             return $file;
         }
@@ -199,7 +204,7 @@ class Path extends Singleton
         return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . $file;
     }
 
-    public static function filesRoot(string $file, bool $url = false, string $mainFolder = ''): string
+    public static function filesRoot(string $file, bool $url = false, string $mainFolder = '', string $bucket = ''): string
     {
         if (env('FILESYSTEM_DISK', 'local') === 's3' && $mainFolder) {
             $file = $mainFolder . '/' . $file;
