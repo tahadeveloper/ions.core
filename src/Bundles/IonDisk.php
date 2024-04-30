@@ -293,17 +293,15 @@ class IonDisk
         }
     }
 
-    public static function getObject($path): array|string
+    public static function getObject($path, $downloadTemp)
     {
         $client = self::getS3Client();
         try {
             $result = $client->getObject([
                 'Bucket' => self::$bucket,
                 'Key' => $path,
+                'SaveAs' => $downloadTemp,
             ]);
-
-            // Print the contents of the file
-            return $result['Body'];
         } catch (\Exception $e) {
             return ['error' => $e->getMessage()];
         }
