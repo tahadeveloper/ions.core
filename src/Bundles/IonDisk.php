@@ -538,15 +538,19 @@ class IonDisk
 
         if ($disk === null) {
             // remove fromPath from sourcePath
-            $sourcePath = str_replace($defaultOptions->get('fromPath') . '/', '', $sourcePath);
-            $destinationPath = str_replace($defaultOptions->get('toPath') . '/', '', $destinationPath);
+            if($defaultOptions && $defaultOptions->has('fromPath')){
+                $sourcePath = str_replace($defaultOptions->get('fromPath') . '/', '', $sourcePath);
+            }
+            if($defaultOptions && $defaultOptions->has('toPath')){
+                $destinationPath = str_replace($defaultOptions->get('toPath') . '/', '', $destinationPath);
+            }
 
-            if ($defaultOptions->has('targetFrom')) {
+            if ($defaultOptions && $defaultOptions->has('targetFrom')) {
                 $sourcePath = Path::filesRoot($defaultOptions->get('targetFrom') . '/' . $sourcePath);
             } else {
                 $sourcePath = Path::files($sourcePath);
             }
-            if ($defaultOptions->has('targetTo')) {
+            if ($defaultOptions && $defaultOptions->has('targetTo')) {
                 $destinationPath = Path::filesRoot($defaultOptions->get('targetTo') . '/' . $destinationPath);
             } else {
                 $destinationPath = Path::files($destinationPath);
