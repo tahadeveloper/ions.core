@@ -16,4 +16,10 @@ class Request extends \Illuminate\Http\Request
         return $input ?? [];
     }
 
+    public function validate($rules = [], $additionalParams = []): array
+    {
+        $params = $this->toArray() + $additionalParams;
+        return validate($params, $rules);
+    }
+
 }
