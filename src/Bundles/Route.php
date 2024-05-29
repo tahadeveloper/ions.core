@@ -21,6 +21,7 @@ use Symfony\Component\Routing\Route as SRoute;
  * @method static Route match(array $methods, string $path, string|Closure $controller, array $defaults = [], ?string $name = null, array $wheres = []): static
  * @method static Route prefix(string $name, ?string $controls = null, ?Closure $closure = null): static
  * @method Route group(Closure $closure): void
+ * @method static Route resource(string $name, string $controller): static
  */
 class Route extends Singleton
 {
@@ -46,6 +47,8 @@ class Route extends Singleton
             $route->newRoute($route_details['name'], $route_details['path'], $route_details['controller'], $route_details['defaults'], $route_details['method'], $route_details['wheres']);
         } elseif ($name == 'prefix') {
             $route->_prefix(...$arguments);
+        } elseif ($name == 'resource') {
+            $route->_resource(...$arguments);
         } else {
             abort(500, 'Method not found');
         }
@@ -112,5 +115,15 @@ class Route extends Singleton
         );
 
     }
-}
 
+    public function _resource(string $name, string $controller): void
+    {
+        $this->newRoute($name . '.index', '/' . $name, $controller . '@index', [], ['GET'], []);
+        $this->newRoute($name . '.create', '/' . $name . '/create', $controller . '@create', [], ['GET'], []);
+        $this->newRoute($name . '.store', '/' . $name, $controller . '@store', [], ['POST'], []);
+        $this->newRoute($name . '.show', '/' . $name . '/{id}', $controller . '@show', [], ['GET'], []);
+        $this->newRoute($name . '.edit', '/' . $name . '/{id}/edit', $controller . '@edit', [], ['GET'], []);
+        $this->newRoute($name . '.update', '/' . $name . '/{id}', $controller . '@update', [], ['PUT'], []);
+        $this->newRoute($name . '.destroy', '/' . $name . '/{id}', $controller . '@destroy', [], ['DELETE'], []);
+    }
+}
