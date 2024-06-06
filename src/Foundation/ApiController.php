@@ -44,7 +44,12 @@ abstract class ApiController implements BluePrint
 
 
         if (!$this->isAuthorized()) {
-            $this->unauthorizedResponse(['error' => 'Not authorized!']);
+            //$this->unauthorizedResponse();
+            $this->display(toJson([
+                'status' => 'error',
+                'message' => 'Not authorized!',
+                'code' => ResponseAlias::HTTP_UNAUTHORIZED
+            ]));
         }
 
         RegisterDB::boot();

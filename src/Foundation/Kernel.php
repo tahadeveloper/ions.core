@@ -2,34 +2,32 @@
 
 namespace Ions\Foundation;
 
-use JetBrains\PhpStorm\NoReturn;
-use Spatie\Ignition\Ignition;
-use Symfony\Component\Routing\Exception\MethodNotAllowedException;
-use Symfony\Component\Routing\Exception\NoConfigurationException;
-use const EXTR_SKIP;
-use Ions\Support\Request;
-use Ions\Support\Response;
-use Ions\Support\Arr;
-use Ions\Support\Storage;
-use Ions\Support\Str;
-use Ions\Support\Session;
-use Ions\Bundles\MRoute;
-use Ions\Bundles\Path;
+use App\Booting;
 use Closure;
-use Throwable;
 use Dotenv\Dotenv;
-use Whoops\Handler\JsonResponseHandler;
-use Whoops\Run;
-use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Support\Facades\Facade;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Encryption\EncryptException;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\File;
+use Ions\Bundles\MRoute;
+use Ions\Bundles\Path;
+use Ions\Support\Arr;
+use Ions\Support\Request;
+use Ions\Support\Response;
+use Ions\Support\Session;
+use Ions\Support\Storage;
+use Ions\Support\Str;
+use JetBrains\PhpStorm\NoReturn;
+use Spatie\Ignition\Ignition;
+use Symfony\Bundle\FrameworkBundle\Routing\AnnotatedRouteControllerLoader;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\ErrorHandler\DebugClassLoader;
 use Symfony\Component\ErrorHandler\ErrorHandler;
 use Symfony\Component\ErrorHandler\ErrorRenderer\HtmlErrorRenderer;
+use Symfony\Component\Routing\Exception\MethodNotAllowedException;
+use Symfony\Component\Routing\Exception\NoConfigurationException;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Symfony\Component\Routing\Loader\AnnotationDirectoryLoader;
 use Symfony\Component\Routing\Loader\YamlFileLoader;
@@ -37,8 +35,10 @@ use Symfony\Component\Routing\Matcher\UrlMatcher;
 use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
-use Symfony\Bundle\FrameworkBundle\Routing\AnnotatedRouteControllerLoader;
-use App\Booting;
+use Throwable;
+use Whoops\Handler\JsonResponseHandler;
+use Whoops\Run;
+use const EXTR_SKIP;
 
 class Kernel extends Singleton
 {
@@ -60,7 +60,7 @@ class Kernel extends Singleton
     public static function boot(): void
     {
         try {
-            static::$environmentPath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR. '..' . DIRECTORY_SEPARATOR. '..' . DIRECTORY_SEPARATOR. '..') . DIRECTORY_SEPARATOR;
+            static::$environmentPath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
 
             static::structureBone();
 
@@ -338,7 +338,11 @@ class Kernel extends Singleton
     #[NoReturn] private static function makeError(string $error, int $statusCode): void
     {
         if (self::request()->wantsJson()) {
-            static::$response->setContent(toJson(['message' => $error]));
+            static::$response->setContent(toJson([
+                'status' => 'error',
+                'message' => $error,
+                'code' => $statusCode,
+            ]));
         } else {
             static::$response->setContent(static::HtmlErrorRender([
                 'statusText' => $error,
@@ -447,7 +451,7 @@ class Kernel extends Singleton
         // add namespace to controller if didn't have
         if ($namespace && $controller !== 'App\Schedule' && !Str::contains($controller, $namespace)) {
             // check if super or api
-            if (Str::contains($controller, $needles,true)|| Str::contains($namespace, 'Api')) {
+            if (Str::contains($controller, $needles, true) || Str::contains($namespace, 'Api')) {
                 $controller = $namespace . $controller;
             } else {
                 $controller = $namespace . 'Controllers\\' . $controller;
