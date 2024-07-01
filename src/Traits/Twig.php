@@ -80,6 +80,7 @@ trait Twig
             fn(string $form_name,string $input_name = '_ion_token') => new Markup(ionToken($form_name,$input_name), 'UTF-8')));
         $environment->addGlobal('appUrl', config('app.app_url'));
         $environment->addGlobal('_trans', trans());
+        $environment->addGlobal('_csrf_token', csrfToken(config('app.app_name')));
     }
 
     /**

@@ -28,6 +28,21 @@ use Illuminate\Filesystem;
 use Illuminate\Translation;
 use Symfony\Component\Translation\Translator;
 
+if (!function_exists('csrfToken')) {
+    /**
+     * create csrf token
+     * @param string $form_name
+     * @return string
+     */
+    function csrfToken(string $form_name = ''): string
+    {
+        // csrf create
+        $csrfGenerator = new UriSafeTokenGenerator();
+        $csrfStorage = new NativeSessionTokenStorage();
+        return (new CsrfTokenManager($csrfGenerator, $csrfStorage))->getToken($form_name);
+    }
+}
+
 if (!function_exists('ionToken')) {
     /**
      * create csrf token
