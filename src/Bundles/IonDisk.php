@@ -460,6 +460,34 @@ class IonDisk
         return true;
     }
 
+    public static function deleteDirectory(string $path): void
+    {
+        $disk = self::flySystem();
+
+        if ($disk === null) {
+            // Local storage handling
+            if (is_dir($path)) {
+                $files = array_diff(scandir($path), ['.', '..']);
+                foreach ($files as $file) {
+                    $filePath = $path . DIRECTORY_SEPARATOR . $file;
+                    if (is_dir($filePath)) {
+                        self::deleteDirectory($filePath);
+                    } else {
+                        unlink($filePath);
+                    }
+                }
+                rmdir($path);
+            } else {
+                throw new RuntimeException("Directory does not exist: $path");
+            }
+        } else {
+            // Cloud storage handling (using Flysystem)
+            if ($disk->has($path)) {
+                $disk->deleteDirectory($path);
+            }
+        }
+    }
+
     public static function copy($sourcePath, $destinationPath, $defaultOptions = null): bool
     {
         if ($defaultOptions) {
