@@ -101,7 +101,6 @@ class IonDisk
     {
         // Retrieve file content or secure URL
         try {
-            ray($filePath, $downloadPath);
             if (self::$filesystem->has($filePath)) {
                 $stream = fopen($downloadPath, 'r');
                 self::$filesystem->writeStream($filePath, $stream);
