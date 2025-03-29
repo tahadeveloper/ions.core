@@ -91,8 +91,8 @@ class RouteListCommand extends Command
     {
         $routes = new RouteCollection();
 
-        $target_folder === 'web' ? $attributes_path = Path::src('Http') : $attributes_path = Path::api();
-        if (Storage::exists($attributes_path)) {
+        $target_folder === 'web' ? $attributesPath = Path::src('Http') : $attributesPath = Path::api();
+        if (Storage::exists($attributesPath)) {
             $fileLocator = new FileLocator($attributesPath);
             $loader = new AnnotationDirectoryLoader($fileLocator, new AttributeRouteControllerLoader());
             $attributesRoutes = $loader->load($attributesPath);
