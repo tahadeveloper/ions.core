@@ -12,6 +12,7 @@ use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\File;
 use Ions\Bundles\MRoute;
+use Ions\Bundles\AttributeRouteControllerLoader;
 use Ions\Bundles\Path;
 use Ions\Support\Arr;
 use Ions\Support\Request;
@@ -21,7 +22,6 @@ use Ions\Support\Storage;
 use Ions\Support\Str;
 use JetBrains\PhpStorm\NoReturn;
 use Spatie\Ignition\Ignition;
-use Symfony\Bundle\FrameworkBundle\Routing\AnnotatedRouteControllerLoader;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\ErrorHandler\DebugClassLoader;
 use Symfony\Component\ErrorHandler\ErrorHandler;
@@ -376,7 +376,8 @@ class Kernel extends Singleton
         // attributes routing
         $targetFolder === 'web' ? $attributesPath = Path::src('Http') : $attributesPath = Path::api();
         if (Storage::exists($attributesPath)) {
-            $loader = new AnnotationDirectoryLoader(new FileLocator($attributesPath), new AnnotatedRouteControllerLoader());
+            $fileLocator = new FileLocator($attributesPath);
+            $loader = new AnnotationDirectoryLoader($fileLocator, new AttributeRouteControllerLoader());
             $attributesRoutes = $loader->load($attributesPath);
             if ($attributesRoutes !== null && !empty($attributesRoutes->all())) {
                 $routes->addCollection($attributesRoutes);

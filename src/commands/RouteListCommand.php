@@ -6,13 +6,13 @@ use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Ions\Bundles\MRoute;
+use Ions\Bundles\AttributeRouteControllerLoader;
 use Ions\Bundles\Path;
 use Ions\Foundation\Kernel;
 use Ions\Support\Arr;
 use Ions\Support\Storage;
 use Ions\Support\Str;
 use JetBrains\PhpStorm\ArrayShape;
-use Symfony\Bundle\FrameworkBundle\Routing\AnnotatedRouteControllerLoader;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Terminal;
@@ -64,8 +64,8 @@ class RouteListCommand extends Command
     public function handle(): void
     {
         if (empty($routes = $this->getRoutes())) {
-             $this->error("Your application doesn't have any routes matching the given criteria.");
-             exit();
+            $this->error("Your application doesn't have any routes matching the given criteria.");
+            exit();
         }
 
         $this->displayRoutes($routes);
@@ -93,10 +93,11 @@ class RouteListCommand extends Command
 
         $target_folder === 'web' ? $attributes_path = Path::src('Http') : $attributes_path = Path::api();
         if (Storage::exists($attributes_path)) {
-            $loader = new AnnotationDirectoryLoader(new FileLocator($attributes_path), new AnnotatedRouteControllerLoader());
-            $attributes_routes = $loader->load($attributes_path);
-            if (!empty($attributes_routes->all())) {
-                $routes->addCollection($attributes_routes);
+            $fileLocator = new FileLocator($attributesPath);
+            $loader = new AnnotationDirectoryLoader($fileLocator, new AttributeRouteControllerLoader());
+            $attributesRoutes = $loader->load($attributesPath);
+            if ($attributesRoutes !== null && !empty($attributesRoutes->all())) {
+                $routes->addCollection($attributesRoutes);
             }
         }
 
@@ -116,10 +117,10 @@ class RouteListCommand extends Command
 
         $files = Storage::allFiles(Path::route());
         foreach ($files as $file) {
-           if(empty($file->getRelativePath())){
-               $ext = $file->getExtension();
-               $routes_collection[File::name($file).'_'.$ext] = $this->captureRoute($file->getPathName(),$ext);
-           }
+            if (empty($file->getRelativePath())) {
+                $ext = $file->getExtension();
+                $routes_collection[File::name($file) . '_' . $ext] = $this->captureRoute($file->getPathName(), $ext);
+            }
         }
 
         $routes = new RouteCollection();
@@ -139,7 +140,7 @@ class RouteListCommand extends Command
             }
         }
 
-       return $this->pluckColumns($routes_render);
+        return $this->pluckColumns($routes_render);
     }
 
 
