@@ -1,6 +1,6 @@
 {
   "name": "ionzile/core",
-  "description": "Ionzile core library",
+  "description": "Ions core library",
   "type": "library",
   "autoload": {
     "psr-4": {
@@ -18,7 +18,7 @@
   ],
   "license": "MIT",
   "require": {
-    "php": "^8.0",
+    "php": "^8.2",
     "ext-openssl": "*",
     "ext-zip": "*",
     "cartalyst/sentinel": "^v6.0.1",
@@ -31,17 +31,17 @@
     "illuminate/pagination": "v9.52.4",
     "illuminate/validation": "v9.52.4",
     "lcobucci/jwt": "^4.3.0",
-    "monolog/monolog": "^2.9.3",
+    "monolog/monolog": "^2.10.0",
     "peppeocchi/php-cron-scheduler": "^4.0",
-    "symfony/config": "^v6.0.19",
-    "symfony/mailer": "^6.0.19",
-    "symfony/routing": "^v6.0.19",
-    "symfony/security-csrf": "^v6.0.19",
-    "symfony/translation": "^v6.0.19",
-    "symfony/yaml": "^6.0.19",
-    "vlucas/phpdotenv": "^v5.6.0",
-    "league/flysystem": "^3.27",
-    "league/flysystem-aws-s3-v3": "^3.27"
+    "symfony/config": "^6.4.14",
+    "symfony/mailer": "^6.4.18",
+    "symfony/routing": "^6.4.18",
+    "symfony/security-csrf": "^6.4.13",
+    "symfony/translation": "^6.4.19",
+    "symfony/yaml": "^6.4.20",
+    "vlucas/phpdotenv": "^5.6.1",
+    "league/flysystem": "^3.29.1",
+    "league/flysystem-aws-s3-v3": "^3.29"
   },
   "require-dev": {
     "pestphp/pest": "^v1.23.1"
@@ -54,7 +54,7 @@
       "pestphp/pest-plugin": true
     },
     "platform": {
-      "php": "8.0.13"
+      "php": "8.2"
     }
   },
   "minimum-stability": "stable",
