@@ -27,7 +27,13 @@ class Path extends Singleton
      */
     public static function src(string $file): string
     {
-        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . $file;
+        if (is_dir(realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'src')) {
+            // Use the 'src' folder for backward compatibility
+            return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . $file;
+        }
+
+        // Use the 'app' folder for new projects
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -49,7 +55,13 @@ class Path extends Singleton
      */
     public static function api(string $file = ''): string
     {
-        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . '/src/Http/Api' . DIRECTORY_SEPARATOR . $file;
+        if (is_dir(realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'src')) {
+            // Use the 'src' folder for backward compatibility
+            return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . '/src/Http/Api' . DIRECTORY_SEPARATOR . $file;
+        }
+
+        // Use the 'app' folder for new projects
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . '/app/Http/Api' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -229,7 +241,13 @@ class Path extends Singleton
      */
     public static function database(string $file): string
     {
-        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . $file;
+        if (is_dir(realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'src')) {
+            // Use the 'src' folder for backward compatibility
+            return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . $file;
+        }
+
+        // Use the 'app' folder for new projects
+        return realpath(self::$environmentPath) . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**

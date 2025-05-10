@@ -21,7 +21,7 @@ class SuperCommand extends Command
         if (!Storage::exists(Path::src('Http/super'))) {
             $zip = new ZipArchive;
 
-            if ($zip->open(Path::bin('../../super/src/http/super.zip')) === TRUE) {
+            if ($zip->open(Path::bin('../../super/app/http/super.zip')) === TRUE) {
                 $zip->extractTo(Path::src('Http'));
                 $zip->close();
                 $this->info('Super created successfully, happy to see you.');
@@ -32,7 +32,7 @@ class SuperCommand extends Command
                 if (!Storage::exists(Path::views('super'))) {
 
                     $zip = new ZipArchive;
-                    if ($zip->open(Path::bin('../../super/src/views/super.zip')) === TRUE) {
+                    if ($zip->open(Path::bin('../../super/app/views/super.zip')) === TRUE) {
                         $zip->extractTo(Path::views(''));
                         $zip->close();
                         $this->info('Super views created successfully, happy to see you.');
