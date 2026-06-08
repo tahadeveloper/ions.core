@@ -8,6 +8,9 @@ use Ions\Support\Str;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
+/**
+ * @deprecated Use Ions\Bundles\Route instead. MRoute will be removed in Phase 3.
+ */
 class MRoute extends Singleton
 {
     public static RouteCollection $collection;

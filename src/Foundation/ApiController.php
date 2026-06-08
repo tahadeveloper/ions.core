@@ -5,9 +5,7 @@ namespace Ions\Foundation;
 use BadMethodCallException;
 use Ions\Bundles\Localization;
 use Ions\Http\RequestInput;
-use Ions\Security\Jwt;
 use Ions\Security\SecurityHeaders;
-use Ions\Security\TokenException;
 use Ions\Support\JsonResponse;
 use Ions\Support\Request;
 use Ions\Support\Response;
@@ -27,15 +25,6 @@ abstract class ApiController implements BluePrint
     {
         $this->response = Kernel::response();
         $this->request = Kernel::request();
-
-        // TODO(Phase 2): move to AuthMiddleware
-        if (!$this->isAuthorized()) {
-            $this->display(toJson([
-                'status' => 'error',
-                'message' => 'Not authorized!',
-                'code' => ResponseAlias::HTTP_UNAUTHORIZED
-            ]));
-        }
 
         RegisterDB::boot();
 
@@ -91,36 +80,14 @@ abstract class ApiController implements BluePrint
         exit();
     }
 
-    private function isAuthorized(): bool
+    /**
+     * Return the authenticated user id placed on the request by AuthMiddleware,
+     * or null when the request has not been through the auth pipeline.
+     */
+    protected function authUserId(): ?string
     {
-        $header = (string) $this->request->headers->get('Authorization');
-
-        if ($header === '') {
-            return false;
-        }
-
-        $parts = explode(' ', $header, 2);
-        if (count($parts) !== 2 || strtolower($parts[0]) !== 'bearer') {
-            $this->unauthorizedResponse(['error' => 'No key attach!']);
-        }
-
-        $token = $parts[1];
-
-        $secret = (string) env('APP_KEY', '');
-        $appName = (string) env('APP_NAME', 'ions');
-
-        if ($secret === '') {
-            return false;
-        }
-
-        try {
-            $jwt = new Jwt($secret, $appName, $appName, (int) config('app.jwt.ttl', 3600));
-            $claims = $jwt->verify($token);
-            $this->request->attributes->set('auth_user_id', $claims->userId);
-            return true;
-        } catch (TokenException) {
-            return false;
-        }
+        $value = $this->request->attributes->get('auth_user_id');
+        return $value !== null ? (string) $value : null;
     }
 
     public function routeMethod($method, $callback): void

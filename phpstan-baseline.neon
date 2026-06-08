@@ -427,12 +427,6 @@ parameters:
 			path: src/Foundation/BaseController.php
 
 		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\NoReturn does not exist\.$#'
-			identifier: attribute.notFound
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
 			message: '#^Instanceof between null and Ions\\Support\\Request will always evaluate to false\.$#'
 			identifier: instanceof.alwaysFalse
 			count: 1
@@ -451,19 +445,7 @@ parameters:
 			path: src/Foundation/Kernel.php
 
 		-
-			message: '#^PHPDoc tag @var with type Illuminate\\Contracts\\Foundation\\Application is not subtype of native type Illuminate\\Container\\Container\.$#'
-			identifier: varTag.nativeType
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
 			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:Container\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:HtmlErrorRender\(\) through static\:\:\.$#'
 			identifier: staticClassAccess.privateMethod
 			count: 1
 			path: src/Foundation/Kernel.php
