@@ -184,6 +184,7 @@ class Kernel extends Singleton
     private static function defaultProviders(): array
     {
         return [
+            \Ions\Providers\ConfigProvider::class,
             \Ions\Providers\FilesystemProvider::class,
             \Ions\Providers\DatabaseProvider::class,
             \Ions\Providers\AuthProvider::class,
