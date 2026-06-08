@@ -670,7 +670,7 @@ Config keys (`app.providers`, `app.middleware`, `app.cors`, `app.jwt.ttl`, `app.
 
 ## Phase 3 — HTTP / routing / controllers modernization
 
-> **Expand into its own plan before executing.**
+> **Expanded into its own detailed plan:** `docs/superpowers/plans/2026-06-09-phase3-http-routing-controllers.md` (6 sub-phases, TDD; note the **D-V view-engine decision** gating sub-phase 3.5). Spec summary below.
 
 **Tasks:**
 1. Consolidate routing: keep `Bundles\Route` (fluent) + attribute routing; **remove `MRoute`** (document migration). Add typed route registration and `Route::middleware([...])` per route/group.
