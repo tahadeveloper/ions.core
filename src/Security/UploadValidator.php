@@ -7,6 +7,7 @@ final class UploadValidator
     /** Extensions that must never be accepted regardless of the allow-list. */
     private const DENY = [
         'php', 'phtml', 'php3', 'php4', 'php5', 'php7', 'php8', 'phps', 'phar', 'pht',
+        'phtm', 'inc', 'php9', 'php10',
         'htaccess', 'htpasswd', 'shtml', 'cgi', 'pl', 'asp', 'aspx', 'jsp', 'jspx',
         'exe', 'com', 'bat', 'cmd', 'sh', 'bash', 'so', 'dll',
     ];

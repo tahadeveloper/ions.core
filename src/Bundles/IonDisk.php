@@ -5,6 +5,7 @@ namespace Ions\Bundles;
 use Aws\S3\S3Client;
 use Exception;
 use InvalidArgumentException;
+use Ions\Security\UploadValidator;
 use Ions\Support\File;
 use Ions\Support\Str;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
@@ -66,12 +67,20 @@ class IonDisk
         throw new RuntimeException("Unsupported IonDisk type: " . self::$type);
     }
 
-    public static function putFile($fileContent, $originalFilename, $userProvidedPath, $withOriginal = false): array
+    public static function putFile($fileContent, $originalFilename, $userProvidedPath, $withOriginal = false, array $options = []): array
     {
-        // Generate a random filename
-        $randomName = $withOriginal ? pathinfo($originalFilename, PATHINFO_FILENAME) : Str::random(15);
-        // get extension
-        $extension = pathinfo($originalFilename, PATHINFO_EXTENSION);
+        // Security: validate extension against allow-list BEFORE writing to disk
+        $allowed = $options['allowed'] ?? config('app.uploads.allowed', ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'zip']);
+        $validator = new UploadValidator($allowed);
+        if (!$validator->isAllowed($originalFilename)) {
+            return ['error' => 'File extension not allowed'];
+        }
+
+        // Derive safe extension and sanitized stem from validated filename
+        $extension = $validator->safeExtension($originalFilename);
+        $randomName = $withOriginal
+            ? Str::slug(pathinfo($originalFilename, PATHINFO_FILENAME))
+            : Str::random(15);
         $randomName .= '.' . $extension;
         $filePath = "$userProvidedPath/$randomName";
 
@@ -200,8 +209,21 @@ class IonDisk
         }
 
         $fileNameWithExt = $file->getClientOriginalName();
-        $extension = $file->getClientOriginalExtension();
-        $randomFilename = $withOriginal ? pathinfo($fileNameWithExt, PATHINFO_FILENAME) : Str::random(15);
+
+        // Security: validate extension against allow-list BEFORE any write (covers both local and cloud paths)
+        $allowed = $options['allowed'] ?? config('app.uploads.allowed', ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'zip']);
+        $validator = new UploadValidator($allowed);
+        if (!$validator->isAllowed($fileNameWithExt)) {
+            return ['error' => true, 'message' => 'File extension not allowed'];
+        }
+
+        // Derive the stored extension from the validator so allow-list check and on-disk extension are the same value
+        $extension = $validator->safeExtension($fileNameWithExt);
+
+        // Sanitize the stem when keeping original name to prevent client-controlled characters on disk
+        $randomFilename = $withOriginal
+            ? Str::slug(pathinfo($fileNameWithExt, PATHINFO_FILENAME))
+            : Str::random(15);
 
         if ($disk === null) {
             return self::handleLocalUpload($file, $path, $fileNameWithExt, $randomFilename, $extension, $options);
@@ -213,6 +235,7 @@ class IonDisk
     private static function handleLocalUpload(UploadedFile $file, string $path, string $fileNameWithExt, string $randomFilename, string $extension, array $options): array
     {
         $storeName = $randomFilename . '.' . $extension;
+        $size = $file->getSize(); // capture before move() invalidates the temp path
         try {
             $file->move($path, $storeName);
         } catch (FileException $e) {
@@ -223,7 +246,7 @@ class IonDisk
             'error' => false,
             'originalName' => $fileNameWithExt,
             'filename' => $storeName,
-            'size' => $file->getSize(),
+            'size' => $size,
         ];
     }
 

@@ -30,3 +30,11 @@ test('safeExtension strips path and lowercases', function () {
     $v = new UploadValidator(['jpg']);
     expect($v->safeExtension('../../x.JPG'))->toBe('jpg');
 });
+
+test('rejects newly-denied extensions phtm and inc', function () {
+    $v = new UploadValidator(['jpg', 'phtm', 'inc']); // even if someone allow-lists them, DENY wins
+    expect($v->isAllowed('evil.phtm'))->toBeFalse()
+        ->and($v->isAllowed('config.inc'))->toBeFalse()
+        ->and($v->isAllowed('shell.php9'))->toBeFalse()
+        ->and($v->isAllowed('shell.php10'))->toBeFalse();
+});
