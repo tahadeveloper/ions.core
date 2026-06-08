@@ -249,10 +249,12 @@ test('web request gets an HTML response', function () {
 
 **Files:** `src/Foundation/Kernel.php`, tests.
 
-- [ ] Wrap the route-match + pipeline in `handle()` in a single `try { ... } catch (Throwable $e) { return $handler->render($e, $request); }`. The routing-exception catches collapse into this (map `ResourceNotFound`→404, `MethodNotAllowed`→405 by translating to `HttpException` before/within the handler, or keep explicit catches that delegate to the handler with the right status). Remove the per-request `errorDebug()`/`errorDebugApi()` registration and the now-unused `errorResponse()` (fold into `ExceptionHandler`). Keep `Spatie\Ignition`/`Whoops` usage INSIDE the handler for debug rendering.
-- [ ] **Integration test:** a fixture route whose action calls `abort(403)` → `Kernel::handle()` returns a 403 Response (JSON for `/api/...`, HTML for web) — proving `abort()` (HttpException) is now caught and rendered, not fatal. Add fixture routes for this.
-- [ ] **Integration test:** a fixture route whose action throws a generic `\RuntimeException` → 500 Response (no leaked trace when `APP_DEBUG` off).
-- [ ] Confirm all existing tests still pass (BootErrorTest etc. unaffected — that's boot-time, separate from request handling). Commit `refactor(kernel): handle() routes all Throwables through ExceptionHandler; drop duplicated debug registration`.
+- [x] Wrap the route-match + pipeline in `handle()` in a single `try { ... } catch (Throwable $e) { return $handler->render($e, $request); }`. Routing-exception catches translated to `NotFoundHttpException`/`MethodNotAllowedHttpException` before delegating to the handler. Removed `errorDebug()`/`errorDebugApi()` per-request registration and `errorResponse()` / `HtmlErrorRender()`.
+- [x] **Integration test:** a fixture route whose action calls `abort(403)` → `Kernel::handle()` returns a 403 Response — proving `abort()` (HttpException) is now caught and rendered, not fatal.
+- [x] **Integration test:** a fixture route whose action throws a generic `\RuntimeException` → 500 Response (no leaked trace when `APP_DEBUG` off).
+- [x] Confirmed all existing tests still pass (BootErrorTest etc. unaffected — boot-time, separate from request handling). Committed `refactor(kernel): funnel all request Throwables through ExceptionHandler; drop errorDebug/errorDebugApi/errorResponse`.
+
+> **DX trade-off (tracked future enhancement):** Removing `errorDebug`/`errorDebugApi` drops the global Spatie Ignition / Whoops pretty-error registration that previously decorated PHP-level errors outside the request cycle. `ExceptionHandler` now renders errors (simple HTML in debug; no-leak prod behavior). Richer Ignition rendering inside `ExceptionHandler::html()` for the debug path is a tracked future enhancement (wire `Ignition::make()->renderException($e)` in a follow-up once the ExceptionHandler test surface is broader).
 
 ---
 

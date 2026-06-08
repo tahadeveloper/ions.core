@@ -5,15 +5,13 @@ namespace Ions\Foundation;
 use App\Booting;
 use Closure;
 use Dotenv\Dotenv;
-
-use const EXTR_SKIP;
-
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\File;
 use Ions\Bundles\AttributeRouteControllerLoader;
 use Ions\Bundles\Path;
 use Ions\Container\Container;
+use Ions\Http\ExceptionHandler;
 use Ions\Http\Middleware\AuthMiddleware;
 use Ions\Http\Middleware\ControllerDispatcher;
 use Ions\Http\Middleware\CorsMiddleware;
@@ -28,13 +26,10 @@ use Ions\Support\Response;
 use Ions\Support\Session;
 use Ions\Support\Storage;
 use Ions\Support\Str;
-use Spatie\Ignition\Ignition;
 use Symfony\Component\Config\FileLocator;
-use Symfony\Component\ErrorHandler\DebugClassLoader;
-use Symfony\Component\ErrorHandler\ErrorHandler;
-use Symfony\Component\ErrorHandler\ErrorRenderer\HtmlErrorRenderer;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Exception\MethodNotAllowedException;
 use Symfony\Component\Routing\Exception\NoConfigurationException;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
@@ -45,9 +40,6 @@ use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 use Throwable;
-use Whoops\Handler\Handler;
-use Whoops\Handler\JsonResponseHandler;
-use Whoops\Run;
 
 class Kernel extends Singleton
 {
@@ -334,64 +326,6 @@ class Kernel extends Singleton
     }
 
     /**
-     * handler error to display beautify.
-     *
-     * @return void
-     */
-    protected static function errorDebug(): void
-    {
-        if (env('APP_DEBUG', false) === true) {
-            Ignition::make()
-                ->applicationPath(realpath(Path::root('')))
-                //->shouldDisplayException(!env('APP_DEBUG'))
-                ->register();
-
-        } else {
-            ErrorHandler::register();
-            DebugClassLoader::disable();
-            HtmlErrorRenderer::setTemplate(Path::var('templates/Exception/error.html.php'));
-        }
-        ini_set("display_errors", env('APP_DEBUG', false));
-    }
-
-    /**
-     * handler error to display beautify. with json
-     *
-     * @return void
-     */
-    protected static function errorDebugApi(): void
-    {
-        if (env('APP_DEBUG', false) === true) {
-            $whoops = new Run();
-            $whoops->pushHandler(new JsonResponseHandler());
-            $whoops->pushHandler(function ($e) {
-                $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 501;
-                static::response()->setStatusCode($statusCode);
-                static::sendResponse(static::$response);
-                return Handler::QUIT;
-            });
-            $whoops->register();
-        } else {
-            ErrorHandler::register();
-            DebugClassLoader::disable();
-            HtmlErrorRenderer::setTemplate(Path::var('templates/Exception/error.json.php'));
-        }
-        ini_set("display_errors", env('APP_DEBUG', false));
-    }
-
-    /**
-     * @param array $context
-     * @return string
-     */
-    private static function HtmlErrorRender(array $context = []): string
-    {
-        extract($context, EXTR_SKIP);
-        ob_start();
-        include Path::var('templates/Exception/error.html.php');
-        return trim(ob_get_clean());
-    }
-
-    /**
      * Apply security headers and send the given response.
      *
      * @param SymfonyResponse|null $response When null, falls back to static::$response (legacy path).
@@ -404,10 +338,23 @@ class Kernel extends Singleton
     }
 
     /**
+     * Factory for the ExceptionHandler.
+     *
+     * A lightweight new instance is sufficient here; if the container ever
+     * needs to bind a custom subclass, resolve it from static::$app instead.
+     */
+    private static function exceptionHandler(): ExceptionHandler
+    {
+        return new ExceptionHandler();
+    }
+
+    /**
      * Handle a request through the middleware pipeline and return a Response.
      *
      * This is the primary entry point for request handling.  It never exits/dies;
-     * all error conditions are returned as Response objects instead.
+     * all error conditions — including HttpException from abort() and any
+     * uncaught Throwable thrown inside a controller or middleware — are routed
+     * through ExceptionHandler and returned as a proper Response.
      *
      * @param Request $request
      * @param string  $namespace Optional controller namespace prefix.
@@ -415,9 +362,6 @@ class Kernel extends Singleton
      */
     public static function handle(Request $request, string $namespace = ''): SymfonyResponse
     {
-        // Register debug error renderers (same registration the old make() did).
-        $request->wantsJson() ? static::errorDebugApi() : static::errorDebug();
-
         // Determine group from first path segment.
         $targetFolder = $request->segment(1) === 'api' ? 'api' : 'web';
         if ($targetFolder === 'api') {
@@ -474,12 +418,14 @@ class Kernel extends Singleton
 
             return $response;
 
-        } catch (NoConfigurationException) {
-            return self::errorResponse('No configurations found', 404, $request);
-        } catch (MethodNotAllowedException) {
-            return self::errorResponse('Method not allowed', 405, $request);
-        } catch (ResourceNotFoundException) {
-            return self::errorResponse('Page route not found', 404, $request);
+        } catch (NoConfigurationException $e) {
+            return self::exceptionHandler()->render(new NotFoundHttpException('Page route not found', $e), $request);
+        } catch (MethodNotAllowedException $e) {
+            return self::exceptionHandler()->render(new MethodNotAllowedHttpException([], 'Method not allowed', $e), $request);
+        } catch (ResourceNotFoundException $e) {
+            return self::exceptionHandler()->render(new NotFoundHttpException('Page route not found', $e), $request);
+        } catch (Throwable $e) {
+            return self::exceptionHandler()->render($e, $request);
         }
     }
 
@@ -529,39 +475,6 @@ class Kernel extends Singleton
         }
 
         return static::$response;
-    }
-
-    /**
-     * Build an error Response without exit()ing.
-     *
-     * Returns JSON for API / wantsJson requests, HTML otherwise.
-     *
-     * @param string  $message
-     * @param int     $status
-     * @param Request $request
-     * @return SymfonyResponse
-     */
-    private static function errorResponse(string $message, int $status, Request $request): SymfonyResponse
-    {
-        if ($request->wantsJson() || $request->segment(1) === 'api') {
-            return new JsonResponse([
-                'status' => 'error',
-                'message' => $message,
-                'code' => $status,
-            ], $status);
-        }
-
-        $templatePath = Path::var('templates/Exception/error.html.php');
-        if (file_exists($templatePath)) {
-            $html = self::HtmlErrorRender([
-                'statusText' => $message,
-                'statusCode' => $status,
-            ]);
-        } else {
-            $html = sprintf('<h1>%d %s</h1>', $status, htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
-        }
-
-        return new SymfonyResponse($html, $status, ['Content-Type' => 'text/html; charset=UTF-8']);
     }
 
     /**
