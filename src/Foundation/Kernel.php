@@ -188,6 +188,7 @@ class Kernel extends Singleton
             \Ions\Providers\FilesystemProvider::class,
             \Ions\Providers\DatabaseProvider::class,
             \Ions\Providers\AuthProvider::class,
+            \Ions\Providers\MailProvider::class,
         ];
     }
 
