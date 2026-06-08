@@ -748,6 +748,7 @@ Breaking changes apps must address, each with before/after:
 4. **Routing:** `MRoute` removed → use `Route`.
 5. **Database:** Eloquent 9→11 deltas; RedBean removed (or now opt-in `suggest`).
 6. **Controllers:** resolved via container; prefer returning a `Response`. `echo`/`exit` patterns still work via shims but are deprecated.
+   - **`ApiController` response helpers now RETURN a Response (no longer send+exit):** `display()`, `returnStructure()`, `unauthorizedResponse()`, and `notFoundResponse()` now return a `Symfony\Component\HttpFoundation\Response` instead of calling `send()`+`exit()`. Controllers that previously wrote `$this->display($json);` (as a statement, relying on exit to terminate) **must** now `return $this->display($json);`. The response is sent by the pipeline. The `#[NoReturn]` attributes are removed from these methods. Response body shapes (the `{status_code, success, error, data}` envelope from `returnStructure`) are preserved unchanged.
 7. **Dependencies:** Twig/Smarty/Ignition/Whoops now declared by core; remove duplicate requires from host `composer.json` if desired.
 
 ---

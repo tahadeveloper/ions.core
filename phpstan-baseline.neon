@@ -301,12 +301,6 @@ parameters:
 			path: src/Exceptions/InvalidSubject.php
 
 		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\NoReturn does not exist\.$#'
-			identifier: attribute.notFound
-			count: 4
-			path: src/Foundation/ApiController.php
-
-		-
 			message: '#^Access to an undefined property Ions\\Foundation\\BaseController\:\:\$locale_folder\.$#'
 			identifier: property.notFound
 			count: 1
