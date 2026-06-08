@@ -64,7 +64,7 @@ class DatatableBuilder
         $query = clone $query;
         $requestFilters = $this->request->post('search');
 
-        if(!empty($requestFilters['value'])) {
+        if (!empty($requestFilters['value'])) {
             $query->where(function ($s_query) use ($requestFilters) {
                 foreach ($this->fields as $field) {
                     $s_query->orWhere($field, 'LIKE', "%" . $requestFilters['value'] . "%");

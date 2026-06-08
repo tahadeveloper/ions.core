@@ -2,6 +2,9 @@
 
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Filesystem;
+use Illuminate\Translation;
+use Illuminate\Validation;
 use Ions\Bundles\Localization;
 use Ions\Bundles\Logs;
 use Ions\Bundles\Path;
@@ -23,9 +26,6 @@ use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 use Symfony\Component\Security\Csrf\TokenGenerator\UriSafeTokenGenerator;
 use Symfony\Component\Security\Csrf\TokenStorage\NativeSessionTokenStorage;
-use Illuminate\Validation;
-use Illuminate\Filesystem;
-use Illuminate\Translation;
 use Symfony\Component\Translation\Translator;
 
 if (!function_exists('csrfToken')) {
@@ -50,7 +50,7 @@ if (!function_exists('ionToken')) {
      * @param string $input_name
      * @return string
      */
-    function ionToken(string $form_name = '',string $input_name = '_ion_token'): string
+    function ionToken(string $form_name = '', string $input_name = '_ion_token'): string
     {
         // csrf create
         $csrfGenerator = new UriSafeTokenGenerator();
@@ -70,7 +70,7 @@ if (!function_exists('csrfCheck')) {
      * @param string $input_name
      * @return bool
      */
-    function csrfCheck($id, string $token = '', int $request = 1,string $input_name = '_ion_token'): bool
+    function csrfCheck($id, string $token = '', int $request = 1, string $input_name = '_ion_token'): bool
     {
         $csrfGenerator = new UriSafeTokenGenerator();
         $csrfStorage = new NativeSessionTokenStorage();
@@ -116,7 +116,7 @@ if (!function_exists('validate')) {
             }
             // check if params is array or object
             if (is_object($params)) {
-                $params = json_decode(json_encode($params,JSON_THROW_ON_ERROR),true, 512, JSON_THROW_ON_ERROR);
+                $params = json_decode(json_encode($params, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
             }
             $validator = $factory->make($params, $rules, $messages);
             if ($validator->fails()) {
@@ -389,7 +389,7 @@ if (!function_exists('render')) {
 
         $allow_templates = config('app.templates', ['twig']);
         if (in_array('twig', $allow_templates, true)) {
-            $twig = (new class {
+            $twig = (new class () {
                 use Twig;
             });
             $twig->TwigInit();

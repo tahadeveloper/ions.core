@@ -86,7 +86,7 @@ class Config implements ArrayAccess
     {
         $keys = is_array($key) ? $key : [$key => $value];
 
-        foreach ($keys as  $key => $value) {
+        foreach ($keys as $key => $value) {
             Arr::set($this->items, $key, $value);
         }
     }
@@ -177,7 +177,7 @@ class Config implements ArrayAccess
      * @return void
      */
     #[ReturnTypeWillChange]
-    public function offsetUnset($offset):void
+    public function offsetUnset($offset): void
     {
         $this->set($offset, null);
     }

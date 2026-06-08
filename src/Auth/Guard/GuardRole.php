@@ -3,14 +3,14 @@
 namespace Ions\Auth\Guard;
 
 use Carbon\Carbon;
+use Cartalyst\Sentinel\Native\ConfigRepository;
+use Cartalyst\Sentinel\Native\Facades\Sentinel;
+use Cartalyst\Sentinel\Native\SentinelBootstrapper;
 use Ions\Bundles\Path;
 use Ions\Foundation\Singleton;
 use Ions\Support\Arr;
 use Ions\Support\DB;
 use Throwable;
-use Cartalyst\Sentinel\Native\ConfigRepository;
-use Cartalyst\Sentinel\Native\SentinelBootstrapper;
-use Cartalyst\Sentinel\Native\Facades\Sentinel;
 
 class GuardRole extends Singleton
 {

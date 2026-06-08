@@ -183,11 +183,13 @@ class GuardControl
         $tree = DB::connection(self::$connection_name)
             ->table(self::$tables_names['controls'])
             ->select(self::$tables_names['controls'] . '.*', 'c2.count')
-            ->leftJoin(DB::connection(self::$connection_name)
+            ->leftJoin(
+                DB::connection(self::$connection_name)
                 ->raw('(SELECT parent_id, COUNT(*) AS count FROM `' . DB::connection(self::$connection_name)->getTablePrefix() . self::$tables_names['controls'] . '` GROUP BY parent_id) ' . DB::connection(self::$connection_name)->getTablePrefix() . 'c2'),
                 function ($join) {
                     $join->on(self::$tables_names['controls'] . '.id', 'c2.parent_id');
-                })
+                }
+            )
             ->where(self::$tables_names['controls'] . '.parent_id', $level)
             ->whereIn('status', $status)
             ->orderBy('order_no')->get();
@@ -198,8 +200,8 @@ class GuardControl
             ->where('language', $language)
             ->whereIn('control_id', $controls_ids)->get();
 
-        $tree->map(function ($row) use ($status, $language,$controls_language) {
-            $row->language = $controls_language->where('control_id',$row->id)->first();
+        $tree->map(function ($row) use ($status, $language, $controls_language) {
+            $row->language = $controls_language->where('control_id', $row->id)->first();
             if ($row->count > 0) {
                 $row->children = self::hierarchy($language, $status, $row->id);
             }

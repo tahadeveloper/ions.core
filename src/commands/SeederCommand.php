@@ -28,7 +28,8 @@ class SeederCommand extends Command
         $replace = Str::replace(
             ['{{ namespace }}', '{{ class }}', '{{ table }}'],
             ['App\\Database\\Seeders', $name, $name_lower],
-            Storage::get($new_file));
+            Storage::get($new_file)
+        );
 
         Storage::put($new_file, $replace);
         $this->info('Seeder created successfully, happy to see you.');

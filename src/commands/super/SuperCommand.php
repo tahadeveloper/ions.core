@@ -19,9 +19,9 @@ class SuperCommand extends Command
     public function handle(): void
     {
         if (!Storage::exists(Path::src('Http/super'))) {
-            $zip = new ZipArchive;
+            $zip = new ZipArchive();
 
-            if ($zip->open(Path::bin('../../super/app/http/super.zip')) === TRUE) {
+            if ($zip->open(Path::bin('../../super/app/http/super.zip')) === true) {
                 $zip->extractTo(Path::src('Http'));
                 $zip->close();
                 $this->info('Super created successfully, happy to see you.');
@@ -31,8 +31,8 @@ class SuperCommand extends Command
                 // create views
                 if (!Storage::exists(Path::views('super'))) {
 
-                    $zip = new ZipArchive;
-                    if ($zip->open(Path::bin('../../super/app/views/super.zip')) === TRUE) {
+                    $zip = new ZipArchive();
+                    if ($zip->open(Path::bin('../../super/app/views/super.zip')) === true) {
                         $zip->extractTo(Path::views(''));
                         $zip->close();
                         $this->info('Super views created successfully, happy to see you.');

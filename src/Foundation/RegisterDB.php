@@ -13,7 +13,6 @@ use Throwable;
 
 class RegisterDB extends Singleton
 {
-
     public static function boot(): void
     {
         $allow_database_engine = config('app.database_engine', []);
@@ -32,7 +31,7 @@ class RegisterDB extends Singleton
         if (!Kernel::app()->has('db')) {
 
             Kernel::app()->singleton('db', function () {
-                $capsule = new Manager;
+                $capsule = new Manager();
                 $databases = new Config(include(Path::config('database.php')));
                 $default_database = config('database.default', 'mysql');
                 foreach ($databases['connections'] as $key => $connection) {
@@ -98,13 +97,19 @@ class RegisterDB extends Singleton
     protected static function RedBeanDriverSetup(mixed $connection): void
     {
         if ($connection['driver'] === 'mysql') {
-            R::setup('mysql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
-                $connection['username'], $connection['password']); //for both mysql or mariaDB
+            R::setup(
+                'mysql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
+                $connection['username'],
+                $connection['password']
+            ); //for both mysql or mariaDB
         } elseif ($connection['driver'] === 'sqlite') {
             R::setup('sqlite:'.$connection['database'], null, null);
         } elseif ($connection['driver'] === 'pgsql') {
-            R::setup('pgsql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
-                $connection['username'], $connection['password']);
+            R::setup(
+                'pgsql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
+                $connection['username'],
+                $connection['password']
+            );
         } else {
             throw new RedException('Invalid database driver');
         }
@@ -119,13 +124,21 @@ class RegisterDB extends Singleton
     protected static function RedBeanDriverConnection(mixed $connection, int|string $key): void
     {
         if ($connection['driver'] === 'mysql') {
-            R::addDatabase($key, 'mysql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
-                $connection['username'], $connection['password']);
+            R::addDatabase(
+                $key,
+                'mysql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
+                $connection['username'],
+                $connection['password']
+            );
         } elseif ($connection['driver'] === 'sqlite') {
             R::addDatabase($key, 'sqlite:'.$connection['database']);
         } elseif ($connection['driver'] === 'pgsql') {
-            R::addDatabase($key, 'pgsql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
-                $connection['username'], $connection['password']);
+            R::addDatabase(
+                $key,
+                'pgsql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
+                $connection['username'],
+                $connection['password']
+            );
         } else {
             throw new RedException('Unsupported database driver: ' . $connection['driver']);
         }

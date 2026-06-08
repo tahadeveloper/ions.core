@@ -3,8 +3,11 @@
 namespace Ions\Foundation;
 
 use BadMethodCallException;
-use Ions\Bundles\AppKeys;
 use Ions\Bundles\Localization;
+use Ions\Http\RequestInput;
+use Ions\Security\Jwt;
+use Ions\Security\SecurityHeaders;
+use Ions\Security\TokenException;
 use Ions\Support\JsonResponse;
 use Ions\Support\Request;
 use Ions\Support\Response;
@@ -23,28 +26,10 @@ abstract class ApiController implements BluePrint
     public function __construct()
     {
         $this->response = Kernel::response();
-
-        /*$response_info = $this->response;
-        $response_info->headers->set('Content-Type', 'application/json');
-        $response_info->headers->set('Access-Control-Allow-Origin', "*");
-        $response_info->headers->set('Access-Control-Allow-Credentials', 'true');
-        $response_info->headers->set('Access-Control-Max-Age', '3600');
-        $response_info->headers->set('Access-Control-Allow-Headers',
-            'X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Request-Method,Access-Control-Request-Headers, Authorization');
-        $response_info->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        $response_info->send();
-        $method = $_SERVER['REQUEST_METHOD'];
-        if ($method === "OPTIONS") {
-            $response_info->headers->set('HTTP/1.1', "200 OK");
-            $response_info->send();
-            die();
-        }*/
-
         $this->request = Kernel::request();
 
-
+        // TODO(Phase 2): move to AuthMiddleware
         if (!$this->isAuthorized()) {
-            //$this->unauthorizedResponse();
             $this->display(toJson([
                 'status' => 'error',
                 'message' => 'Not authorized!',
@@ -54,11 +39,9 @@ abstract class ApiController implements BluePrint
 
         RegisterDB::boot();
 
-        $this->request_method = $this->request->getMethod() ?? $method;
+        $this->request_method = $this->request->getMethod();
 
-        $global_inputs = $this->request->all();
-        $this->inputs = (object)($global_inputs ?: $this->renderRequest($this->request_method));
-
+        $this->inputs = RequestInput::parse($this->request);
     }
 
     public function _initState(Request $request): void
@@ -68,7 +51,7 @@ abstract class ApiController implements BluePrint
 
     public function _loadInit(Request $request): void
     {
-        $config_locale = config('app.localization.locale',$this->locale);
+        $config_locale = config('app.localization.locale', $this->locale);
         Localization::init($this->locale_folder, $config_locale);
     }
 
@@ -103,66 +86,41 @@ abstract class ApiController implements BluePrint
         $response_info = $this->response;
         $response_info->setStatusCode($status);
         $response_info->setContent($json_response->getContent());
+        SecurityHeaders::apply($response_info);
         $response_info->send();
         exit();
     }
 
     private function isAuthorized(): bool
     {
-        if (!isset($_SERVER['HTTP_AUTHORIZATION']) && empty($this->request->header('Authorization'))) {
+        $header = (string) $this->request->headers->get('Authorization');
+
+        if ($header === '') {
             return false;
         }
 
-        @list($authType, $authData) =
-            explode(" ", $_SERVER['HTTP_AUTHORIZATION'] ?? $this->request->header('Authorization'), 2);
-
-        if ($authType !== 'Bearer') {
+        $parts = explode(' ', $header, 2);
+        if (count($parts) !== 2 || strtolower($parts[0]) !== 'bearer') {
             $this->unauthorizedResponse(['error' => 'No key attach!']);
         }
 
-        $status = AppKeys::validateJWT($authData);
+        $token = $parts[1];
 
-        return $status['success'];
-    }
+        $secret = (string) env('APP_KEY', '');
+        $appName = (string) env('APP_NAME', 'ions');
 
-    private function renderRequest($method)
-    {
-        $php_input = 'php://input';
-        $json_response = new JsonResponse();
-        switch ($method) {
-            case 'POST':
-                $file_inputs = file_get_contents($php_input);
-                $vars = $json_response->setContent($file_inputs)->getContent();
-                if ($vars === null) {
-                    $vars = json_decode(json_encode($_POST), JSON_FORCE_OBJECT, 512);
-                }
-                if (isset($_FILES) && !empty($_FILES)) {
-                    $vars = (object)$vars;
-                    $vars->files = $_FILES;
-                }
-                break;
-            case 'DELETE':
-            case 'GET':
-                $vars = $_GET;
-                $vars = (object)$vars;
-                break;
-            case 'PUT':
-                $vars = json_decode(file_get_contents($php_input), JSON_FORCE_OBJECT, 512);
-                if (empty($vars)) {
-                    parse_str(file_get_contents($php_input), $vars);
-                    $vars = (object)$vars;
-                }
-                break;
-            default:
-                $vars = (object)array();
-                break;
+        if ($secret === '') {
+            return false;
         }
-        return $vars;
-    }
 
-    #[NoReturn] public function notFoundResponse($response): bool|array|string
-    {
-        $this->returnStructure($response, ResponseAlias::HTTP_NOT_FOUND);
+        try {
+            $jwt = new Jwt($secret, $appName, $appName, (int) config('app.jwt.ttl', 3600));
+            $claims = $jwt->verify($token);
+            $this->request->attributes->set('auth_user_id', $claims->userId);
+            return true;
+        } catch (TokenException) {
+            return false;
+        }
     }
 
     public function routeMethod($method, $callback): void
@@ -172,13 +130,24 @@ abstract class ApiController implements BluePrint
         }
     }
 
+    #[NoReturn] public function notFoundResponse($response): void
+    {
+        $this->returnStructure($response, ResponseAlias::HTTP_NOT_FOUND);
+    }
+
     #[NoReturn] protected function display($jsonResponse): void
     {
-        if(!is_string($jsonResponse)){
-            abort(500,'Data send to api must be Json type.');
+        if (!is_string($jsonResponse)) {
+            abort(500, 'Data send to api must be Json type.');
         }
 
-        echo $jsonResponse;
+        $response = Kernel::response();
+        $response->setContent($jsonResponse);
+        if (!$response->headers->has('Content-Type')) {
+            $response->headers->set('Content-Type', 'application/json');
+        }
+        SecurityHeaders::apply($response);
+        $response->send();
         exit();
     }
 
@@ -206,7 +175,9 @@ abstract class ApiController implements BluePrint
     public function __call(string $method, array $parameters)
     {
         throw new BadMethodCallException(sprintf(
-            'Method %s::%s does not exist.', static::class, $method
+            'Method %s::%s does not exist.',
+            static::class,
+            $method
         ));
     }
 }

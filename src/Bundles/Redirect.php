@@ -8,7 +8,6 @@ use JetBrains\PhpStorm\NoReturn;
 
 class Redirect
 {
-
     /**
      * Create a new redirect response to the "home" route.
      *
@@ -47,7 +46,7 @@ class Redirect
     #[NoReturn] public static function refresh(int $status = 302, array $headers = []): void
     {
         $path = Kernel::request()->getUri();
-         self::to($path, $status, $headers)->send();
+        self::to($path, $status, $headers)->send();
 
     }
 
@@ -61,7 +60,7 @@ class Redirect
      */
     #[NoReturn] protected static function to(string $path, int $status = 302, array $headers = []): RedirectResponse
     {
-         return self::createRedirect($path, $status, $headers);
+        return self::createRedirect($path, $status, $headers);
     }
 
     /**
@@ -74,7 +73,7 @@ class Redirect
      */
     #[NoReturn] public static function away(string $path, int $status = 302, array $headers = []): void
     {
-         self::createRedirect($path, $status, $headers)->send();
+        self::createRedirect($path, $status, $headers)->send();
         exit();
     }
 
@@ -86,7 +85,7 @@ class Redirect
      * @param array $headers
      * @return void
      */
-    #[NoReturn] public static function internal(string $path, int $status = 302, array $headers = []):void
+    #[NoReturn] public static function internal(string $path, int $status = 302, array $headers = []): void
     {
         self::createRedirect(appUrl().DIRECTORY_SEPARATOR.$path, $status, $headers)->send();
         exit();

@@ -11,7 +11,8 @@ use Ions\Traits\Twig;
 
 abstract class BaseController implements BluePrint
 {
-    use Twig, Smarty;
+    use Twig;
+    use Smarty;
 
     public Session $session;
     protected string $localeFolder = 'web';

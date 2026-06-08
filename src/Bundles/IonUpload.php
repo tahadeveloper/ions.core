@@ -4,9 +4,11 @@ namespace Ions\Bundles;
 
 use Ions\Foundation\Kernel;
 use Ions\Foundation\Singleton;
+use Ions\Security\UploadValidator;
 use Ions\Support\Storage;
 use Ions\Support\Str;
-use Verot\Upload\Upload;
+use Symfony\Component\HttpFoundation\File\Exception\FileException;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class IonUpload extends Singleton
 {
@@ -14,38 +16,36 @@ class IonUpload extends Singleton
 
     public static function store(mixed $file, string $path, array $options = []): static
     {
-        $upload_arr = array();
-        $handle = new Upload($file);
-        if ($handle->uploaded) {
-
-            $fileNameWithExt = $file->getClientOriginalName();
-            $extension = $file->getClientOriginalExtension();
-
-            $random_name = Str::random(15);
-            $handle->file_new_name_body = $random_name;
-            $handle->file_new_name_ext = $extension;
-
-            if (!empty($options)) {
-                foreach ($options as $key => $option) {
-                    $handle->$key = $option;
-                }
-            }
-
-            $handle->process($path);
-            if ($handle->processed) {
-                $upload_arr['error'] = 0;
-                $upload_arr['message'] = 'file uploaded';
-                $upload_arr['original_name'] = $fileNameWithExt;
-                $upload_arr['store_name'] = $random_name . '.' . $extension;
-            } else {
-                $upload_arr['error'] = 1;
-                $upload_arr['message'] = $handle->error;
-            }
-        } else {
-            $upload_arr['error'] = 1;
-            $upload_arr['message'] = 'No file to upload';
+        if (!($file instanceof UploadedFile) || !$file->isValid()) {
+            static::$output = ['error' => 1, 'message' => 'No file to upload'];
+            return new self();
         }
-        static::$output = $upload_arr;
+
+        $allowed = $options['allowed'] ?? config('app.uploads.allowed', ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'zip']);
+        unset($options['allowed']);
+        $validator = new UploadValidator($allowed);
+
+        $originalName = $file->getClientOriginalName();
+        if (!$validator->isAllowed($originalName)) {
+            static::$output = ['error' => 1, 'message' => 'File extension not allowed'];
+            return new self();
+        }
+
+        $ext = $validator->safeExtension($originalName);
+        $randomName = Str::random(15);
+        $storeName = $randomName . '.' . $ext;
+
+        try {
+            $file->move($path, $storeName);
+            static::$output = [
+                'error' => 0,
+                'message' => 'file uploaded',
+                'original_name' => $originalName,
+                'store_name' => $storeName,
+            ];
+        } catch (FileException $e) {
+            static::$output = ['error' => 1, 'message' => $e->getMessage()];
+        }
 
         return new self();
     }
@@ -96,7 +96,7 @@ class IonUpload extends Singleton
         $image_name = $request->get($file_name);
         $original_name = $request->get($file_original_name);
         static::$output['error'] = 0;
-        if($file){
+        if ($file) {
             $upload_file = static::store($file, $path, $options);
             $upload_result = $upload_file::$output;
             if ((int)$upload_result['error'] === 0) {

@@ -5,15 +5,18 @@ namespace Ions\Foundation;
 use App\Booting;
 use Closure;
 use Dotenv\Dotenv;
+
+use const EXTR_SKIP;
+
 use Illuminate\Container\Container;
-use Illuminate\Contracts\Encryption\EncryptException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\File;
-use Ions\Bundles\MRoute;
 use Ions\Bundles\AttributeRouteControllerLoader;
+use Ions\Bundles\MRoute;
 use Ions\Bundles\Path;
+use Ions\Security\SecurityHeaders;
 use Ions\Support\Arr;
 use Ions\Support\Request;
 use Ions\Support\Response;
@@ -36,9 +39,9 @@ use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 use Throwable;
+use Whoops\Handler\Handler;
 use Whoops\Handler\JsonResponseHandler;
 use Whoops\Run;
-use const EXTR_SKIP;
 
 class Kernel extends Singleton
 {
@@ -55,12 +58,24 @@ class Kernel extends Singleton
     /**
      * boot app with evn properties.
      *
+     * @param string|null $basePath Optional absolute path to the host-app root.
+     *                              When provided, Path::setBasePath() and
+     *                              static::$environmentPath are set to that value so
+     *                              the Kernel can be booted against any directory
+     *                              (e.g. a test fixture). When omitted the existing
+     *                              5-levels-up realpath resolution is used unchanged.
      * @return void
      */
-    public static function boot(): void
+    public static function boot(?string $basePath = null): void
     {
         try {
-            static::$environmentPath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
+            if ($basePath !== null) {
+                Path::setBasePath($basePath);
+                static::$environmentPath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+            } else {
+                \Ions\Bundles\Path::resetBasePath();
+                static::$environmentPath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
+            }
 
             static::structureBone();
 
@@ -73,9 +88,13 @@ class Kernel extends Singleton
 
             include_once Path::core('helpers.php');
 
-        } catch (Throwable) {
-            header('HTTP/1.1 500 Internal Server Error');
-            die('Booting ions failed.');
+            $trustedHosts = config('app.trusted_hosts', []);
+            if (!empty($trustedHosts)) {
+                Request::setTrustedHosts($trustedHosts);
+            }
+
+        } catch (Throwable $e) {
+            static::failBoot($e, 'Booting ions failed');
         }
 
         if (class_exists(Booting::class)) {
@@ -85,6 +104,19 @@ class Kernel extends Singleton
         date_default_timezone_set(env('TIME_ZONE', 'Africa/Cairo'));
 
         static::preloads();
+    }
+
+    /**
+     * Reset cached static state so the kernel can be re-booted cleanly.
+     * Intended for test isolation only.
+     */
+    public static function resetForTesting(): void
+    {
+        static::$config = [];
+        static::$session = null;
+        static::$request = null;
+        static::$response = null;
+        \Ions\Bundles\Path::resetBasePath();
     }
 
     /**
@@ -154,19 +186,37 @@ class Kernel extends Singleton
     private static function captureConfig(): void
     {
         if (empty(static::$config) && !static::$config instanceof Config) {
-            try {
-                $configFiles = Storage::files(Path::config());
-
-                $configs = [];
-                foreach ($configFiles as $config_file) {
-                    $configs[File::name($config_file)] = include($config_file);
-                }
-                static::$config = new Config($configs);
-            } catch (Throwable) {
-                static::$config = [];
-                die('Config options fail.');
+            $configFiles = Storage::files(Path::config());
+            $configs = [];
+            foreach ($configFiles as $config_file) {
+                $configs[File::name($config_file)] = include($config_file);
             }
+            static::$config = new Config($configs);
         }
+    }
+
+    /**
+     * Handle a fatal boot/config error: log it (best-effort), then either
+     * re-throw the original throwable when APP_DEBUG is on (so developers see
+     * the real cause) or die with a generic 500 in production.
+     *
+     * @throws \Throwable when APP_DEBUG is truthy
+     */
+    private static function failBoot(\Throwable $e, string $context): never
+    {
+        // best-effort logging; never let logging failure mask the original error
+        try {
+            \Ions\Bundles\Logs::create('boot.log')->error($context . ': ' . $e->getMessage(), ['exception' => (string) $e]);
+        } catch (\Throwable) {
+            // ignore logging failures
+        }
+        if (env('APP_DEBUG', false)) {
+            throw $e;
+        }
+        if (!headers_sent()) {
+            header('HTTP/1.1 500 Internal Server Error');
+        }
+        die($context);
     }
 
     /**
@@ -175,7 +225,18 @@ class Kernel extends Singleton
     private static function structureBone(): void
     {
         if (empty(static::$session) && !static::$session instanceof Session) {
-            static::$session = new Session();
+            // Under the CLI SAPI (e.g. Pest/PHPUnit) native session storage
+            // cannot start without warnings ("headers already sent").  Use an
+            // in-memory MockArraySessionStorage in that environment so the
+            // Kernel can boot cleanly; real web requests keep the default
+            // NativeSessionStorage behaviour.
+            if (PHP_SAPI === 'cli') {
+                static::$session = new Session(
+                    new \Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage()
+                );
+            } else {
+                static::$session = new Session();
+            }
             if (!static::$session->isStarted()) {
                 static::$session->start();
             }
@@ -255,11 +316,13 @@ class Kernel extends Singleton
     protected static function errorDebugApi(): void
     {
         if (env('APP_DEBUG', false) === true) {
-            $whoops = new Run;
+            $whoops = new Run();
             $whoops->pushHandler(new JsonResponseHandler());
             $whoops->pushHandler(function ($e) {
                 $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 501;
-                static::response()->setStatusCode($statusCode)->send();
+                static::response()->setStatusCode($statusCode);
+                self::sendResponse();
+                return Handler::QUIT;
             });
             $whoops->register();
         } else {
@@ -280,6 +343,15 @@ class Kernel extends Singleton
         ob_start();
         include Path::var('templates/Exception/error.html.php');
         return trim(ob_get_clean());
+    }
+
+    /**
+     * Apply security headers to static::$response and send it.
+     */
+    private static function sendResponse(): void
+    {
+        SecurityHeaders::apply(static::$response);
+        static::$response->send();
     }
 
     /**
@@ -318,7 +390,7 @@ class Kernel extends Singleton
             static::$response->setPublic();
             static::$response->setMaxAge(3600);
             static::$response->headers->addCacheControlDirective('must-revalidate', true);
-            static::$response->send();
+            self::sendResponse();
 
         } catch (NoConfigurationException) {
             self::makeError('No configurations found', 404);
@@ -350,7 +422,7 @@ class Kernel extends Singleton
             ]));
         }
         static::$response->setStatusCode($statusCode);
-        static::$response->send();
+        self::sendResponse();
         die();
     }
 
@@ -439,15 +511,6 @@ class Kernel extends Singleton
         // add matcher to request parameters
         static::$request->attributes->add($matcherParams);
 
-        // secure app, accept request from app_url
-        $host = static::$request->headers->get('host') . env('APP_FOLDER');
-        // remove http:// or https:// from APP_URL
-        $removeProtcals = ['http://', 'https://'];
-        $appUrl = Str::remove($removeProtcals, env('APP_URL'));
-        if ($host !== $appUrl) {
-            throw new EncryptException('App host does not exist!.');
-        }
-
         $needles = array_merge(['super', 'api', 'Api'], static::config()->get('app.needles', []));
         // add namespace to controller if didn't have
         if ($namespace && $controller !== 'App\Schedule' && !Str::contains($controller, $namespace)) {
@@ -462,6 +525,6 @@ class Kernel extends Singleton
         $slice = Str::afterLast($controller, '\\');
         static::$request->attributes->add(['_controller_name' => $slice, '_method_name' => $method]);
 
-        return array($controller, $method);
+        return [$controller, $method];
     }
 }

@@ -43,3 +43,9 @@ function something()
 {
     // ..
 }
+
+function bootFixtureKernel(string $path = __DIR__ . '/fixtures/app'): void
+{
+    \Ions\Foundation\Kernel::resetForTesting();
+    \Ions\Foundation\Kernel::boot($path);
+}

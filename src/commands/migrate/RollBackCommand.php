@@ -24,11 +24,11 @@ class RollBackCommand extends Command
 
         $row_last_item = DB::connection($connection->getName())->table($table_name)->orderBy('batch', 'desc');
         $last_item = $row_last_item->first('batch');
-        if($last_item){
+        if ($last_item) {
             $last_batch = $last_item->batch;
             $target_batch = $last_batch - $step;
-            $target_rollback =  DB::connection($connection->getName())->table($table_name)->where('batch',$target_batch)->orderBy('batch', 'desc')->first();
-            if($target_rollback && Storage::exists(Path::database('migrations/'.$target_rollback->migration))){
+            $target_rollback =  DB::connection($connection->getName())->table($table_name)->where('batch', $target_batch)->orderBy('batch', 'desc')->first();
+            if ($target_rollback && Storage::exists(Path::database('migrations/'.$target_rollback->migration))) {
 
                 Schema::connection($connection->getName())->dropAllTables();
                 Schema::connection($connection->getName())->dropAllViews();

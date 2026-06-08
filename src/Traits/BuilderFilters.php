@@ -107,16 +107,16 @@ trait BuilderFilters
     {
         $wheres = $this->getWheres();
 
-        $filterWheres = $wheres->filter(function ($item){
+        $filterWheres = $wheres->filter(function ($item) {
             if (Str::contains($item['field'], '.') && !Str::startsWith($item['field'], $this->query->from)) {
                 return null;
             }
             return $item;
         });
 
-        $this->getWhere($this->query,$filterWheres);
+        $this->getWhere($this->query, $filterWheres);
 
-        $this->getOrWhere($this->query,$filterWheres);
+        $this->getOrWhere($this->query, $filterWheres);
     }
 
     /**
@@ -124,7 +124,7 @@ trait BuilderFilters
      * @param Collection $filterWheres
      * @return void
      */
-    protected function getWhere($theQuery,Collection $filterWheres): void
+    protected function getWhere($theQuery, Collection $filterWheres): void
     {
         $theQuery->where(function ($query) use ($filterWheres) {
             $filterWheres->map(function ($single) use ($query) {
@@ -145,7 +145,7 @@ trait BuilderFilters
      * @param Collection $filterWheres
      * @return void
      */
-    protected function getOrWhere($theQuery,Collection $filterWheres): void
+    protected function getOrWhere($theQuery, Collection $filterWheres): void
     {
         $theQuery->orWhere(function ($query) use ($filterWheres) {
             $filterWheres->map(function ($single) use ($query) {
