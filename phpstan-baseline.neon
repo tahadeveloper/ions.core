@@ -415,30 +415,6 @@ parameters:
 			path: src/Foundation/ApiController.php
 
 		-
-			message: '#^Expression on left side of \?\? is not nullable\.$#'
-			identifier: nullCoalesce.expr
-			count: 1
-			path: src/Foundation/ApiController.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between string\|false and null will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: src/Foundation/ApiController.php
-
-		-
-			message: '#^Undefined variable\: \$method$#'
-			identifier: variable.undefined
-			count: 1
-			path: src/Foundation/ApiController.php
-
-		-
-			message: '#^Variable \$_FILES in isset\(\) always exists and is not nullable\.$#'
-			identifier: isset.variable
-			count: 1
-			path: src/Foundation/ApiController.php
-
-		-
 			message: '#^Access to an undefined property Ions\\Foundation\\BaseController\:\:\$locale_folder\.$#'
 			identifier: property.notFound
 			count: 1
