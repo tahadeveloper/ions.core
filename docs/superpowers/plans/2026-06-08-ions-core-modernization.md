@@ -707,7 +707,11 @@ git commit -am "security: parse API input through Request abstraction; stop swal
 4. Add **refresh tokens** + token revocation (jti deny-list in cache) and login throttling/rate-limiting middleware.
 5. CSRF: keep Symfony CSRF helpers (`csrfToken`/`ionToken`/`csrfCheck`) but enforce via `CsrfMiddleware` on state-changing web routes by default.
 
-**Acceptance:** Pluggable user provider; JWT auth with refresh + revocation; rate-limited login; CSRF enforced by middleware with tests.
+**Tracked deferrals carried over from Task 1.1 (JWT) — address here:**
+- **D5-A — Clock-skew leeway:** `Ions\Security\Jwt` uses `StrictValidAt` with a system clock and `nbf = iat = now`, no leeway → a verifier whose clock lags the issuer rejects fresh tokens under NTP drift. Add a `int $clockLeewaySeconds` constructor param wired into `StrictValidAt` (e.g. `new StrictValidAt($clock, new DateInterval("PT{$leeway}S"))`), surfaced via `config('app.jwt.leeway')`. Default 0 preserves single-node behavior.
+- **D5-B — `AppKeys::createJWT()` no-arg path is not user-bound:** it defaults `sub` to the constant `config('app.app_id')`. `AuthMiddleware` and any new caller MUST resolve and validate `Claims->userId`, never trust `['success']` alone. When `AppKeys` is finally removed, drop the constant-subject fallback entirely. (KeyCommand was already updated to pass an explicit `'system'` subject in Task 1.1.)
+
+**Acceptance:** Pluggable user provider; JWT auth with refresh + revocation; rate-limited login; CSRF enforced by middleware with tests; D5-A leeway configurable and tested; D5-B userId always validated in the auth path.
 
 ---
 
