@@ -29,7 +29,6 @@ use Ions\Support\Response;
 use Ions\Support\Session;
 use Ions\Support\Storage;
 use Ions\Support\Str;
-use JetBrains\PhpStorm\NoReturn;
 use Spatie\Ignition\Ignition;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\ErrorHandler\DebugClassLoader;
@@ -604,30 +603,6 @@ class Kernel extends Singleton
     }
 
     /**
-     * @param string $error
-     * @param int $statusCode
-     * @return void
-     */
-    #[NoReturn] private static function makeError(string $error, int $statusCode): void
-    {
-        if (self::request()->wantsJson()) {
-            static::$response->setContent(toJson([
-                'status' => 'error',
-                'message' => $error,
-                'code' => $statusCode,
-            ]));
-        } else {
-            static::$response->setContent(static::HtmlErrorRender([
-                'statusText' => $error,
-                'statusCode' => $statusCode,
-            ]));
-        }
-        static::$response->setStatusCode($statusCode);
-        self::sendResponse();
-        die();
-    }
-
-    /**
      * @param string $targetFolder
      * @return RouteCollection
      */
@@ -661,26 +636,6 @@ class Kernel extends Singleton
         $routes->add(Str::random(10) . '_schedule', new Route('/cron/schedule', ['_controller' => 'App\Schedule::boot']));
 
         return $routes;
-    }
-
-    /**
-     * @param mixed $controller
-     * @param mixed $method
-     * @return void
-     */
-    private static function instanceTheController(mixed $controller, mixed $method): void
-    {
-        // instance the controller
-        $instance = new $controller();
-        !method_exists($instance, '_initState') ?: $instance->_initState(static::$request);
-        !method_exists($instance, '_loadInit') ?: $instance->_loadInit(static::$request);
-        !method_exists($instance, '_loadedState') ?: $instance->_loadedState(static::$request);
-        if (method_exists($instance, 'callAction')) {
-            $instance->callAction($method, [static::$request]);
-        } elseif (method_exists($instance, $method)) {
-            $instance->{$method}(...array_values([static::$request]));
-        }
-        !method_exists($instance, '_endState') ?: $instance->_endState(static::$request);
     }
 
     /**

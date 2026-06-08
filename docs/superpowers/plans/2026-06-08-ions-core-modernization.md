@@ -664,6 +664,8 @@ git commit -am "security: parse API input through Request abstraction; stop swal
 
 **Acceptance:** A fixture request flows Request → pipeline → controller → Response entirely in a test, with auth enforced by middleware, not constructors.
 
+Config keys (`app.providers`, `app.middleware`, `app.cors`, `app.jwt.ttl`, `app.trusted_hosts`) documented in `docs/phase2-config.md`.
+
 ---
 
 ## Phase 3 — HTTP / routing / controllers modernization
