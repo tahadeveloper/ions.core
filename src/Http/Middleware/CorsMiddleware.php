@@ -25,6 +25,7 @@ final class CorsMiddleware implements MiddlewareInterface
         if ($request->getMethod() === 'OPTIONS') {
             $response = new Response('', 204);
             $this->applyCorsHeaders($request, $response);
+            $response->headers->set('Access-Control-Max-Age', (string) $this->maxAge);
             return $response;
         }
 
@@ -38,7 +39,6 @@ final class CorsMiddleware implements MiddlewareInterface
         $response->headers->set('Access-Control-Allow-Origin', $this->resolveOrigin($request));
         $response->headers->set('Access-Control-Allow-Methods', implode(', ', $this->methods));
         $response->headers->set('Access-Control-Allow-Headers', implode(', ', $this->headers));
-        $response->headers->set('Access-Control-Max-Age', (string) $this->maxAge);
     }
 
     private function resolveOrigin(Request $request): string

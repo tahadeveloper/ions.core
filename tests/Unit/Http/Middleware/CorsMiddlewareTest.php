@@ -22,3 +22,20 @@ test('non-preflight request gets Access-Control-Allow-Origin on the downstream r
     expect($res->getContent())->toBe('ok')
         ->and($res->headers->get('Access-Control-Allow-Origin'))->toBe('*');
 });
+
+test('does not reflect an untrusted Origin when a specific allow-list is configured', function () {
+    $mw = new CorsMiddleware(['origins' => ['https://trusted.example']]);
+    $req = Request::create('/api', 'GET');
+    $req->headers->set('Origin', 'https://evil.com');
+    $res = $mw->handle($req, fn ($r) => new Response('ok'));
+    // must NOT echo the evil origin back
+    expect($res->headers->get('Access-Control-Allow-Origin'))->not->toBe('https://evil.com');
+});
+
+test('reflects an allow-listed Origin when it matches', function () {
+    $mw = new CorsMiddleware(['origins' => ['https://trusted.example']]);
+    $req = Request::create('/api', 'GET');
+    $req->headers->set('Origin', 'https://trusted.example');
+    $res = $mw->handle($req, fn ($r) => new Response('ok'));
+    expect($res->headers->get('Access-Control-Allow-Origin'))->toBe('https://trusted.example');
+});
