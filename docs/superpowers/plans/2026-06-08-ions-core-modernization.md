@@ -648,7 +648,7 @@ git commit -am "security: parse API input through Request abstraction; stop swal
 
 ## Phase 2 — DI container, service providers, middleware pipeline
 
-> **Expand into its own plan before executing.** Spec below.
+> **Expanded into its own detailed plan:** `docs/superpowers/plans/2026-06-09-phase2-container-middleware.md` (6 sequenced sub-phases, TDD). Spec summary below.
 
 **Goal:** Introduce `Ions\Container\Container` (PSR-11, wrapping `Illuminate\Container`), a `ServiceProvider` base, and a PSR-15-style middleware pipeline. Convert `Kernel` from "static god object" to "boot the container, run providers, dispatch through pipeline."
 
