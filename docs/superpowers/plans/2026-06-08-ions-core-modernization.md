@@ -724,7 +724,8 @@ git commit -am "security: parse API input through Request abstraction; stop swal
 2. Modernize generators (`src/commands/*`): update stubs to emit container-aware controllers, typed responses, middleware; add `make:middleware`, `make:provider`.
 3. Write `UPGRADE-2.0.md` (every documented break: trusted hosts, JWT format/`APP_KEY`, upload allow-list, `MRoute` removal, RedBean removal, container resolution, return-response controllers) and `CHANGELOG.md`.
 4. Author real documentation (README + `/docs`): quick start, lifecycle, routing, middleware, auth, config reference.
-5. Tag `v2.0.0`. Keep `1.x` branch for security backports.
+5. **Image processing replacement (tracked from Task 1.2):** dropping `verot` removed server-side image resize/watermark that `IonDisk::put()` exposed via `$options`. If still needed, integrate `intervention/image` (^3) behind a small `Ions\Media\Image` helper and re-wire optional resize as an explicit post-`store` step (not silent). Otherwise document the removal as permanent.
+6. Tag `v2.0.0`. Keep `1.x` branch for security backports.
 
 **Acceptance:** `composer qa` green at high PHPStan level on core packages; upgrade guide complete; v2.0.0 tagged.
 
@@ -735,7 +736,7 @@ git commit -am "security: parse API input through Request abstraction; stop swal
 Breaking changes apps must address, each with before/after:
 1. **JWT:** set `APP_KEY` (≥32 bytes); re-issue tokens (old tokens invalid; now expire). `AppKeys` deprecated → `Ions\Security\Jwt`.
 2. **Trusted hosts:** set `app.trusted_hosts` (regex list) — the old `Host`==`APP_URL` check is gone.
-3. **Uploads:** configure `app.uploads.allowed`; executable extensions now rejected.
+3. **Uploads:** configure `app.uploads.allowed`; executable extensions now rejected (`IonUpload::store`, `IonDisk::put`/`putFile`). The `verot/class.upload.php` dependency was **removed** (it had an unpatched RCE advisory and no safe stable release). **Image resize/watermark via `$options`** on `IonDisk::put()`/`handleLocalUpload()` no longer works (it was a verot feature) and is now **silently ignored** — callers needing image processing must post-process explicitly (planned replacement: `intervention/image`, tracked in Phase 6). Stored filenames are now always `Str::random(15).<safe-ext>`, or a `Str::slug`-sanitized original stem when `$withOriginal=true`.
 4. **Routing:** `MRoute` removed → use `Route`.
 5. **Database:** Eloquent 9→11 deltas; RedBean removed (or now opt-in `suggest`).
 6. **Controllers:** resolved via container; prefer returning a `Response`. `echo`/`exit` patterns still work via shims but are deprecated.
