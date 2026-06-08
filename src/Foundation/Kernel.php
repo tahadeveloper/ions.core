@@ -186,6 +186,7 @@ class Kernel extends Singleton
         return [
             \Ions\Providers\FilesystemProvider::class,
             \Ions\Providers\DatabaseProvider::class,
+            \Ions\Providers\AuthProvider::class,
         ];
     }
 
@@ -558,7 +559,10 @@ class Kernel extends Singleton
      */
     private static function defaultMiddleware(): array
     {
-        $jwt = self::buildJwt();
+        // Prefer the container-bound jwt (registered by AuthProvider); fall back to
+        // direct construction so auth works even when AuthProvider is not in the list.
+        $jwt = static::$app->has('jwt') ? static::$app->get('jwt') : self::buildJwt();
+        /** @var \Ions\Security\Jwt|null $jwt */
 
         return [
             'web' => [
@@ -580,10 +584,11 @@ class Kernel extends Singleton
      * signing key is absent or too short (< 32 bytes).
      *
      * Never throws — a missing or short key simply disables JWT signing.
+     * Public so that AuthProvider (and other callers) can use it as a factory.
      *
      * @return Jwt|null
      */
-    private static function buildJwt(): ?Jwt
+    public static function buildJwt(): ?Jwt
     {
         $secret = (string) env('APP_KEY', '');
         if (strlen($secret) < 32) {
