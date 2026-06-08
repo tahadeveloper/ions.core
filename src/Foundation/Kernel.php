@@ -186,17 +186,12 @@ class Kernel extends Singleton
     private static function captureConfig(): void
     {
         if (empty(static::$config) && !static::$config instanceof Config) {
-            try {
-                $configFiles = Storage::files(Path::config());
-
-                $configs = [];
-                foreach ($configFiles as $config_file) {
-                    $configs[File::name($config_file)] = include($config_file);
-                }
-                static::$config = new Config($configs);
-            } catch (Throwable $e) {
-                static::failBoot($e, 'Config options failed');
+            $configFiles = Storage::files(Path::config());
+            $configs = [];
+            foreach ($configFiles as $config_file) {
+                $configs[File::name($config_file)] = include($config_file);
             }
+            static::$config = new Config($configs);
         }
     }
 

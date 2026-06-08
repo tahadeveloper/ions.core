@@ -41,3 +41,10 @@ test('exposes uploaded files under ->files', function () {
     $out = RequestInput::parse($req);
     expect($out->caption)->toBe('hi')->and($out->files)->toHaveKey('photo');
 });
+
+test('a client-sent "files" form field cannot masquerade as uploads', function () {
+    $req = Request::create('/api', 'POST', ['files' => 'hacked', 'name' => 'sam']);
+    $out = RequestInput::parse($req);
+    expect($out->name)->toBe('sam')
+        ->and(property_exists($out, 'files'))->toBeFalse(); // no real upload, no files key
+});

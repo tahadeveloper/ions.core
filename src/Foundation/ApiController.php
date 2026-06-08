@@ -100,7 +100,7 @@ abstract class ApiController implements BluePrint
         }
 
         $parts = explode(' ', $header, 2);
-        if (count($parts) !== 2 || $parts[0] !== 'Bearer') {
+        if (count($parts) !== 2 || strtolower($parts[0]) !== 'bearer') {
             $this->unauthorizedResponse(['error' => 'No key attach!']);
         }
 

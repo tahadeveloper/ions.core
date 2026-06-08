@@ -481,13 +481,13 @@ parameters:
 			path: src/Foundation/Kernel.php
 
 		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:failBoot\(\) through static\:\:\.$#'
+			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:captureRoute\(\) through static\:\:\.$#'
 			identifier: staticClassAccess.privateMethod
-			count: 2
+			count: 1
 			path: src/Foundation/Kernel.php
 
 		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:captureRoute\(\) through static\:\:\.$#'
+			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:failBoot\(\) through static\:\:\.$#'
 			identifier: staticClassAccess.privateMethod
 			count: 1
 			path: src/Foundation/Kernel.php

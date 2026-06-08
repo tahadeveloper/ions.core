@@ -27,6 +27,9 @@ final class RequestInput
         } else {
             // form-encoded body (POST/PUT/PATCH) merged with query
             $data = $request->request->all();
+            // Strip any client-supplied 'files' key so it cannot masquerade as
+            // real UploadedFile objects added below.
+            unset($data['files']);
             if ($data === [] && $raw !== '') {
                 parse_str($raw, $parsed);
                 $data = $parsed;
