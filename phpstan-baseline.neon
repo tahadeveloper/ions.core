@@ -259,10 +259,10 @@ parameters:
 			path: src/Bundles/QueryBuilder.php
 
 		-
-			message: '#^PHPDoc tag @return with type void is incompatible with native type never\.$#'
-			identifier: return.phpDocType
-			count: 2
-			path: src/Bundles/Redirect.php
+			message: '#^Property Ions\\Bundles\\Route\:\:\$lastRoute is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Bundles/Route.php
 
 		-
 			message: '#^Unsafe access to private property Ions\\Bundles\\Route\:\:\$controls through static\:\:\.$#'

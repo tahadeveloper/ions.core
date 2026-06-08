@@ -28,3 +28,15 @@ test('a route without middleware() has no middleware option (or empty)', functio
     $route = routeByPath('/plain');
     expect($route->getOption('middleware') ?? [])->toBe([]);
 });
+
+test('resource() middleware applies to ALL the resource routes, not just the last', function () {
+    Route::resource('widgets', 'WidgetController')->middleware(['Auth']);
+    $paths = [];
+    foreach (Kernel::RouteCollection()->all() as $r) {
+        if (str_starts_with($r->getPath(), '/widgets')) {
+            expect($r->getOption('middleware'))->toBe(['Auth']);
+            $paths[] = $r->getPath();
+        }
+    }
+    expect(count($paths))->toBeGreaterThanOrEqual(5); // index/create/store/show/edit/update/destroy
+});

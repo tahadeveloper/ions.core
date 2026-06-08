@@ -68,7 +68,7 @@ class Redirect
      * @param string $path
      * @param int $status
      * @param array $headers
-     * @return void
+     * @return never
      */
     public static function away(string $path, int $status = 302, array $headers = []): never
     {
@@ -82,7 +82,7 @@ class Redirect
      * @param string $path
      * @param int $status
      * @param array $headers
-     * @return void
+     * @return never
      */
     public static function internal(string $path, int $status = 302, array $headers = []): never
     {

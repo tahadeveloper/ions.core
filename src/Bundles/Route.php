@@ -29,6 +29,8 @@ class Route extends Singleton
     private static array $controls = [];
     private array $route_details;
     private ?SRoute $lastRoute = null;
+    /** @var SRoute[] */
+    private array $lastRoutes = [];
 
     public static function __callStatic(string $name, array $arguments)
     {
@@ -78,8 +80,10 @@ class Route extends Singleton
      */
     public function middleware(array $names): static
     {
-        if ($this->lastRoute !== null) {
-            $this->lastRoute->setOption('middleware', $names);
+        if ($this->lastRoutes !== []) {
+            foreach ($this->lastRoutes as $r) {
+                $r->setOption('middleware', $names);
+            }
         }
         return $this;
     }
@@ -134,6 +138,7 @@ class Route extends Singleton
         Kernel::RouteCollection()->add($name, $sroute);
 
         $this->lastRoute = $sroute;
+        $this->lastRoutes[] = $sroute;
     }
 
     public function _resource(string $name, string $controller): void

@@ -41,8 +41,8 @@ final class ViewFactory
         }
 
         $env = new Environment($loader, [
-            'debug'       => (bool) config('app.app_debug', false),
-            'auto_reload' => (bool) config('app.app_debug', false),
+            'debug'       => (bool) env('APP_DEBUG', false),
+            'auto_reload' => (bool) env('APP_DEBUG', false),
             'charset'     => 'UTF-8',
             'cache'       => $cache,
         ]);

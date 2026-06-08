@@ -46,7 +46,7 @@ When editing path logic, **always preserve the `src/` → `app/` fallback** in `
 Dispatched controllers (`instanceTheController`) get these called in order if they exist: `_initState` → `_loadInit` → `_loadedState` → action (via `callAction` or direct method) → `_endState`, each receiving the `Request`. `Foundation\BaseController` (web) and `Foundation\ApiController` (api) are the abstract bases implementing the `BluePrint` interface; both call `RegisterDB::boot()` in their constructor. `BaseController` wires up Twig and Localization in `_loadInit`; `ApiController` enforces `isAuthorized()` and parses request inputs.
 
 ### Routing (two styles, both supported)
-- **`Ions\Bundles\Route`** — fluent static facade (`Route::get/post/put/...`, `Route::resource`, `Route::prefix(...)->group(...)`). Adds to `Kernel::RouteCollection()`. Used in `routes/*.php`. (`MRoute` is an older variant; prefer `Route`.)
+- **`Ions\Bundles\Route`** — fluent static facade (`Route::get/post/put/...`, `Route::resource`, `Route::prefix(...)->group(...)`). Adds to `Kernel::RouteCollection()`. Used in `routes/*.php`.
 - **Attribute routing** — PHP 8 route attributes on controller methods under `Http/`, loaded automatically.
 Routes can also be declared in YAML.
 
@@ -64,7 +64,7 @@ Driven by `config('app.database_engine')` which may contain `'db'` (Illuminate E
 
 ### Support & Bundles
 - `src/Support/` — thin wrappers/extensions over Symfony/Illuminate: `Request`, `Response`, `JsonResponse`, `Session`, `Cookie`, `Str`, `Arr`, `File`, `Storage`, `DB`, `Route`.
-- `src/Bundles/` — feature modules: `Path` (all path resolution), `Cache`, `Logs` (Monolog), `Localization` (Symfony Translation), `IonUpload`/`IonDisk` (Flysystem local + AWS S3, switched by `FILESYSTEM_DISK` env), `AppKeys`, `Redirect`, `MRoute`/`Route`.
+- `src/Bundles/` — feature modules: `Path` (all path resolution), `Cache`, `Logs` (Monolog), `Localization` (Symfony Translation), `IonUpload`/`IonDisk` (Flysystem local + AWS S3, switched by `FILESYSTEM_DISK` env), `AppKeys`, `Redirect`, `Route`.
 - `src/Foundation/Singleton` — base for the many static service classes; `BluePrint` is the controller interface.
 
 ### CLI commands (`src/commands/`)
