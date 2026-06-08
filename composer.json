@@ -40,6 +40,7 @@
     "league/flysystem-aws-s3-v3": "^3.29",
     "monolog/monolog": "^2.10.0",
     "peppeocchi/php-cron-scheduler": "^4.0",
+    "psr/container": "^2.0",
     "smarty/smarty": "^4.5",
     "spatie/ignition": "^1.15",
     "symfony/config": "^6.4.14",
