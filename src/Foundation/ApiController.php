@@ -137,13 +137,17 @@ abstract class ApiController implements BluePrint
 
     #[NoReturn] protected function display($jsonResponse): void
     {
-        // NOTE: raw echo bypasses Symfony Response headers (including SecurityHeaders).
-        // Phase 3 will make controllers return Response objects to close this gap.
         if (!is_string($jsonResponse)) {
             abort(500, 'Data send to api must be Json type.');
         }
 
-        echo $jsonResponse;
+        $response = Kernel::response();
+        $response->setContent($jsonResponse);
+        if (!$response->headers->has('Content-Type')) {
+            $response->headers->set('Content-Type', 'application/json');
+        }
+        SecurityHeaders::apply($response);
+        $response->send();
         exit();
     }
 
