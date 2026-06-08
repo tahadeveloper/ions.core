@@ -450,6 +450,19 @@ class Kernel extends Singleton
             // Build middleware stack for the group.
             $stack = config('app.middleware', self::defaultMiddleware())[$targetFolder] ?? [];
 
+            // Append per-route middleware (runs closest to the controller).
+            $routeMiddleware = [];
+            if (isset($matcherParams['_route'])) {
+                $matched = $routes->get($matcherParams['_route']);
+                foreach ((array) ($matched?->getOption('middleware') ?? []) as $name) {
+                    $resolved = self::resolveMiddleware((string) $name);
+                    if ($resolved !== null) {
+                        $routeMiddleware[] = $resolved;
+                    }
+                }
+            }
+            $stack = array_merge($stack, $routeMiddleware);
+
             $response = (new Pipeline($stack, $terminal))->handle($request);
 
             // Preserve old cache-control headers for non-error web responses.
@@ -606,6 +619,41 @@ class Kernel extends Singleton
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * Resolve a middleware name (FQCN or alias) to a MiddlewareInterface instance.
+     *
+     * Resolution order:
+     *   1. If $name exists in config('app.middleware_aliases'), use the mapped class-string.
+     *   2. Otherwise treat $name itself as a class-string.
+     *   3. Instantiate via the container; verify it implements MiddlewareInterface.
+     *   4. Return null (unresolvable) rather than throw, so a bad alias never crashes the request.
+     *
+     * @param string $name FQCN or alias string.
+     * @return \Ions\Http\Middleware\MiddlewareInterface|null
+     */
+    private static function resolveMiddleware(string $name): ?\Ions\Http\Middleware\MiddlewareInterface
+    {
+        /** @var array<string,string> $aliases */
+        $aliases = (array) config('app.middleware_aliases', []);
+        $class = $aliases[$name] ?? $name;
+
+        if (!class_exists($class)) {
+            return null;
+        }
+
+        try {
+            $instance = static::$app->make($class);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (!($instance instanceof \Ions\Http\Middleware\MiddlewareInterface)) {
+            return null;
+        }
+
+        return $instance;
     }
 
     /**

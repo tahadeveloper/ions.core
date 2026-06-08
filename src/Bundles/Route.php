@@ -28,6 +28,7 @@ class Route extends Singleton
     private static array $prefix = [];
     private static array $controls = [];
     private array $route_details;
+    private ?SRoute $lastRoute = null;
 
     public static function __callStatic(string $name, array $arguments)
     {
@@ -63,6 +64,24 @@ class Route extends Singleton
         } else {
             abort(500, 'Method not found');
         }
+    }
+
+    /**
+     * Attach middleware class names (or alias names) to this route.
+     *
+     * The names are stored as the 'middleware' option on the underlying
+     * Symfony Route object so Kernel::handle() can read them back when the
+     * route is matched.
+     *
+     * @param list<string> $names FQCN or alias strings.
+     * @return static
+     */
+    public function middleware(array $names): static
+    {
+        if ($this->lastRoute !== null) {
+            $this->lastRoute->setOption('middleware', $names);
+        }
+        return $this;
     }
 
     private function inRoute($method, $path, $controller, $defaults = [], $name = null, $wheres = []): void
@@ -102,19 +121,19 @@ class Route extends Singleton
             $name = Str::random(10);
         }
 
-        Kernel::RouteCollection()->add(
-            $name,
-            new SRoute(
-                path: $path,
-                defaults: ['_controller' => $controller] + $defaults,
-                requirements: $wheres,
-                options: [],
-                host: '',
-                schemes: [],
-                methods: $method
-            )
+        $sroute = new SRoute(
+            path: $path,
+            defaults: ['_controller' => $controller] + $defaults,
+            requirements: $wheres,
+            options: [],
+            host: '',
+            schemes: [],
+            methods: $method
         );
 
+        Kernel::RouteCollection()->add($name, $sroute);
+
+        $this->lastRoute = $sroute;
     }
 
     public function _resource(string $name, string $controller): void
