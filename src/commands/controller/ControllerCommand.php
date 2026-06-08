@@ -10,8 +10,7 @@ class ControllerCommand extends Command
 {
     protected $signature = 'make:control
         {name}
-        {--path= : path for controller folder}
-        {--smarty : choose smarty template}';
+        {--path= : path for controller folder}';
     protected $description = 'Create control in http controllers.';
 
     public function handle(): void
@@ -30,11 +29,6 @@ class ControllerCommand extends Command
         $html_name = $name_lower;
         $html_ext = '.html.twig';
         $html_main_folder = config('app.twig.theme');
-        if ($this->input->getOption('smarty')) {
-            $template = 'smarty';
-            $html_ext = '.html.tpl';
-            $html_main_folder = config('app.smarty.theme');
-        }
         $html_path = 'views/' . $html_main_folder;
 
         $path = $this->input->getOption('path');
@@ -48,9 +42,6 @@ class ControllerCommand extends Command
             $controller_path = 'Http/'.$path;
             $html_path = 'views/' . $root_folder;
             $html_name = '@'.$html_main_folder.'/'.$name_lower;
-            if ($this->input->getOption('smarty')) {
-                $html_name = '['.$root_folder.']/'.$name_lower;
-            }
 
             // super -- add control and actions
             if (Str::lower($root_folder) === 'super') {

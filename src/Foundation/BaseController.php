@@ -6,13 +6,11 @@ use BadMethodCallException;
 use Ions\Bundles\Localization;
 use Ions\Support\Request;
 use Ions\Support\Session;
-use Ions\Traits\Smarty;
 use Ions\Traits\Twig;
 
 abstract class BaseController implements BluePrint
 {
     use Twig;
-    use Smarty;
 
     public Session $session;
     protected string $localeFolder = 'web';
@@ -47,11 +45,6 @@ abstract class BaseController implements BluePrint
         if (in_array('twig', $allowTemplates, true)) {
             $this->TwigInit();
             !$transJson ?: $this->twig->addGlobal('tJson', $transJson);
-        }
-
-        if (in_array('smarty', $allowTemplates, true)) {
-            $this->smartyInit();
-            !$transJson ?: $this->smarty->assignGlobal('tJson', $transJson);
         }
     }
 
