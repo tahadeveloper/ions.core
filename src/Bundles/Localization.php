@@ -24,12 +24,12 @@ class Localization extends Singleton
         static::$localization->setLocale($locale);
         static::$localization->addLoader('array', new ArrayLoader());
         if (file_exists(Path::locale($locale . '/' . $file . '.php'))) {
-            static::$localization->addResource('array', include Path::locale($locale . '/' . $file . '.php'), $locale,$domain);
+            static::$localization->addResource('array', include Path::locale($locale . '/' . $file . '.php'), $locale, $domain);
         }
         return static::$localization;
     }
 
-    public static function AddfileTranslate($file, $locale,$domain): Translator
+    public static function AddfileTranslate($file, $locale, $domain): Translator
     {
         static::$localization->setLocale($locale);
         static::$localization->addLoader('array', new ArrayLoader());

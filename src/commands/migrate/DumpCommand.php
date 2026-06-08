@@ -37,7 +37,8 @@ class DumpCommand extends Command
         $connection = $connections->connection($this->input->getOption('database'));
 
         $this->schemaState($connection)->dump(
-            $connection, $path = $this->path($connection)
+            $connection,
+            $path = $this->path($connection)
         );
 
         $dispatcher = new Dispatcher(Kernel::app());
@@ -46,8 +47,9 @@ class DumpCommand extends Command
         $this->info('Database schema dumped successfully.');
 
         if ($this->option('prune')) {
-            (new Filesystem)->deleteDirectory(
-                Path::database('Schema'), false
+            (new Filesystem())->deleteDirectory(
+                Path::database('Schema'),
+                false
             );
 
             $this->info('Migrations pruned successfully.');
@@ -80,8 +82,8 @@ class DumpCommand extends Command
     {
         $table_name = config('database.migrations', 'migrations');
         $migration_value = date('Y_m_d_His') . '_' . $connection->getName() . '_schema.dump';
-        return tap($this->option('path') ?: Path::database('Migrations/' . $migration_value), function ($path) use ($migration_value, $table_name, $connection)  {
-            (new Filesystem)->ensureDirectoryExists(dirname($path));
+        return tap($this->option('path') ?: Path::database('Migrations/' . $migration_value), function ($path) use ($migration_value, $table_name, $connection) {
+            (new Filesystem())->ensureDirectoryExists(dirname($path));
 
             $this->prepareDatabase($connection);
 
@@ -96,7 +98,7 @@ class DumpCommand extends Command
         $table_name = config('database.migrations', 'migrations');
         if (!Schema::connection($connection->getName())->hasTable($table_name)) {
             $args = '';
-            if($this->option('database')){
+            if ($this->option('database')) {
                 $args = '--database='.$this->option('database');
             }
             exec('php bin/ion migrate --install '.$args);

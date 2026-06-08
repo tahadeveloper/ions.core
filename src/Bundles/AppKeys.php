@@ -19,11 +19,11 @@ class AppKeys extends Singleton
     public static function createKey(): void
     {
         if (!file_exists(Path::var('key.pem'))) {
-            $config = array(
+            $config = [
                 "digest_alg" => "sha512",
                 "private_key_bits" => 2048,
                 "private_key_type" => OPENSSL_KEYTYPE_RSA,
-            );
+            ];
             $private_key = openssl_pkey_new($config);
             $public_key_pem = openssl_pkey_get_details($private_key)['key'];
 

@@ -3,7 +3,6 @@
 namespace Ions\Builders;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Ions\Exceptions\InvalidSubject;

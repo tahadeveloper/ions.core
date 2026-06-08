@@ -55,8 +55,11 @@ class IonDisk
                     'secret' => config('filesystem.disks.s3.secret'),
                 ],
             ];
-            $adapter = new AwsS3V3Adapter(new S3Client($options), self::$bucket,
-                self::$basePath);
+            $adapter = new AwsS3V3Adapter(
+                new S3Client($options),
+                self::$bucket,
+                self::$basePath
+            );
             return new Filesystem($adapter);
         }
 
@@ -174,8 +177,11 @@ class IonDisk
             case 's3':
                 $s3Client = self::getS3Client();
                 // Create the Flysystem adapter
-                $adapter = new AwsS3V3Adapter($s3Client, self::$bucket,
-                    self::$basePath);
+                $adapter = new AwsS3V3Adapter(
+                    $s3Client,
+                    self::$bucket,
+                    self::$basePath
+                );
                 return new Filesystem($adapter);
             default:
                 throw new InvalidArgumentException("Unsupported disk type: " . self::$type);
@@ -565,10 +571,10 @@ class IonDisk
 
         if ($disk === null) {
             // remove fromPath from sourcePath
-            if($defaultOptions && $defaultOptions->has('fromPath')){
+            if ($defaultOptions && $defaultOptions->has('fromPath')) {
                 $sourcePath = str_replace($defaultOptions->get('fromPath') . '/', '', $sourcePath);
             }
-            if($defaultOptions && $defaultOptions->has('toPath')){
+            if ($defaultOptions && $defaultOptions->has('toPath')) {
                 $destinationPath = str_replace($defaultOptions->get('toPath') . '/', '', $destinationPath);
             }
 

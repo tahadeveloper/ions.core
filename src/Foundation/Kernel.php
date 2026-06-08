@@ -5,14 +5,17 @@ namespace Ions\Foundation;
 use App\Booting;
 use Closure;
 use Dotenv\Dotenv;
+
+use const EXTR_SKIP;
+
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Encryption\EncryptException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\File;
-use Ions\Bundles\MRoute;
 use Ions\Bundles\AttributeRouteControllerLoader;
+use Ions\Bundles\MRoute;
 use Ions\Bundles\Path;
 use Ions\Support\Arr;
 use Ions\Support\Request;
@@ -38,7 +41,6 @@ use Symfony\Component\Routing\RouteCollection;
 use Throwable;
 use Whoops\Handler\JsonResponseHandler;
 use Whoops\Run;
-use const EXTR_SKIP;
 
 class Kernel extends Singleton
 {
@@ -255,7 +257,7 @@ class Kernel extends Singleton
     protected static function errorDebugApi(): void
     {
         if (env('APP_DEBUG', false) === true) {
-            $whoops = new Run;
+            $whoops = new Run();
             $whoops->pushHandler(new JsonResponseHandler());
             $whoops->pushHandler(function ($e) {
                 $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 501;
@@ -462,6 +464,6 @@ class Kernel extends Singleton
         $slice = Str::afterLast($controller, '\\');
         static::$request->attributes->add(['_controller_name' => $slice, '_method_name' => $method]);
 
-        return array($controller, $method);
+        return [$controller, $method];
     }
 }

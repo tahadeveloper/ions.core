@@ -1,9 +1,9 @@
 <?php
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Schema;
 use Ions\Bundles\Path;
 use Ions\Support\File;
 use JetBrains\PhpStorm\Pure;
@@ -36,7 +36,7 @@ class ModelCommand extends Command
 
         try {
             $fields = Schema::connection('default')->getColumnListing($name_lower);
-        }catch (Throwable){
+        } catch (Throwable) {
             //ignore
             $fields = [];
         }
@@ -55,7 +55,7 @@ class ModelCommand extends Command
                 [$type, $subType] = $this->guessType($property);
                 $pt = in_array($property, $hide, true)
                     ? '@property-write'
-                    : (in_array($property, $avoid,true) || $isDate ? '@property-read ' : '@property      ');
+                    : (in_array($property, $avoid, true) || $isDate ? '@property-read ' : '@property      ');
                 $properties .= "$pt $type \${$property}$subType\n * ";
             }
 
@@ -78,7 +78,8 @@ class ModelCommand extends Command
         $replace = Str::replace(
             ['{{ namespace }}', '{{ import }}', '{{ class }}', '{{ properties }}', '{{ use }}', '{{ timestamps }}', '{{ table }}', '{{ fillable }}', '{{ hidden }}'],
             ['App\\Models', $import, $name, $properties, $use, $timestamps, $name_lower, $fillable, $hidden],
-            Storage::get($new_file));
+            Storage::get($new_file)
+        );
 
         Storage::put($new_file, $replace);
 

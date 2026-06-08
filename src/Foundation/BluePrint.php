@@ -1,4 +1,5 @@
 <?php
+
 namespace Ions\Foundation;
 
 use Ions\Support\Request;
@@ -14,16 +15,16 @@ interface BluePrint
      * @param Request $request
      * @return void
      */
-    public function _initState(Request $request):void;
+    public function _initState(Request $request): void;
 
-    public function _loadInit(Request $request):void;
+    public function _loadInit(Request $request): void;
 
-    public function _loadedState(Request $request):void;
+    public function _loadedState(Request $request): void;
 
     /**
      * call before closing request
      * @param Request $request
      * @return void
      */
-    public function _endState(Request $request):void;
+    public function _endState(Request $request): void;
 }

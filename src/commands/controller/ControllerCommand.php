@@ -66,7 +66,8 @@ class ControllerCommand extends Command
         $replace = Str::replace(
             ['{{ namespace }}', '{{ class }}', '{{ template }}', '{{ html_name }}', '{{ html_ext }}'],
             [$name_space, $name, $template, $html_name, $html_ext],
-            Storage::get($new_controller));
+            Storage::get($new_controller)
+        );
 
         $html_name = $name_lower;
 
@@ -101,7 +102,8 @@ class ControllerCommand extends Command
             $route_yaml_replace = Str::replace(
                 ['{{ route_name }}', '{{ route_path }}', '{{ class }}'],
                 [$name_lower, $name_dash, $pre_folder . $name],
-                Storage::get(Path::bin('commands/controller/route_yaml.stub')));
+                Storage::get(Path::bin('commands/controller/route_yaml.stub'))
+            );
             Storage::append(Path::route($route_file . '.yaml'), $route_yaml_replace);
 
             $this->info('Added to route YAML file');
@@ -110,7 +112,8 @@ class ControllerCommand extends Command
             $route_php_replace = Str::replace(
                 ['{{ route_name }}', '{{ route_path }}', '{{ class }}'],
                 [$name_lower, $name_dash, $pre_folder . $name],
-                Storage::get(Path::bin('commands/controller/route_php.stub')));
+                Storage::get(Path::bin('commands/controller/route_php.stub'))
+            );
             Storage::append(
                 Path::route($route_file . '.php'),
                 $route_php_replace

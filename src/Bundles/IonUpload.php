@@ -14,7 +14,7 @@ class IonUpload extends Singleton
 
     public static function store(mixed $file, string $path, array $options = []): static
     {
-        $upload_arr = array();
+        $upload_arr = [];
         $handle = new Upload($file);
         if ($handle->uploaded) {
 
@@ -96,7 +96,7 @@ class IonUpload extends Singleton
         $image_name = $request->get($file_name);
         $original_name = $request->get($file_original_name);
         static::$output['error'] = 0;
-        if($file){
+        if ($file) {
             $upload_file = static::store($file, $path, $options);
             $upload_result = $upload_file::$output;
             if ((int)$upload_result['error'] === 0) {

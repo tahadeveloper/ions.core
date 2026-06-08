@@ -39,7 +39,8 @@ class ProviderCommand extends Command
         $replace = Str::replace(
             ['{{ namespace }}', '{{ class }}', '{{ table }}', '{{ columns }}'],
             ['App\\Providers', $name, $name_lower, $fields],
-            Storage::get($new_file));
+            Storage::get($new_file)
+        );
 
         Storage::put($new_file, $replace);
 
@@ -49,21 +50,26 @@ class ProviderCommand extends Command
             $method_api_replace = Str::replace(
                 ['{{ name }}', '{{ class }}'],
                 [Str::camel($name_cap), $name],
-                Storage::get(Path::bin('commands/stubs/api_method.stub')));
-            Storage::put(Path::api($api . '/Services.php'),
-                Str::replaceLast('}', $method_api_replace, Storage::get(Path::api($api . '/Services.php'))));
+                Storage::get(Path::bin('commands/stubs/api_method.stub'))
+            );
+            Storage::put(
+                Path::api($api . '/Services.php'),
+                Str::replaceLast('}', $method_api_replace, Storage::get(Path::api($api . '/Services.php')))
+            );
 
             $namespace_api_replace = Str::replace(
                 ['{{ namespace }}'],
                 ['App\\Providers\\' . $name],
-                Storage::get(Path::bin('commands/stubs/api_namespace.stub')));
+                Storage::get(Path::bin('commands/stubs/api_namespace.stub'))
+            );
             Storage::put(
                 Path::api($api . '/Services.php'),
                 Str::replace(
                     PHP_EOL . 'class Services extends ApiController',
                     $namespace_api_replace,
                     Storage::get(Path::api($api . '/Services.php'))
-                ), null
+                ),
+                null
             );
 
             $this->info('2. Added to api');

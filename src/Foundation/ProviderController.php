@@ -2,12 +2,12 @@
 
 namespace Ions\Foundation;
 
-use Ions\Bundles\Localization;
-use Ions\Support\JsonResponse;
-use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 use Closure;
 use Exception;
+use Ions\Bundles\Localization;
+use Ions\Support\JsonResponse;
 use stdClass;
+use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 
 abstract class ProviderController extends Singleton
 {
@@ -58,7 +58,7 @@ abstract class ProviderController extends Singleton
     public function toArray(): array
     {
         try {
-            return json_decode(json_encode(static::$result, JSON_THROW_ON_ERROR), TRUE, 512, JSON_THROW_ON_ERROR);
+            return json_decode(json_encode(static::$result, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
         } catch (Exception $e) {
             return ['error' => $e->getMessage()];
         }
@@ -67,7 +67,7 @@ abstract class ProviderController extends Singleton
     public function toObject(): object|array
     {
         try {
-            return json_decode(json_encode(static::$result, JSON_THROW_ON_ERROR), FALSE, 512, JSON_THROW_ON_ERROR);
+            return json_decode(json_encode(static::$result, JSON_THROW_ON_ERROR), false, 512, JSON_THROW_ON_ERROR);
         } catch (Exception $e) {
             $error_message = new stdClass();
             $error_message->error = $e->getMessage();

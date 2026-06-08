@@ -21,7 +21,7 @@ class MigrateCommand extends Command
         $connection = $connections->connection($this->input->getOption('database') ?? 'default');
         $table_name = config('database.migrations', 'migrations');
 
-        if($this->option('install')){
+        if ($this->option('install')) {
             Schema::connection($connection->getName());
             if (!Schema::connection($connection->getName())->hasTable($table_name)) {
                 Schema::connection($connection->getName())->create($table_name, static function (Blueprint $table) {
@@ -36,12 +36,11 @@ class MigrateCommand extends Command
 
             $this->info('Migrations table exits.');
 
-        }elseif($this->option('refresh')){
-            foreach (glob(Path::database('Schema').'/*.php') as $file)
-            {
+        } elseif ($this->option('refresh')) {
+            foreach (glob(Path::database('Schema').'/*.php') as $file) {
                 $class = basename($file, '.php');
                 $load_class = 'App\\Database\Schema\\'.$class;
-                $obj = new $load_class;
+                $obj = new $load_class();
                 Schema::disableForeignKeyConstraints();
                 $obj->down();
 
@@ -49,16 +48,15 @@ class MigrateCommand extends Command
             }
 
             $this->info('Schema removed tables successfully.');
-        }else{
+        } else {
             $db_name  = $this->input->getOption('database') ?? 'default';
-            foreach (glob(Path::database('Schema').'/*.php') as $file)
-            {
+            foreach (glob(Path::database('Schema').'/*.php') as $file) {
                 $class = basename($file, '.php');
                 //check if migration is already installed
                 $migration_installed = DB::table($table_name)->where('migration', $class)->first();
-                if(!$migration_installed){
+                if (!$migration_installed) {
                     $load_class = 'App\Database\Schema\\'.$class;
-                    $obj = new $load_class;
+                    $obj = new $load_class();
                     Schema::connection($db_name)->enableForeignKeyConstraints();
                     $obj->up();
                     DB::table($table_name)->insert(['migration' => $class, 'batch' => 1]);

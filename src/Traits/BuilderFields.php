@@ -4,7 +4,6 @@ namespace Ions\Traits;
 
 use Illuminate\Support\Collection;
 use Ions\Exceptions\InvalidFieldQuery;
-use Ions\Support\Arr;
 use Ions\Support\Str;
 
 trait BuilderFields

@@ -21,8 +21,7 @@ class Route extends BaseRoute
         array  $defaults = [],
         int    $priority = 0,
         string $env = null
-    )
-    {
+    ) {
         $this->path = $path;
         parent::__construct(
             path: $path,

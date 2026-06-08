@@ -4,7 +4,8 @@ namespace Ions\Auth\Sentinel;
 
 use Cartalyst\Sentinel\Users\EloquentUser ;
 
-class User extends EloquentUser {
+class User extends EloquentUser
+{
     protected $fillable = [
         'email',
         'mobile',

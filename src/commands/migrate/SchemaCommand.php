@@ -31,7 +31,8 @@ class SchemaCommand extends Command
         $replace = Str::replace(
             ['{{ namespace }}', '{{ class }}', '{{ table }}'],
             ['App\\Database\\Schema', $unique_name, $name_lower],
-            Storage::get($new_file));
+            Storage::get($new_file)
+        );
 
         Storage::put($new_file, $replace);
 

@@ -2,10 +2,10 @@
 
 namespace Ions\Bundles;
 
+use Closure;
 use Ions\Foundation\Kernel;
 use Ions\Foundation\Singleton;
 use Ions\Support\Str;
-use Closure;
 use Symfony\Component\Routing\Route as SRoute;
 
 /**
@@ -102,7 +102,8 @@ class Route extends Singleton
             $name = Str::random(10);
         }
 
-        Kernel::RouteCollection()->add($name,
+        Kernel::RouteCollection()->add(
+            $name,
             new SRoute(
                 path: $path,
                 defaults: ['_controller' => $controller] + $defaults,

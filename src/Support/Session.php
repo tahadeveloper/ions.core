@@ -10,7 +10,7 @@ class Session extends \Symfony\Component\HttpFoundation\Session\Session
             $this->getFlashBag()->add($name, $value);
             return null;
         }
-        return $this->getFlashBag()->get($name,[]);
+        return $this->getFlashBag()->get($name, []);
     }
 
 }

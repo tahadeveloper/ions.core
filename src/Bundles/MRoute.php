@@ -2,9 +2,9 @@
 
 namespace Ions\Bundles;
 
+use Closure;
 use Ions\Foundation\Singleton;
 use Ions\Support\Str;
-use Closure;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
@@ -178,7 +178,8 @@ class MRoute extends Singleton
 
     private static function route($name, $path, $action, $defaults, $where, $method): void
     {
-        static::$collection->add($name,
+        static::$collection->add(
+            $name,
             new Route(path: $path, defaults: ['_controller' => $action] + $defaults, requirements: $where, options: [], host: '', schemes: [], methods: $method)
         );
     }

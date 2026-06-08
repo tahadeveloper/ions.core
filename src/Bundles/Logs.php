@@ -18,7 +18,7 @@ class Logs extends Singleton
 
     public static function create(string $file_name = 'app.log', bool $reset_logger = false): Logger
     {
-        if($reset_logger){
+        if ($reset_logger) {
             self::reset($file_name);
         }
 

@@ -78,7 +78,7 @@ class QueryBuilder
         if ($sortName !== 'random' & !in_array($sortName, $this->fields, true)) {
             $sortName = $defaultSortName;
         }
-        if($sortName === 'random'){
+        if ($sortName === 'random') {
             return $query->inRandomOrder();
         }
         return $query->orderBy($sortName, $direction);

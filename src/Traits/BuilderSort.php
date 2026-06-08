@@ -3,8 +3,8 @@
 namespace Ions\Traits;
 
 use Illuminate\Support\Collection;
-use Ions\Support\Str;
 use Ions\Exceptions\InvalidSortQuery;
+use Ions\Support\Str;
 
 trait BuilderSort
 {
@@ -49,7 +49,7 @@ trait BuilderSort
 
                 $table = $this->query->from;
                 $cut_sort = explode(separator: '.', string: $sort);
-                if(Str::contains($sort, '.') && $cut_sort[0] !== $table){
+                if (Str::contains($sort, '.') && $cut_sort[0] !== $table) {
                     return;
                 }
 

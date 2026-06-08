@@ -68,7 +68,7 @@ abstract class ApiController implements BluePrint
 
     public function _loadInit(Request $request): void
     {
-        $config_locale = config('app.localization.locale',$this->locale);
+        $config_locale = config('app.localization.locale', $this->locale);
         Localization::init($this->locale_folder, $config_locale);
     }
 
@@ -154,7 +154,7 @@ abstract class ApiController implements BluePrint
                 }
                 break;
             default:
-                $vars = (object)array();
+                $vars = (object)[];
                 break;
         }
         return $vars;
@@ -174,8 +174,8 @@ abstract class ApiController implements BluePrint
 
     #[NoReturn] protected function display($jsonResponse): void
     {
-        if(!is_string($jsonResponse)){
-            abort(500,'Data send to api must be Json type.');
+        if (!is_string($jsonResponse)) {
+            abort(500, 'Data send to api must be Json type.');
         }
 
         echo $jsonResponse;
@@ -206,7 +206,9 @@ abstract class ApiController implements BluePrint
     public function __call(string $method, array $parameters)
     {
         throw new BadMethodCallException(sprintf(
-            'Method %s::%s does not exist.', static::class, $method
+            'Method %s::%s does not exist.',
+            static::class,
+            $method
         ));
     }
 }

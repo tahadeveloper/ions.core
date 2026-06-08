@@ -5,8 +5,8 @@ namespace Ions\commands;
 use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use Ions\Bundles\MRoute;
 use Ions\Bundles\AttributeRouteControllerLoader;
+use Ions\Bundles\MRoute;
 use Ions\Bundles\Path;
 use Ions\Foundation\Kernel;
 use Ions\Support\Arr;
@@ -72,7 +72,7 @@ class RouteListCommand extends Command
 
     }
 
-    protected function captureRoute(string $path,$target): array
+    protected function captureRoute(string $path, $target): array
     {
         MRoute::$collection = new RouteCollection();
 
@@ -127,15 +127,15 @@ class RouteListCommand extends Command
         $routes->add(Str::random(10) . '_schedule', new Route('/cron/schedule', ['_controller' => 'App\Schedule::boot']));
         $routes_collection['global'] = $routes->all();
 
-        $routes = collect($routes_collection)->map(function ($route_domain,$key) {
+        $routes = collect($routes_collection)->map(function ($route_domain, $key) {
             return collect($route_domain)->map(function ($single_route, $name) use ($key) {
                 return $this->getRouteInformation($key, $single_route, $name);
             });
         })->filter()->all();
 
         $routes_render = [];
-        foreach ($routes as $domain => $route_domain){
-            foreach ($route_domain as $item_key => $item){
+        foreach ($routes as $domain => $route_domain) {
+            foreach ($route_domain as $item_key => $item) {
                 $routes_render[$domain.'_'.$item_key] = $item;
             }
         }
@@ -155,8 +155,8 @@ class RouteListCommand extends Command
     #[ArrayShape(['domain' => "", 'method' => "string", 'uri' => "mixed", 'name' => "", 'controller' => "mixed", 'actions' => "string"])]
     protected function getRouteInformation($domain, $route, $name): array
     {
-        $actions = Arr::where($route->getDefaults(), static function ($item, $key){
-            if($key !== '_controller'){
+        $actions = Arr::where($route->getDefaults(), static function ($item, $key) {
+            if ($key !== '_controller') {
                 return '('.$key.')'.$item;
             }
             return false;
@@ -168,7 +168,7 @@ class RouteListCommand extends Command
             'uri' => $route->getPath(),
             'name' => $name,
             'controller' => $route->getDefaults()['_controller'],
-            'actions' => Str::replace('&',' | ',Arr::query($actions))
+            'actions' => Str::replace('&', ' | ', Arr::query($actions))
         ];
     }
 
@@ -290,12 +290,13 @@ class RouteListCommand extends Command
             ] = $route;
 
 
-            $action .= ' › ' . Str::replace('_','/',$domain);
+            $action .= ' › ' . Str::replace('_', '/', $domain);
 
             $spaces = str_repeat(' ', max($maxMethod + 6 - mb_strlen($method), 0));
 
             $dots = str_repeat('.', max(
-                $terminalWidth - mb_strlen($method.$spaces.$uri.$action) - 6 - ($action ? 1 : 0), 0
+                $terminalWidth - mb_strlen($method.$spaces.$uri.$action) - 6 - ($action ? 1 : 0),
+                0
             ));
 
             $dots = empty($dots) ? $dots : " $dots";
@@ -348,7 +349,7 @@ class RouteListCommand extends Command
     public static function getTerminalWidth()
     {
         return is_null(static::$terminalWidthResolver)
-            ? (new Terminal)->getWidth()
+            ? (new Terminal())->getWidth()
             : call_user_func(static::$terminalWidthResolver);
     }
 

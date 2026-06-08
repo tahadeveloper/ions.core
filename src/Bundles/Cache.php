@@ -1,14 +1,15 @@
 <?php
 
 // Cache.php
+
 namespace Ions\Bundles;
 
+use Illuminate\Cache\CacheManager;
+use Illuminate\Cache\MemcachedConnector;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Redis\RedisManager;
-use Illuminate\Cache\CacheManager;
-use Illuminate\Cache\MemcachedConnector;
 use Psr\SimpleCache\InvalidArgumentException;
 use Symfony\Component\Translation\Exception\NotFoundResourceException;
 
@@ -26,7 +27,7 @@ class Cache implements CacheInterface
     protected static function initializeCache(): Repository
     {
         $storeType = config('cache.default');
-        $container = new Container;
+        $container = new Container();
 
         switch ($storeType) {
             case 'file':
@@ -34,7 +35,7 @@ class Cache implements CacheInterface
                     'cache.default' => config('cache.default'),
                     'cache.stores.file' => config('cache.stores.file'),
                 ];
-                $container['files'] = new Filesystem;
+                $container['files'] = new Filesystem();
                 break;
             case 'redis':
                 $container['config'] = [

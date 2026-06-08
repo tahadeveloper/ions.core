@@ -5,7 +5,6 @@ namespace Ions\Traits;
 use Ions\Bundles\Path;
 use Smarty as SmartyBundle;
 
-
 trait Smarty
 {
     public SmartyBundle $smarty;
@@ -31,9 +30,9 @@ trait Smarty
     {
         $source = config('app.smarty.source', Path::views('default'));
         $environment->setTemplateDir($source);
-        $paths = config('app.smarty.paths',[]);
-        foreach ($paths as $path){
-            $environment->addTemplateDir(Path::views($path),$path);
+        $paths = config('app.smarty.paths', []);
+        foreach ($paths as $path) {
+            $environment->addTemplateDir(Path::views($path), $path);
         }
     }
 
