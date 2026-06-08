@@ -72,6 +72,7 @@ class Kernel extends Singleton
                 Path::setBasePath($basePath);
                 static::$environmentPath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
             } else {
+                \Ions\Bundles\Path::resetBasePath();
                 static::$environmentPath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
             }
 
@@ -98,6 +99,19 @@ class Kernel extends Singleton
         date_default_timezone_set(env('TIME_ZONE', 'Africa/Cairo'));
 
         static::preloads();
+    }
+
+    /**
+     * Reset cached static state so the kernel can be re-booted cleanly.
+     * Intended for test isolation only.
+     */
+    public static function resetForTesting(): void
+    {
+        static::$config = [];
+        static::$session = null;
+        static::$request = null;
+        static::$response = null;
+        \Ions\Bundles\Path::resetBasePath();
     }
 
     /**
