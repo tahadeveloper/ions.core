@@ -50,8 +50,7 @@
     "vlucas/phpdotenv": "^5.6.1"
   },
   "require-dev": {
-    "pestphp/pest": "^v1.23.1",
-    "symfony/finder": "^6.4"
+    "pestphp/pest": "^v1.23.1"
   },
   "config": {
     "optimize-autoloader": true,

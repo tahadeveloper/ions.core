@@ -1,12 +1,20 @@
 <?php
-use Symfony\Component\Finder\Finder;
 
-test('every core class file is syntactically valid', function () {
-    $finder = (new Finder())->files()->in(__DIR__ . '/../../src')->name('*.php');
-    foreach ($finder as $file) {
-        $code = $file->getContents();
-        if (str_contains($code, 'namespace Ions')) {
-            expect(token_get_all($code))->toBeArray();
+test('every core PHP file passes php -l syntax check', function () {
+    $dir = realpath(__DIR__ . '/../../src');
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS)
+    );
+
+    $phpBinary = PHP_BINARY;
+    foreach ($iterator as $file) {
+        if ($file->getExtension() !== 'php') {
+            continue;
         }
+        $path = $file->getPathname();
+        $output = [];
+        $exitCode = 0;
+        exec(escapeshellarg($phpBinary) . ' -l ' . escapeshellarg($path) . ' 2>&1', $output, $exitCode);
+        expect($exitCode)->toBe(0, "Syntax error in {$path}: " . implode("\n", $output));
     }
 });

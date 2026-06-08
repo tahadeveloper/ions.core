@@ -673,6 +673,7 @@ git commit -am "security: parse API input through Request abstraction; stop swal
 3. Typed responses: introduce `Ions\Http\JsonResponse` helpers and a `Responsable` interface so controllers can `return $response` rather than `echo`/`exit`. Keep `display()`/`render()` helpers as shims.
 4. Replace `exit()`/`die()` control flow in `Kernel`/`ApiController` with thrown HTTP exceptions handled centrally (already have `abort()`), enabling testability.
 5. Centralized exception handling: one handler that renders Ignition (debug) / Whoops-JSON (api) / templated error (prod), replacing the duplicated `errorDebug`/`errorDebugApi`.
+6. **Tracked debt:** Smarty pinned at ^4 (Smarty 5 is a namespaced rewrite `Smarty\Smarty`). Evaluate migrating to Smarty 5 or dropping Smarty in favour of Twig-only when modernizing the view layer.
 
 **Acceptance:** Controllers are container-resolved, return responses, and are unit-testable without HTTP; error rendering is single-sourced.
 
