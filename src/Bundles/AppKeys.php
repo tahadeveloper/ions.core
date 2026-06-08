@@ -56,7 +56,11 @@ class AppKeys extends Singleton
     }
 
     /**
-     * @deprecated
+     * @deprecated Use Ions\Security\Jwt directly. Tokens issued WITHOUT an explicit
+     *             $subject are bound to the constant app id, NOT a user identity —
+     *             callers must pass the authenticated user's id as $subject.
+     *
+     * @param string|null $subject The subject (user id) to bind the token to.
      */
     public static function createJWT(?string $subject = null): ?string
     {

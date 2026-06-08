@@ -13,7 +13,7 @@ class KeyCommand extends Command
         AppKeys::createKey();
         $this->info('Key created successfully, happy to see you.');
         if ($this->option('jwt')) {
-            $jwt_key = AppKeys::createJWT();
+            $jwt_key = AppKeys::createJWT('system');
             $this->info('Jwt key created successfully, happy to see you.');
             $this->info($jwt_key ?? '');
         }
