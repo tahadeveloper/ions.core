@@ -57,12 +57,23 @@ class Kernel extends Singleton
     /**
      * boot app with evn properties.
      *
+     * @param string|null $basePath Optional absolute path to the host-app root.
+     *                              When provided, Path::setBasePath() and
+     *                              static::$environmentPath are set to that value so
+     *                              the Kernel can be booted against any directory
+     *                              (e.g. a test fixture). When omitted the existing
+     *                              5-levels-up realpath resolution is used unchanged.
      * @return void
      */
-    public static function boot(): void
+    public static function boot(?string $basePath = null): void
     {
         try {
-            static::$environmentPath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
+            if ($basePath !== null) {
+                Path::setBasePath($basePath);
+                static::$environmentPath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+            } else {
+                static::$environmentPath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
+            }
 
             static::structureBone();
 
@@ -177,7 +188,18 @@ class Kernel extends Singleton
     private static function structureBone(): void
     {
         if (empty(static::$session) && !static::$session instanceof Session) {
-            static::$session = new Session();
+            // Under the CLI SAPI (e.g. Pest/PHPUnit) native session storage
+            // cannot start without warnings ("headers already sent").  Use an
+            // in-memory MockArraySessionStorage in that environment so the
+            // Kernel can boot cleanly; real web requests keep the default
+            // NativeSessionStorage behaviour.
+            if (PHP_SAPI === 'cli') {
+                static::$session = new Session(
+                    new \Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage()
+                );
+            } else {
+                static::$session = new Session();
+            }
             if (!static::$session->isStarted()) {
                 static::$session->start();
             }

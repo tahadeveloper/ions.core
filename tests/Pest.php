@@ -43,3 +43,9 @@ function something()
 {
     // ..
 }
+
+function bootFixtureKernel(): void
+{
+    \Ions\Bundles\Path::resetBasePath();
+    \Ions\Foundation\Kernel::boot(__DIR__ . '/fixtures/app');
+}
