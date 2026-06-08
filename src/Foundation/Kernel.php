@@ -8,14 +8,13 @@ use Dotenv\Dotenv;
 
 use const EXTR_SKIP;
 
-use Illuminate\Container\Container;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\File;
 use Ions\Bundles\AttributeRouteControllerLoader;
 use Ions\Bundles\MRoute;
 use Ions\Bundles\Path;
+use Ions\Container\Container;
 use Ions\Security\SecurityHeaders;
 use Ions\Support\Arr;
 use Ions\Support\Request;
@@ -150,9 +149,7 @@ class Kernel extends Singleton
     private static function Container(): void
     {
         static::$app = new Container();
-        $app = self::$app;
-        /** @var Application $app */
-        Facade::setFacadeApplication($app);
+        Facade::setFacadeApplication(static::$app);
         if (!static::$app->has('filesystem')) {
             static::$app->singleton('filesystem', function () {
                 return new Filesystem();
