@@ -15,7 +15,7 @@ class KeyCommand extends Command
         if ($this->option('jwt')) {
             $jwt_key = AppKeys::createJWT();
             $this->info('Jwt key created successfully, happy to see you.');
-            $this->info($jwt_key?->toString());
+            $this->info($jwt_key ?? '');
         }
     }
 }
