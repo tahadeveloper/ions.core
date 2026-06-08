@@ -637,7 +637,7 @@ class Kernel extends Singleton
         MRoute::$collection = new RouteCollection();
 
         if ($target === 'php') {
-            include_once Path::route($targetFolder . '.' . $target);
+            require Path::route($targetFolder . '.' . $target);
             //$routes = MRoute::$collection;
             $routes = static::RouteCollection();
         } else {
