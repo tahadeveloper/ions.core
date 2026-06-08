@@ -433,21 +433,21 @@ class Kernel extends Singleton
             // Resolve the terminal callable.
             if ($matcherParams['_controller'] instanceof Closure) {
                 $closure = $matcherParams['_controller'];
-                $terminal = static function (Request $r) use ($closure): SymfonyResponse {
+                $terminal = function (Request $r) use ($closure): SymfonyResponse {
                     $result = $closure($r);
-                    return static::normalizeToResponse($result);
+                    return self::normalizeToResponse($result);
                 };
             } else {
                 // Set Vary headers on the shared response (preserving old behaviour).
                 static::$response->setVary(['Accept-Encoding', 'gzip, compress, br']);
                 static::$response->setVary(['Content-Encoding', 'br']);
 
-                [$controller, $method] = static::handleRouteRequest($matcherParams, $namespace);
+                [$controller, $method] = self::handleRouteRequest($matcherParams, $namespace);
                 $terminal = new ControllerDispatcher(static::$app, $controller, $method);
             }
 
             // Build middleware stack for the group.
-            $stack = config('app.middleware', static::defaultMiddleware())[$targetFolder] ?? [];
+            $stack = config('app.middleware', self::defaultMiddleware())[$targetFolder] ?? [];
 
             $response = (new Pipeline($stack, $terminal))->handle($request);
 
@@ -461,11 +461,11 @@ class Kernel extends Singleton
             return $response;
 
         } catch (NoConfigurationException) {
-            return static::errorResponse('No configurations found', 404, $request);
+            return self::errorResponse('No configurations found', 404, $request);
         } catch (MethodNotAllowedException) {
-            return static::errorResponse('Method not allowed', 405, $request);
+            return self::errorResponse('Method not allowed', 405, $request);
         } catch (ResourceNotFoundException) {
-            return static::errorResponse('Page route not found', 404, $request);
+            return self::errorResponse('Page route not found', 404, $request);
         }
     }
 
@@ -481,7 +481,7 @@ class Kernel extends Singleton
      */
     public static function run(?Request $request = null, string $namespace = ''): void
     {
-        static::sendResponse(static::handle($request ?? static::capture(), $namespace));
+        static::sendResponse(static::handle($request ?? self::capture(), $namespace));
     }
 
     /**
@@ -539,7 +539,7 @@ class Kernel extends Singleton
 
         $templatePath = Path::var('templates/Exception/error.html.php');
         if (file_exists($templatePath)) {
-            $html = static::HtmlErrorRender([
+            $html = self::HtmlErrorRender([
                 'statusText' => $message,
                 'statusCode' => $status,
             ]);
@@ -559,7 +559,7 @@ class Kernel extends Singleton
      */
     private static function defaultMiddleware(): array
     {
-        $jwt = static::buildJwt();
+        $jwt = self::buildJwt();
 
         return [
             'web' => [

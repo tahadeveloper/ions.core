@@ -459,13 +459,13 @@ parameters:
 		-
 			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:HtmlErrorRender\(\) through static\:\:\.$#'
 			identifier: staticClassAccess.privateMethod
-			count: 2
+			count: 1
 			path: src/Foundation/Kernel.php
 
 		-
 			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:capture\(\) through static\:\:\.$#'
 			identifier: staticClassAccess.privateMethod
-			count: 2
+			count: 1
 			path: src/Foundation/Kernel.php
 
 		-
@@ -494,36 +494,6 @@ parameters:
 
 		-
 			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:structureBone\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:normalizeToResponse\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:handleRouteRequest\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:defaultMiddleware\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:errorResponse\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 3
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:buildJwt\(\) through static\:\:\.$#'
 			identifier: staticClassAccess.privateMethod
 			count: 1
 			path: src/Foundation/Kernel.php
