@@ -21,8 +21,8 @@ Six sequenced sub-phases, each shippable and reviewable. Guardrails for **every*
 - **3.5 ViewProvider** — needs a product decision first (Twig-only vs keep Smarty — see Decision D-V below); spec assumes "keep both, make locale-aware".
 - **3.6 RoutingProvider** — optional; do only if it cleanly reduces static coupling.
 
-### Decision needed before 3.5 — **D-V: view engine**
-`BaseController` currently inits **both** Twig and Smarty per request based on `config('app.templates')`. Smarty is pinned at ^4 (Smarty 5 is a namespaced rewrite — tracked debt). Before 3.5, decide: **(a)** keep both (ViewProvider builds whichever the config lists; Smarty stays ^4), **(b)** Twig-only (drop Smarty, simpler, one less dep), or **(c)** keep both but migrate Smarty→5. This plan's 3.5 assumes **(a)** as the lowest-disruption default; if (b)/(c) is chosen, 3.5 expands accordingly. Surface this to the user before executing 3.5.
+### Decision D-V — view engine: **RESOLVED → (b) Twig-only**
+**Decision (user, 2026-06-09): drop Smarty; Twig is the sole view engine.** So sub-phase 3.5 additionally: removes the `smarty/smarty` dependency from `composer.json`; removes the `Smarty` branch from `BaseController::_loadInit`; removes/retires `src/Traits/Smarty.php`; and the `ViewProvider`/`ViewFactory` builds **only** a Twig `Environment`. This **resolves the Smarty-5 tracked debt** (no migration needed — Smarty is gone). Breaking change for any app using Smarty templates → document in the v2 upgrade guide (Smarty removed; port templates to Twig). The `config('app.templates')` key becomes effectively `['twig']`; treat a `smarty` entry as a no-op (or a logged deprecation).
 
 ---
 
@@ -265,9 +265,9 @@ test('web request gets an HTML response', function () {
 
 ---
 
-## Sub-phase 3.5 — ViewProvider (deferred from 2.6) — **gated on Decision D-V**
+## Sub-phase 3.5 — ViewProvider (deferred from 2.6) — **D-V resolved: Twig-only**
 
-> Default assumption: keep both Twig + Smarty, make the factory locale-aware. If Decision D-V picks Twig-only or Smarty-5, adjust.
+> Per Decision D-V: **Twig-only**. This sub-phase builds a locale-aware Twig `ViewFactory` in the container AND removes Smarty (dependency, trait, BaseController branch). Resolves the Smarty-5 tracked debt. Add a task to: `composer remove smarty/smarty`; delete `src/Traits/Smarty.php` and its `use Smarty;` in `BaseController`; strip the `smarty` branch from `_loadInit`; treat a `smarty` value in `config('app.templates')` as a no-op. Document the Smarty removal in the upgrade guide.
 
 **Files:** `src/Providers/ViewProvider.php`, `src/Foundation/BaseController.php`, `src/Traits/{Twig,Smarty}.php` (maybe), tests.
 
