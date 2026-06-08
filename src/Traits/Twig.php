@@ -37,11 +37,9 @@ trait Twig
         /** @var ViewFactory $factory */
         $factory = app('view');
 
-        $source = $this->twig_source ?: null;
-        $cache  = $this->twig_cache ?: null;
-        $paths  = (array) config('app.twig.paths', []);
-
-        $env = $factory->make($source, $paths, $cache);
+        // Pass source/cache overrides; let ViewFactory::make() own the path-config default chain
+        // (it already reads config('app.twig.paths') when $paths is empty), avoiding a double read.
+        $env = $factory->make($this->twig_source ?: null, [], $this->twig_cache ?: null);
 
         // Propagate any loader errors back to the trait's public property for BC.
         $this->twig_loader_error = $factory->loaderErrors;

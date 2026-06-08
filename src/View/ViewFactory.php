@@ -2,6 +2,8 @@
 
 namespace Ions\View;
 
+use Ions\Bundles\Localization;
+use Ions\Bundles\Logs;
 use Ions\Bundles\Path;
 use Twig\Environment;
 use Twig\Error\LoaderError;
@@ -23,6 +25,8 @@ final class ViewFactory
      */
     public function make(?string $source = null, array $paths = [], ?string $cache = null): Environment
     {
+        $this->loaderErrors = [];
+
         $source ??= config('app.twig.source', Path::views('default'));
         $cache  ??= config('app.twig.cache', Path::cache('twig'));
         $paths    = $paths ?: (array) config('app.twig.paths', []);
@@ -66,16 +70,20 @@ final class ViewFactory
 
         $env->addGlobal('appUrl', config('app.app_url'));
 
-        // These globals depend on Localization being initialised (Localization::init() must have
-        // been called first). In the controller lifecycle that always happens in _loadInit()
-        // before TwigInit(). When building an env outside that lifecycle (e.g. tests) we fall
-        // back to safe empty values so the env still constructs without error.
+        // _trans: only call trans() when Localization has been initialised (Localization::init()
+        // must have been called first in _loadInit()). The explicit isset() guard avoids swallowing
+        // unrelated errors that a broad catch would hide.
+        $env->addGlobal('_trans', isset(Localization::$localization) ? trans() : '');
+
+        // _csrf_token: csrfToken() uses NativeSessionTokenStorage which can fail in CLI/test SAPI.
+        // A narrow try/catch is required here; unlike _trans there is no cheap precondition we can
+        // check, so we log any failure (making it visible in production) before falling back to ''.
         try {
-            $env->addGlobal('_trans', trans());
-            $env->addGlobal('_csrf_token', csrfToken(config('app.app_name')));
+            $csrf = csrfToken(config('app.app_name'));
         } catch (\Throwable $e) {
-            $env->addGlobal('_trans', '{}');
-            $env->addGlobal('_csrf_token', '');
+            Logs::create('view.log')->warning('csrfToken() failed building _csrf_token global: ' . $e->getMessage());
+            $csrf = '';
         }
+        $env->addGlobal('_csrf_token', $csrf);
     }
 }
