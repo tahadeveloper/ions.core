@@ -180,6 +180,7 @@ class Kernel extends Singleton
             \Ions\Providers\DatabaseProvider::class,
             \Ions\Providers\AuthProvider::class,
             \Ions\Providers\MailProvider::class,
+            \Ions\Providers\ViewProvider::class,
         ];
     }
 
