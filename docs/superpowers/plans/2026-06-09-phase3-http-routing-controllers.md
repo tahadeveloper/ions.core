@@ -280,9 +280,9 @@ test('web request gets an HTML response', function () {
 
 ---
 
-## Sub-phase 3.6 — RoutingProvider (optional)
+## Sub-phase 3.6 — RoutingProvider (optional) — **SKIPPED (no clean benefit now)**
 
-- [ ] Only if it cleanly reduces static coupling: bind `router`/`routes` so `handle()`/`RouteListCommand` resolve the `RouteCollection` from the container instead of static `Kernel::RouteCollection()`. Test: `routes` resolves to the collection. If it doesn't reduce coupling without churn, SKIP and note that `Kernel::RouteCollection()` remains the source (acceptable).
+- [x] **Decision (2026-06-09): SKIPPED.** Rationale: the `Bundles\Route` fluent facade writes routes directly into the static `Kernel::RouteCollection()`, and `Kernel::captureRoute()` rebuilds the collection per request (php/yaml + attribute routes). Binding a `routes`/`router` container service would not change that source-of-truth without first reworking the `Route` facade itself — i.e. it adds a binding nothing meaningfully consumes. Per the "skip if it doesn't reduce coupling without churn" guidance, `Kernel::RouteCollection()` remains the route source. **Revisit** when/if routing is further reworked (e.g. an instance-based router replacing the static `Route` facade) — at which point a `RoutingProvider` becomes worthwhile.
 
 ---
 
