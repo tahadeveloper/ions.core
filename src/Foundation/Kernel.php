@@ -12,7 +12,6 @@ use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\File;
 use Ions\Bundles\AttributeRouteControllerLoader;
-use Ions\Bundles\MRoute;
 use Ions\Bundles\Path;
 use Ions\Container\Container;
 use Ions\Http\Middleware\AuthMiddleware;
@@ -616,11 +615,9 @@ class Kernel extends Singleton
     private static function captureRoute(string $targetFolder): RouteCollection
     {
         file_exists(Path::route($targetFolder . '.php')) ? $target = 'php' : $target = 'yaml';
-        MRoute::$collection = new RouteCollection();
 
         if ($target === 'php') {
             require Path::route($targetFolder . '.' . $target);
-            //$routes = MRoute::$collection;
             $routes = static::RouteCollection();
         } else {
             $fileLocator = new FileLocator([__DIR__]);
