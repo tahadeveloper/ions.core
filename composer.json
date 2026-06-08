@@ -50,7 +50,10 @@
     "vlucas/phpdotenv": "^5.6.1"
   },
   "require-dev": {
-    "pestphp/pest": "^v1.23.1"
+    "friendsofphp/php-cs-fixer": "^3.64",
+    "pestphp/pest": "^2.0",
+    "phpstan/phpstan": "^2.0",
+    "rector/rector": "^2.0"
   },
   "config": {
     "optimize-autoloader": true,
@@ -62,6 +65,14 @@
     "platform": {
       "php": "8.2"
     }
+  },
+  "scripts": {
+    "test": "pest",
+    "stan": "phpstan analyse",
+    "cs": "php-cs-fixer fix --dry-run --diff",
+    "cs:fix": "php-cs-fixer fix",
+    "rector": "rector process --dry-run",
+    "qa": ["@cs", "@stan", "@test"]
   },
   "minimum-stability": "stable",
   "prefer-stable": true

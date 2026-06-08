@@ -160,7 +160,7 @@ abstract class ApiController implements BluePrint
         return $vars;
     }
 
-    #[NoReturn] public function notFoundResponse($response): bool|array|string
+    #[NoReturn] public function notFoundResponse($response): void
     {
         $this->returnStructure($response, ResponseAlias::HTTP_NOT_FOUND);
     }
