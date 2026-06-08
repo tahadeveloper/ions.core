@@ -4,6 +4,7 @@ namespace Ions\Http\Middleware;
 
 use Ions\Container\Container;
 use Ions\Foundation\Kernel;
+use Ions\Http\Responsable;
 use Ions\Support\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -31,16 +32,28 @@ final class ControllerDispatcher
             $instance->_loadedState($request);
         }
 
+        $result = null;
         if (method_exists($instance, 'callAction')) {
-            $instance->callAction($this->method, [$request]);
+            $result = $instance->callAction($this->method, [$request]);
         } elseif (method_exists($instance, $this->method)) {
-            $instance->{$this->method}($request);
+            $result = $instance->{$this->method}($request);
         }
 
         if (method_exists($instance, '_endState')) {
             $instance->_endState($request);
         }
 
+        return $this->normalize($result, $request);
+    }
+
+    private function normalize(mixed $result, Request $request): Response
+    {
+        if ($result instanceof Response) {
+            return $result;
+        }
+        if ($result instanceof Responsable) {
+            return $result->toResponse($request);
+        }
         return Kernel::response();
     }
 }

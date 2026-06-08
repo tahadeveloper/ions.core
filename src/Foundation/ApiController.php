@@ -123,11 +123,11 @@ abstract class ApiController implements BluePrint
      *
      * @param string $method
      * @param array $parameters
-     * @return void
+     * @return mixed
      */
-    public function callAction(string $method, array $parameters): void
+    public function callAction(string $method, array $parameters): mixed
     {
-        $this->{$method}(...array_values($parameters));
+        return $this->{$method}(...array_values($parameters));
     }
 
     /**
