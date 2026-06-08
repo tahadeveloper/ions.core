@@ -15,6 +15,13 @@ use Ions\Bundles\AttributeRouteControllerLoader;
 use Ions\Bundles\MRoute;
 use Ions\Bundles\Path;
 use Ions\Container\Container;
+use Ions\Http\Middleware\AuthMiddleware;
+use Ions\Http\Middleware\ControllerDispatcher;
+use Ions\Http\Middleware\CorsMiddleware;
+use Ions\Http\Middleware\Pipeline;
+use Ions\Http\Middleware\SecurityHeadersMiddleware;
+use Ions\Http\Middleware\TrustedHostMiddleware;
+use Ions\Security\Jwt;
 use Ions\Security\SecurityHeaders;
 use Ions\Support\Arr;
 use Ions\Support\Request;
@@ -28,6 +35,8 @@ use Symfony\Component\Config\FileLocator;
 use Symfony\Component\ErrorHandler\DebugClassLoader;
 use Symfony\Component\ErrorHandler\ErrorHandler;
 use Symfony\Component\ErrorHandler\ErrorRenderer\HtmlErrorRenderer;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Symfony\Component\Routing\Exception\MethodNotAllowedException;
 use Symfony\Component\Routing\Exception\NoConfigurationException;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
@@ -357,7 +366,7 @@ class Kernel extends Singleton
             $whoops->pushHandler(function ($e) {
                 $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 501;
                 static::response()->setStatusCode($statusCode);
-                self::sendResponse();
+                static::sendResponse(static::$response);
                 return Handler::QUIT;
             });
             $whoops->register();
@@ -382,60 +391,216 @@ class Kernel extends Singleton
     }
 
     /**
-     * Apply security headers to static::$response and send it.
+     * Apply security headers and send the given response.
+     *
+     * @param SymfonyResponse|null $response When null, falls back to static::$response (legacy path).
      */
-    private static function sendResponse(): void
+    public static function sendResponse(?SymfonyResponse $response = null): void
     {
-        SecurityHeaders::apply(static::$response);
-        static::$response->send();
+        $toSend = $response ?? static::$response;
+        SecurityHeaders::apply($toSend);
+        $toSend->send();
     }
 
     /**
-     * Run app by route it with controller and method
+     * Handle a request through the middleware pipeline and return a Response.
+     *
+     * This is the primary entry point for request handling.  It never exits/dies;
+     * all error conditions are returned as Response objects instead.
+     *
+     * @param Request $request
+     * @param string  $namespace Optional controller namespace prefix.
+     * @return SymfonyResponse
+     */
+    public static function handle(Request $request, string $namespace = ''): SymfonyResponse
+    {
+        // Register debug error renderers (same registration the old make() did).
+        $request->wantsJson() ? static::errorDebugApi() : static::errorDebug();
+
+        // Determine group from first path segment.
+        $targetFolder = $request->segment(1) === 'api' ? 'api' : 'web';
+        if ($targetFolder === 'api') {
+            $namespace .= 'Api\\';
+        }
+
+        try {
+            $routes = static::captureRoute($targetFolder);
+            $context = new RequestContext();
+            $context->fromRequest($request);
+            $matcher = new UrlMatcher($routes, $context);
+            $matcherParams = $matcher->match($context->getPathInfo());
+
+            // Resolve the terminal callable.
+            if ($matcherParams['_controller'] instanceof Closure) {
+                $closure = $matcherParams['_controller'];
+                $terminal = static function (Request $r) use ($closure): SymfonyResponse {
+                    $result = $closure($r);
+                    return static::normalizeToResponse($result);
+                };
+            } else {
+                // Set Vary headers on the shared response (preserving old behaviour).
+                static::$response->setVary(['Accept-Encoding', 'gzip, compress, br']);
+                static::$response->setVary(['Content-Encoding', 'br']);
+
+                [$controller, $method] = static::handleRouteRequest($matcherParams, $namespace);
+                $terminal = new ControllerDispatcher(static::$app, $controller, $method);
+            }
+
+            // Build middleware stack for the group.
+            $stack = config('app.middleware', static::defaultMiddleware())[$targetFolder] ?? [];
+
+            $response = (new Pipeline($stack, $terminal))->handle($request);
+
+            // Preserve old cache-control headers for non-error web responses.
+            if ($targetFolder === 'web') {
+                $response->setPublic();
+                $response->setMaxAge(3600);
+                $response->headers->addCacheControlDirective('must-revalidate', true);
+            }
+
+            return $response;
+
+        } catch (NoConfigurationException) {
+            return static::errorResponse('No configurations found', 404, $request);
+        } catch (MethodNotAllowedException) {
+            return static::errorResponse('Method not allowed', 405, $request);
+        } catch (ResourceNotFoundException) {
+            return static::errorResponse('Page route not found', 404, $request);
+        }
+    }
+
+    /**
+     * Send a response, optionally capturing from the request first.
+     *
+     * This is the entry-point used by new front controllers that want a
+     * send-and-done call without needing to assemble a Request themselves.
+     *
+     * @param Request|null $request When null, the request is captured from globals.
+     * @param string       $namespace
+     * @return void
+     */
+    public static function run(?Request $request = null, string $namespace = ''): void
+    {
+        static::sendResponse(static::handle($request ?? static::capture(), $namespace));
+    }
+
+    /**
+     * BC shim — preserves the old public entry-point for existing front controllers.
+     *
+     * Previously: matched route, handled closure with exit(), sent response.
+     * Now:        thin wrapper around run() which calls handle() internally.
      *
      * @param string $namespace
      * @return void
      */
     public static function make(string $namespace = ''): void
     {
-        self::request()->wantsJson() ? static::errorDebugApi() : static::errorDebug();
+        static::run(null, $namespace);
+    }
 
-        self::request()->segment(1) === 'api' ? $targetFolder = 'api' : $targetFolder = 'web';
-        self::request()->segment(1) !== 'api' ?: $namespace .= 'Api\\';
-
-        try {
-            $routes = static::captureRoute($targetFolder);
-            $context = new RequestContext();
-            $context->fromRequest(static::$request);
-            $matcher = new UrlMatcher($routes, $context);
-            $matcherParams = $matcher->match($context->getPathInfo());
-
-            // run closure #1st choice
-            if ($matcherParams['_controller'] instanceof Closure) {
-                $closure = $matcherParams['_controller'];
-                $closure(static::$request);
-                exit();
-            }
-
-            static::$response->setVary(['Accept-Encoding', 'gzip, compress, br']);
-            static::$response->setVary(['Content-Encoding', 'br']);
-            [$controller, $method] = self::handleRouteRequest($matcherParams, $namespace);
-
-            self::instanceTheController($controller, $method);
-
-            static::$response->setPublic();
-            static::$response->setMaxAge(3600);
-            static::$response->headers->addCacheControlDirective('must-revalidate', true);
-            self::sendResponse();
-
-        } catch (NoConfigurationException) {
-            self::makeError('No configurations found', 404);
-        } catch (MethodNotAllowedException) {
-            self::makeError('Method not allowed', 405);
-        } catch (ResourceNotFoundException) {
-            self::makeError('Page route not found', 404);
+    /**
+     * Normalize a controller/closure return value to a Response.
+     *
+     * If the return value is already a Symfony Response it is returned as-is.
+     * Otherwise the shared kernel Response (which the closure may have written
+     * to via Kernel::response()) is returned as the fallback.
+     *
+     * @param mixed $result
+     * @return SymfonyResponse
+     */
+    private static function normalizeToResponse(mixed $result): SymfonyResponse
+    {
+        if ($result instanceof SymfonyResponse) {
+            return $result;
         }
 
+        return static::$response;
+    }
+
+    /**
+     * Build an error Response without exit()ing.
+     *
+     * Returns JSON for API / wantsJson requests, HTML otherwise.
+     *
+     * @param string  $message
+     * @param int     $status
+     * @param Request $request
+     * @return SymfonyResponse
+     */
+    private static function errorResponse(string $message, int $status, Request $request): SymfonyResponse
+    {
+        if ($request->wantsJson() || $request->segment(1) === 'api') {
+            return new JsonResponse([
+                'status' => 'error',
+                'message' => $message,
+                'code' => $status,
+            ], $status);
+        }
+
+        $templatePath = Path::var('templates/Exception/error.html.php');
+        if (file_exists($templatePath)) {
+            $html = static::HtmlErrorRender([
+                'statusText' => $message,
+                'statusCode' => $status,
+            ]);
+        } else {
+            $html = sprintf('<h1>%d %s</h1>', $status, htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+        }
+
+        return new SymfonyResponse($html, $status, ['Content-Type' => 'text/html; charset=UTF-8']);
+    }
+
+    /**
+     * Return the per-group default middleware stacks.
+     *
+     * Config may override this via config('app.middleware').
+     *
+     * @return array<string, list<\Ions\Http\Middleware\MiddlewareInterface>>
+     */
+    private static function defaultMiddleware(): array
+    {
+        $jwt = static::buildJwt();
+
+        return [
+            'web' => [
+                new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
+                new SecurityHeadersMiddleware(),
+                new CorsMiddleware((array) config('app.cors', [])),
+            ],
+            'api' => [
+                new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
+                new SecurityHeadersMiddleware(),
+                new CorsMiddleware((array) config('app.cors', [])),
+                new AuthMiddleware($jwt),
+            ],
+        ];
+    }
+
+    /**
+     * Build a Jwt instance from environment / config, or return null when the
+     * signing key is absent or too short (< 32 bytes).
+     *
+     * Never throws — a missing or short key simply disables JWT signing.
+     *
+     * @return Jwt|null
+     */
+    private static function buildJwt(): ?Jwt
+    {
+        $secret = (string) env('APP_KEY', '');
+        if (strlen($secret) < 32) {
+            return null;
+        }
+
+        try {
+            return new Jwt(
+                $secret,
+                (string) env('APP_NAME', 'ions'),
+                (string) env('APP_NAME', 'ions'),
+                (int) config('app.jwt.ttl', 3600),
+            );
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
