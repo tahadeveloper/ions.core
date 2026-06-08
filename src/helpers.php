@@ -18,8 +18,6 @@ use JetBrains\PhpStorm\NoReturn;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\HttpException;
-use Symfony\Component\Mailer\Mailer;
-use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Security\Csrf\CsrfToken;
@@ -165,17 +163,13 @@ if (!function_exists('newMailer')) {
     function newMailerDsn(array|string $emails, string $subject, $body): bool
     {
         try {
-
-            $transport = Transport::fromDsn('smtp://' . env('MAIL_USERNAME') . ':' . env('MAIL_PASSWORD') . '@' . env('MAIL_HOST') . ':' . env('MAIL_PORT'));
-            $mailer = new Mailer($transport);
-
+            /** @var \Symfony\Component\Mailer\MailerInterface $mailer */
+            $mailer = app('mailer');
             $the_email = (new Email())
                 ->from(new Address(env('MAIL_FROM_ADDRESS', ''), env('MAIL_FROM_NAME', '')))
                 ->to($emails)
                 ->subject($subject)
                 ->html($body);
-
-
             $mailer->send($the_email);
             return true;
         } catch (Throwable $exception) {
