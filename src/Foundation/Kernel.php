@@ -9,7 +9,6 @@ use Dotenv\Dotenv;
 use const EXTR_SKIP;
 
 use Illuminate\Container\Container;
-use Illuminate\Contracts\Encryption\EncryptException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
@@ -17,6 +16,7 @@ use Illuminate\Support\Facades\File;
 use Ions\Bundles\AttributeRouteControllerLoader;
 use Ions\Bundles\MRoute;
 use Ions\Bundles\Path;
+use Ions\Security\SecurityHeaders;
 use Ions\Support\Arr;
 use Ions\Support\Request;
 use Ions\Support\Response;
@@ -86,6 +86,11 @@ class Kernel extends Singleton
             static::$collection = new RouteCollection();
 
             include_once Path::core('helpers.php');
+
+            $trustedHosts = config('app.trusted_hosts', []);
+            if (!empty($trustedHosts)) {
+                Request::setTrustedHosts($trustedHosts);
+            }
 
         } catch (Throwable) {
             header('HTTP/1.1 500 Internal Server Error');
@@ -297,7 +302,8 @@ class Kernel extends Singleton
             $whoops->pushHandler(new JsonResponseHandler());
             $whoops->pushHandler(function ($e) {
                 $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 501;
-                static::response()->setStatusCode($statusCode)->send();
+                static::response()->setStatusCode($statusCode);
+                self::sendResponse();
             });
             $whoops->register();
         } else {
@@ -318,6 +324,15 @@ class Kernel extends Singleton
         ob_start();
         include Path::var('templates/Exception/error.html.php');
         return trim(ob_get_clean());
+    }
+
+    /**
+     * Apply security headers to static::$response and send it.
+     */
+    private static function sendResponse(): void
+    {
+        SecurityHeaders::apply(static::$response);
+        static::$response->send();
     }
 
     /**
@@ -356,7 +371,7 @@ class Kernel extends Singleton
             static::$response->setPublic();
             static::$response->setMaxAge(3600);
             static::$response->headers->addCacheControlDirective('must-revalidate', true);
-            static::$response->send();
+            self::sendResponse();
 
         } catch (NoConfigurationException) {
             self::makeError('No configurations found', 404);
@@ -388,7 +403,7 @@ class Kernel extends Singleton
             ]));
         }
         static::$response->setStatusCode($statusCode);
-        static::$response->send();
+        self::sendResponse();
         die();
     }
 
@@ -476,15 +491,6 @@ class Kernel extends Singleton
 
         // add matcher to request parameters
         static::$request->attributes->add($matcherParams);
-
-        // secure app, accept request from app_url
-        $host = static::$request->headers->get('host') . env('APP_FOLDER');
-        // remove http:// or https:// from APP_URL
-        $removeProtcals = ['http://', 'https://'];
-        $appUrl = Str::remove($removeProtcals, env('APP_URL'));
-        if ($host !== $appUrl) {
-            throw new EncryptException('App host does not exist!.');
-        }
 
         $needles = array_merge(['super', 'api', 'Api'], static::config()->get('app.needles', []));
         // add namespace to controller if didn't have
