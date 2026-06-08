@@ -93,9 +93,8 @@ class Kernel extends Singleton
                 Request::setTrustedHosts($trustedHosts);
             }
 
-        } catch (Throwable) {
-            header('HTTP/1.1 500 Internal Server Error');
-            die('Booting ions failed.');
+        } catch (Throwable $e) {
+            static::failBoot($e, 'Booting ions failed');
         }
 
         if (class_exists(Booting::class)) {
@@ -195,11 +194,34 @@ class Kernel extends Singleton
                     $configs[File::name($config_file)] = include($config_file);
                 }
                 static::$config = new Config($configs);
-            } catch (Throwable) {
-                static::$config = [];
-                die('Config options fail.');
+            } catch (Throwable $e) {
+                static::failBoot($e, 'Config options failed');
             }
         }
+    }
+
+    /**
+     * Handle a fatal boot/config error: log it (best-effort), then either
+     * re-throw the original throwable when APP_DEBUG is on (so developers see
+     * the real cause) or die with a generic 500 in production.
+     *
+     * @throws \Throwable when APP_DEBUG is truthy
+     */
+    private static function failBoot(\Throwable $e, string $context): never
+    {
+        // best-effort logging; never let logging failure mask the original error
+        try {
+            \Ions\Bundles\Logs::create('boot.log')->error($context . ': ' . $e->getMessage(), ['exception' => (string) $e]);
+        } catch (\Throwable) {
+            // ignore logging failures
+        }
+        if (env('APP_DEBUG', false)) {
+            throw $e;
+        }
+        if (!headers_sent()) {
+            header('HTTP/1.1 500 Internal Server Error');
+        }
+        die($context);
     }
 
     /**
