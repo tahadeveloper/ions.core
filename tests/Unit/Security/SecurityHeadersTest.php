@@ -9,6 +9,7 @@ test('applies hardening headers', function () {
     expect($r->headers->get('X-Content-Type-Options'))->toBe('nosniff')
         ->and($r->headers->get('X-Frame-Options'))->toBe('SAMEORIGIN')
         ->and($r->headers->get('Referrer-Policy'))->toBe('strict-origin-when-cross-origin')
+        ->and($r->headers->get('X-XSS-Protection'))->toBe('0')
         ->and($r->headers->get('Content-Security-Policy'))->toBe("default-src 'self'");
 });
 

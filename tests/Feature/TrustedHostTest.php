@@ -6,11 +6,15 @@ afterEach(function () {
     Request::setTrustedHosts([]); // reset global state
 });
 
-test('rejects a request whose Host is not in the trusted list', function () {
-    Request::setTrustedHosts(['{^localhost$}i']);
-    $req = Request::create('http://localhost/');
-    $req->headers->set('HOST', 'evil.example.com');
-    expect(fn () => $req->getHost())
+test('accepts a trusted host and rejects an untrusted one', function () {
+    Request::setTrustedHosts(['^localhost$']); // NO braces — Symfony wraps with {…}i itself
+
+    $ok = Request::create('http://localhost/');
+    expect($ok->getHost())->toBe('localhost'); // trusted host is accepted
+
+    $bad = Request::create('http://localhost/');
+    $bad->headers->set('HOST', 'evil.example.com');
+    expect(fn () => $bad->getHost())
         ->toThrow(\Symfony\Component\HttpFoundation\Exception\SuspiciousOperationException::class);
 });
 

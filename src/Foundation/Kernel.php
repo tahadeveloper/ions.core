@@ -39,6 +39,7 @@ use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 use Throwable;
+use Whoops\Handler\Handler;
 use Whoops\Handler\JsonResponseHandler;
 use Whoops\Run;
 
@@ -304,6 +305,7 @@ class Kernel extends Singleton
                 $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 501;
                 static::response()->setStatusCode($statusCode);
                 self::sendResponse();
+                return Handler::QUIT;
             });
             $whoops->register();
         } else {
