@@ -14,7 +14,6 @@ use Ions\Support\Arr;
 use Ions\Support\DB;
 use Ions\Support\JsonResponse;
 use Ions\Traits\Twig;
-use JetBrains\PhpStorm\NoReturn;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -147,7 +146,7 @@ if (!function_exists('debugQuery')) {
     /**
      * @return array
      */
-    #[NoReturn] function debugQuery(): array
+    function debugQuery(): array
     {
         return DB::connection()->getQueryLog();
     }
@@ -189,7 +188,7 @@ if (!function_exists('abort')) {
      * @return never
      *
      */
-    function abort(int $code, string $message = '', array $headers = [])
+    function abort(int $code, string $message = '', array $headers = []): never
     {
         throw new HttpException($code, $message, null, $headers);
     }
@@ -236,7 +235,6 @@ if (!function_exists('display')) {
      * @param bool $continue
      * @return void
      */
-    #[NoReturn]
     function display(string $json, bool $continue = false): void
     {
         echo $json;

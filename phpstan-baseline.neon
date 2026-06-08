@@ -259,9 +259,9 @@ parameters:
 			path: src/Bundles/QueryBuilder.php
 
 		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\NoReturn does not exist\.$#'
-			identifier: attribute.notFound
-			count: 5
+			message: '#^PHPDoc tag @return with type void is incompatible with native type never\.$#'
+			identifier: return.phpDocType
+			count: 2
 			path: src/Bundles/Redirect.php
 
 		-
@@ -425,12 +425,6 @@ parameters:
 			identifier: method.notFound
 			count: 1
 			path: src/commands/migrate/DumpCommand.php
-
-		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\NoReturn does not exist\.$#'
-			identifier: attribute.notFound
-			count: 2
-			path: src/helpers.php
 
 		-
 			message: '#^Function toJson\(\) never returns null so it can be removed from the return type\.$#'
