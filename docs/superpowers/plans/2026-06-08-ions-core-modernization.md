@@ -8,6 +8,8 @@
 
 **Tech Stack:** PHP 8.2+, Symfony 7.x (Routing, Config, HttpFoundation, Mailer, Translation, Security-CSRF, Yaml), Illuminate 11.x (Database/Eloquent, Validation, Cache, Console, Filesystem), `lcobucci/jwt` 5.x, `league/flysystem` 3.x, Pest 3 + PHPUnit 11, PHPStan 2 (level 6→8), PHP-CS-Fixer 3, Rector 2, GitHub Actions CI.
 
+> **Interim toolchain note (Phase 0 actual):** Pest 3 / PHPUnit 11 cannot be installed yet — `pestphp/pest:^3` requires `nunomaduro/termwind:^2`, which conflicts with the pinned EOL `illuminate/console:v9.52.4` (needs `termwind:^1`). Phase 0 therefore landed on **Pest 2 + PHPUnit 10**. The Pest 3 upgrade is gated on the Illuminate 9→11 upgrade in **Phase 4**; do it there. Likewise `illuminate/container` + `illuminate/support` were pinned to `v9.52.4` to match the other illuminate/* pins (a transitive `9.52.16` broke `new Container()` under PHP 8.2).
+
 ---
 
 ## How to read this plan
