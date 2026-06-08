@@ -92,6 +92,8 @@ class Kernel extends Singleton
                 Request::setTrustedHosts($trustedHosts);
             }
 
+            self::bootProviders();
+
         } catch (Throwable $e) {
             static::failBoot($e, 'Booting ions failed');
         }
@@ -150,6 +152,9 @@ class Kernel extends Singleton
     {
         static::$app = new Container();
         Facade::setFacadeApplication(static::$app);
+        // These inline bindings MUST stay here: captureConfig() calls Storage::files()
+        // which requires 'filesystem'/'files' to exist BEFORE providers are bootstrapped.
+        // FilesystemProvider's bound() guard makes it a harmless no-op at provider time.
         if (!static::$app->has('filesystem')) {
             static::$app->singleton('filesystem', function () {
                 return new Filesystem();
@@ -159,6 +164,40 @@ class Kernel extends Singleton
             static::$app->singleton('files', function () {
                 return new Filesystem();
             });
+        }
+    }
+
+    /**
+     * Returns the default list of service providers registered when no
+     * 'app.providers' config key is present.
+     *
+     * @return class-string<\Ions\Container\ServiceProvider>[]
+     */
+    private static function defaultProviders(): array
+    {
+        return [
+            \Ions\Providers\FilesystemProvider::class,
+            \Ions\Providers\DatabaseProvider::class,
+        ];
+    }
+
+    /**
+     * Two-pass provider bootstrap: all register() first, then all boot().
+     * Reads 'app.providers' from config (falls back to defaultProviders()).
+     * Runs inside the boot() try block so provider failures route through failBoot().
+     *
+     * @return void
+     */
+    private static function bootProviders(): void
+    {
+        /** @var class-string<\Ions\Container\ServiceProvider>[] $classes */
+        $classes = config('app.providers', self::defaultProviders());
+        $providers = array_map(static fn ($c) => new $c(static::$app), $classes);
+        foreach ($providers as $p) {
+            $p->register();
+        }
+        foreach ($providers as $p) {
+            $p->boot();
         }
     }
 
