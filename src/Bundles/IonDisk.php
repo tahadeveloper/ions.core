@@ -12,8 +12,8 @@ use League\Flysystem\Filesystem;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
-use Verot\Upload\Upload;
 
 class IonDisk
 {
@@ -212,29 +212,19 @@ class IonDisk
 
     private static function handleLocalUpload(UploadedFile $file, string $path, string $fileNameWithExt, string $randomFilename, string $extension, array $options): array
     {
-        $handle = new Upload($file);
-        if ($handle->uploaded) {
-            $handle->file_new_name_body = $randomFilename;
-            $handle->file_new_name_ext = $extension;
-            if (!empty($options)) {
-                foreach ($options as $key => $option) {
-                    $handle->$key = $option;
-                }
-            }
-        }
-        $handle->process($path);
-        if ($handle->processed) {
-            // Return information about uploaded file
-            return [
-                'error' => false,
-                'originalName' => $fileNameWithExt,
-                'filename' => $handle->file_dst_name,
-                'size' => $file->getSize(),
-            ];
+        $storeName = $randomFilename . '.' . $extension;
+        try {
+            $file->move($path, $storeName);
+        } catch (FileException $e) {
+            throw new RuntimeException('Upload failed: ' . $e->getMessage());
         }
 
-        // Handle upload errors
-        throw new RuntimeException('Upload failed: ' . $handle->error);
+        return [
+            'error' => false,
+            'originalName' => $fileNameWithExt,
+            'filename' => $storeName,
+            'size' => $file->getSize(),
+        ];
     }
 
     private static function handleCloudUpload(UploadedFile $file, Filesystem $disk, string $path, string $fileNameWithExt, string $randomFilename, string $extension): array

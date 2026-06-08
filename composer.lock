@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0bfb305ceaf6fe7e3ebbe19f835dd500",
+    "content-hash": "cef79d29e3dd46e516db95080f0ab5b6",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -6665,52 +6665,6 @@
             "time": "2026-05-30T17:09:26+00:00"
         },
         {
-            "name": "verot/class.upload.php",
-            "version": "2.x-dev",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/verot/class.upload.php.git",
-                "reference": "fe5200fd015520ba329c8a26c385d2ec0e72a0c6"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/verot/class.upload.php/zipball/fe5200fd015520ba329c8a26c385d2ec0e72a0c6",
-                "reference": "fe5200fd015520ba329c8a26c385d2ec0e72a0c6",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=5.3"
-            },
-            "type": "library",
-            "autoload": {
-                "classmap": [
-                    "src/class.upload.php"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "GPL-2.0-only"
-            ],
-            "authors": [
-                {
-                    "name": "Colin Verot",
-                    "email": "colin@verot.net"
-                }
-            ],
-            "description": "This PHP class uploads files and manipulates images very easily.",
-            "homepage": "http://www.verot.net/php_class_upload.htm",
-            "keywords": [
-                "gd",
-                "upload"
-            ],
-            "support": {
-                "email": "colin@verot.net",
-                "issues": "https://github.com/verot/class.upload.php/issues",
-                "source": "https://github.com/verot/class.upload.php/tree/2.x"
-            },
-            "time": "2024-09-10T19:04:48+00:00"
-        },
-        {
             "name": "vlucas/phpdotenv",
             "version": "v5.6.1",
             "source": {
@@ -10944,9 +10898,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "verot/class.upload.php": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
