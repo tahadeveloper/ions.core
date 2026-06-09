@@ -10,6 +10,7 @@ parameters:
         - src/Providers
         - src/Session
         - src/View
+        - src/Console
     scanFiles:
         - src/helpers.php
     # NO baseline — this code must be clean at level 8
