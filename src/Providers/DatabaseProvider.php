@@ -70,7 +70,7 @@ final class DatabaseProvider extends ServiceProvider
                 abort(500, 'No database class connect');
             }
 
-            if (config('app.app_debug', false)) {
+            if (env('APP_DEBUG', false)) {
                 DB::connection()->enableQueryLog();
             }
         }
