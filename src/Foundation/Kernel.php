@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\File;
 use Ions\Bundles\MRoute;
 use Ions\Bundles\AttributeRouteControllerLoader;
 use Ions\Bundles\Path;
+use Ions\Security\SecurityHeaders;
 use Ions\Support\Arr;
 use Ions\Support\Request;
 use Ions\Support\Response;
@@ -259,6 +260,7 @@ class Kernel extends Singleton
             $whoops->pushHandler(new JsonResponseHandler());
             $whoops->pushHandler(function ($e) {
                 $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 501;
+                SecurityHeaders::apply(static::response());
                 static::response()->setStatusCode($statusCode)->send();
             });
             $whoops->register();
@@ -318,6 +320,7 @@ class Kernel extends Singleton
             static::$response->setPublic();
             static::$response->setMaxAge(3600);
             static::$response->headers->addCacheControlDirective('must-revalidate', true);
+            SecurityHeaders::apply(static::$response);
             static::$response->send();
 
         } catch (NoConfigurationException) {
@@ -350,6 +353,7 @@ class Kernel extends Singleton
             ]));
         }
         static::$response->setStatusCode($statusCode);
+        SecurityHeaders::apply(static::$response);
         static::$response->send();
         die();
     }
