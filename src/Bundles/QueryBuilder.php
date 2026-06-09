@@ -8,6 +8,10 @@ use Ions\Foundation\Kernel;
 use Ions\Support\Request;
 use JetBrains\PhpStorm\Pure;
 
+/**
+ * @deprecated Use Ions\Builders\QueryBuilder (request-driven, allow-list-by-default).
+ *             Ions\Bundles\QueryBuilder will be removed in a future major.
+ */
 class QueryBuilder
 {
     protected Builder $query;

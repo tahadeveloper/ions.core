@@ -696,7 +696,7 @@ Config keys (`app.providers`, `app.middleware`, `app.cors`, `app.jwt.ttl`, `app.
 **Tasks:**
 1. Upgrade Illuminate `9.52.4` → `^11.0` (Rector + `illuminate/*` bumps). Run Rector's Laravel sets where applicable; fix breaking changes (e.g. `Capsule`/Eloquent API deltas). Verify against fixture SQLite + a MySQL CI service.
 2. ~~Decide RedBean's fate~~ **DONE (Task 4.5):** RedBeanPHP **removed** (`gabordemooij/redbean` uninstalled). A `'redbean'` entry in `app.database_engine` is now a logged deprecation no-op; the three private RedBean methods in `DatabaseProvider` are deleted. Port any `R::` usage to Eloquent.
-3. Consolidate the two query builders: keep `Builders\QueryBuilder` (request-driven, with `Invalid*Query` exceptions) as the public API; fold `Bundles\QueryBuilder` operators into it or delete. Harden against column-name injection: allow-list sortable/filterable fields (the `BuilderFields`/`BuilderSort`/`BuilderFilters` traits) and bind all values.
+3. ~~Consolidate the two query builders~~ **DONE (Task 4.4):** `Ions\Builders\QueryBuilder` is the canonical API (request-driven, `QueryBuilder::for($table, $request)`, allow-list-by-default). `Ions\Bundles\QueryBuilder` has zero usages in src/tests and is **deprecated** (`@deprecated` docblock added) — it still works but will be removed in a future major. Operator contract (`eq/ne/gt/lt/gte/lte/like/in`) verified by `tests/Unit/Builders/QueryBuilderOperatorTest.php` (10 tests, all passing). Filter/sort columns allow-listed via `BuilderFields`/`BuilderSort`/`BuilderFilters` traits; values are bound — injection test suite green.
 4. Formalize migrations/seeders commands against upgraded Illuminate console; add tests for `migrate`/`rollback`/`schema`.
 5. Wrap `DatabaseProvider` with lazy connections + query log gated by `APP_DEBUG`.
 
@@ -755,6 +755,7 @@ Breaking changes apps must address, each with before/after:
 7. **Dependencies:** Twig/Ignition/Whoops now declared by core; remove duplicate requires from host `composer.json` if desired.
 8. **Smarty removed:** Twig is the only view engine; port Smarty templates to Twig; a `smarty` entry in `app.templates` is ignored.
 9. **`allowFilters()` now takes an ARRAY and enforces it by default — `allowFilters(['name','email'])`**. The old single-string/variadic forms (`allowFilters('col_a', 'col_b')`) are removed: they could silently bypass the allow-list because PHP coerced a non-empty string second argument to `true` for `$allow_all`, skipping enforcement entirely. Passing a non-array now throws a `TypeError` — misuse fails closed/loud, never silently. Opt out of allow-listing explicitly with `allowFilters([], true)` or `allowAllFilters()`.
+10. **`Ions\Bundles\QueryBuilder` is deprecated** — use `Ions\Builders\QueryBuilder` (`QueryBuilder::for($table, $request)`), the request-driven builder with allow-list-by-default filtering and the `eq/ne/gt/lt/gte/lte/like/in` operator set. The deprecated class still works but will be removed in a future major.
 
 ---
 
