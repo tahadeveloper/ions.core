@@ -1,0 +1,49 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+|--------------------------------------------------------------------------
+| Ions Console Entry Point
+|--------------------------------------------------------------------------
+|
+| This script boots the Ions framework container and runs the console
+| Kernel, which discovers and registers the framework commands plus the
+| host application's commands (config('console.commands') and the host
+| {src|app}/Commands directory). Run it from the host-app root:
+|
+|     php vendor/ionzile/core/bin/ions list
+|     php vendor/ionzile/core/bin/ions make:command SendReports
+|
+*/
+
+use Ions\Console\Kernel;
+
+(static function (): never {
+    // Locate Composer's autoloader whether this lib runs standalone or as a
+    // dependency installed inside a host application's vendor/ directory.
+    $autoloaders = [
+        __DIR__ . '/../vendor/autoload.php',          // standalone (this repo)
+        __DIR__ . '/../../../autoload.php',           // installed as a dependency
+        __DIR__ . '/../../../../vendor/autoload.php', // host-app vendor sibling
+    ];
+
+    $loaded = false;
+    foreach ($autoloaders as $autoloader) {
+        if (is_file($autoloader)) {
+            require $autoloader;
+            $loaded = true;
+            break;
+        }
+    }
+
+    if (!$loaded) {
+        fwrite(STDERR, "Unable to locate Composer's autoloader. Run 'composer install' first.\n");
+        exit(1);
+    }
+
+    $status = Kernel::boot()->run();
+
+    exit($status);
+})();

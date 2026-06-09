@@ -10,6 +10,9 @@
       "src/commands"
     ]
   },
+  "bin": [
+    "bin/ions"
+  ],
   "authors": [
     {
       "name": "ahmedhamdi",
