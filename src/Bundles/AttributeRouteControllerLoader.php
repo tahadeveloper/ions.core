@@ -2,10 +2,10 @@
 
 namespace Ions\Bundles;
 
-use Symfony\Component\Routing\Loader\AnnotationClassLoader;
+use Symfony\Component\Routing\Loader\AttributeClassLoader;
 use Symfony\Component\Routing\Route;
 
-class AttributeRouteControllerLoader extends AnnotationClassLoader
+class AttributeRouteControllerLoader extends AttributeClassLoader
 {
     protected function configureRoute(Route $route, \ReflectionClass $class, \ReflectionMethod $method, object $annot)
     {
