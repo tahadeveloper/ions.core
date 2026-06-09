@@ -6,7 +6,7 @@ use Ions\Auth\Providers\EloquentUserProvider;
 use Ions\Auth\Providers\SentinelUserProvider;
 use Ions\Container\ServiceProvider;
 use Ions\Foundation\Kernel;
-use Ions\Security\ArrayRevocationStore;
+use Ions\Security\CacheRevocationStore;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 use Symfony\Component\Security\Csrf\TokenGenerator\UriSafeTokenGenerator;
 use Symfony\Component\Security\Csrf\TokenStorage\NativeSessionTokenStorage;
@@ -15,11 +15,16 @@ final class AuthProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Bind the default in-memory revocation store if none is already registered.
-        // Apps that need cross-request revocation should bind a cache-backed
+        // Bind the default file-cache-backed revocation store if none is already registered.
+        // Revocations persist across requests via a file cache at var/cache/revocations.
+        // Apps that need distributed revocation (e.g. Redis) should bind their own
         // RevocationStore implementation as 'revocation_store' BEFORE AuthProvider runs.
         if (!$this->container->bound('revocation_store')) {
-            $this->container->singleton('revocation_store', static fn () => new ArrayRevocationStore());
+            $this->container->singleton('revocation_store', static function () {
+                $dir = \Ions\Bundles\Path::cache('revocations');
+                $store = new \Illuminate\Cache\FileStore(new \Illuminate\Filesystem\Filesystem(), $dir);
+                return new CacheRevocationStore(new \Illuminate\Cache\Repository($store));
+            });
         }
 
         if (!$this->container->bound('jwt')) {

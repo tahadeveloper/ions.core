@@ -35,6 +35,9 @@ final class Jwt
         $this->config = Configuration::forSymmetricSigner(new Sha256(), InMemory::plainText($secret));
     }
 
+    /** Reserved claims that callers must not override. */
+    private const RESERVED_CLAIMS = ['typ', 'jti', 'iss', 'aud', 'sub', 'iat', 'nbf', 'exp'];
+
     public function issue(string $userId, array $claims = []): string
     {
         $now = new DateTimeImmutable();
@@ -45,11 +48,15 @@ final class Jwt
             ->identifiedBy(bin2hex(random_bytes(16)))
             ->issuedAt($now)
             ->canOnlyBeUsedAfter($now)
-            ->expiresAt($now->modify(sprintf('+%d seconds', $this->ttlSeconds)))
-            ->withClaim('typ', 'access');
+            ->expiresAt($now->modify(sprintf('+%d seconds', $this->ttlSeconds)));
+        // Apply caller claims first (reserved keys are silently skipped).
         foreach ($claims as $k => $v) {
-            $builder = $builder->withClaim($k, $v);
+            if (!in_array($k, self::RESERVED_CLAIMS, true)) {
+                $builder = $builder->withClaim($k, $v);
+            }
         }
+        // Framework-controlled claims are always applied last so they cannot be overridden.
+        $builder = $builder->withClaim('typ', 'access');
         return $builder->getToken($this->config->signer(), $this->config->signingKey())->toString();
     }
 

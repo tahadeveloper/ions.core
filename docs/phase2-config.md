@@ -151,22 +151,33 @@ interface RevocationStore {
 }
 ```
 
-### Default store: `ArrayRevocationStore`
+### Default store: `CacheRevocationStore` (file-backed, persistent)
 
-The default implementation is in-memory (`ArrayRevocationStore`). Revocations only persist within the lifetime of the PHP process (a single request). This is sufficient for refresh-token rotation within a request but **does not** provide cross-request logout persistence.
+The default implementation is `Ions\Security\CacheRevocationStore`, backed by an Illuminate file cache at `var/cache/revocations`. Revocations **persist across requests** — `revoke()` writes an entry to the cache directory, and subsequent requests (new PHP processes) will see it via `isRevoked()`. This means logout/token invalidation works out of the box without any additional configuration.
 
-### Persistent revocation (cross-request logout)
+`AuthProvider` sets this up automatically. The cache directory is created on first use by the Illuminate `FileStore`.
 
-To enable revocations that survive across requests (e.g. logout invalidating a token), bind a persistent `RevocationStore` implementation in the container **before** `AuthProvider` registers:
+### Swapping to a distributed store (Redis etc.)
+
+For multi-server deployments, bind a different `RevocationStore` implementation **before** `AuthProvider` registers:
 
 ```php
 // In your application service provider or bootstrap:
 Kernel::app()->singleton('revocation_store', function () {
-    return new \App\Security\CacheRevocationStore(cache());
+    // Example: Redis-backed via Illuminate Cache
+    return new \Ions\Security\CacheRevocationStore(
+        new \Illuminate\Cache\Repository(
+            new \Illuminate\Cache\RedisStore(app('redis'), 'jwt_revoked')
+        )
+    );
 });
 ```
 
-A `CacheRevocationStore` backed by Illuminate Cache (or any PSR-16 compatible cache) can be added as a follow-up. The interface is stable — only the store implementation needs to change.
+Any class implementing `RevocationStore` is accepted.
+
+### In-memory store for unit tests
+
+`Ions\Security\ArrayRevocationStore` is the in-memory implementation used in unit tests that construct `Jwt` directly. Revocations only persist within the lifetime of the PHP process (a single request), so it is **not** suitable for production use.
 
 ### BC guarantee
 

@@ -6,3 +6,4 @@
 # test-generated artifacts inside fixtures
 tests/fixtures/**/var/logs/*.log
 tests/fixtures/**/var/cache/twig/
+tests/fixtures/**/var/cache/revocations/

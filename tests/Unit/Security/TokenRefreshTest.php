@@ -31,3 +31,11 @@ test('refresh rotates: the old refresh token is revoked after use', function () 
     $jwt->refresh($refresh);
     expect(fn () => $jwt->refresh($refresh))->toThrow(TokenException::class); // old refresh now revoked
 });
+
+test('caller cannot override typ to forge a refresh token via issue()', function () {
+    $jwt = new Jwt(str_repeat('a', 32), 'ions', 'ions-app', 3600, 0, new ArrayRevocationStore());
+    $sneaky = $jwt->issue('42', ['typ' => 'refresh']); // attempt to forge a refresh token
+    // it must remain an ACCESS token: verify() accepts it, refresh() rejects it
+    expect($jwt->verify($sneaky)->userId)->toBe('42');
+    expect(fn () => $jwt->refresh($sneaky))->toThrow(TokenException::class);
+});
