@@ -2,80 +2,95 @@
 
 namespace Ions\Bundles;
 
-use DateTimeImmutable;
 use Ions\Foundation\Singleton;
-use Ions\Support\Storage;
-use Lcobucci\JWT\Configuration;
-use Lcobucci\JWT\Signer\Hmac\Sha256;
-use Lcobucci\JWT\Signer\Key\InMemory;
-use Lcobucci\JWT\Token\Plain;
-use Lcobucci\JWT\Validation\Constraint\IdentifiedBy;
-use Lcobucci\JWT\Validation\Constraint\IssuedBy;
-use Lcobucci\JWT\Validation\Constraint\PermittedFor;
-use Lcobucci\JWT\Validation\RequiredConstraintsViolated;
+use Ions\Security\Jwt;
+use Ions\Security\TokenException;
 
+/**
+ * @deprecated Use Ions\Security\Jwt directly.
+ *
+ * Thin backwards-compatible shim over the secure Ions\Security\Jwt.
+ *
+ * The legacy implementation generated an RSA keypair and used the PUBLIC key as
+ * an HMAC secret, with NO expiry and NO user binding — so any token was valid
+ * forever for everyone. That scheme has been removed entirely. Tokens are now
+ * HMAC-SHA256 signed, expiring, and bound to a subject (user id).
+ */
 class AppKeys extends Singleton
 {
+    /**
+     * Generate a 32-byte random application secret (hex-encoded) at var/app.key.
+     *
+     * No RSA, no key.pem. The file is created with 0600 permissions and is left
+     * untouched if it already exists.
+     */
     public static function createKey(): void
     {
-        if (!file_exists(Path::var('key.pem'))) {
-            $config = array(
-                "digest_alg" => "sha512",
-                "private_key_bits" => 2048,
-                "private_key_type" => OPENSSL_KEYTYPE_RSA,
-            );
-            $private_key = openssl_pkey_new($config);
-            $public_key_pem = openssl_pkey_get_details($private_key)['key'];
-
-            Storage::put(Path::var('key.pem'), $public_key_pem);
+        $keyFile = Path::var('app.key');
+        if (!file_exists($keyFile)) {
+            $hex = bin2hex(random_bytes(32));
+            file_put_contents($keyFile, $hex);
+            chmod($keyFile, 0600);
         }
     }
 
-    public static function configJWT(): Configuration|null
+    private static function secret(): ?string
     {
-        if (Storage::exists(Path::var('key.pem'))) {
-            $key = InMemory::file(Path::var('key.pem'));
-            return Configuration::forSymmetricSigner(new Sha256(), $key);
+        $envKey = env('APP_KEY');
+        if (is_string($envKey) && $envKey !== '') {
+            return $envKey;
         }
-        return null;
-    }
-
-    public static function createJWT(): Plain|null
-    {
-        $config_jwt = self::configJWT();
-        if ($config_jwt) {
-            $now = new DateTimeImmutable();
-
-            return $config_jwt->builder()
-                ->issuedBy(env('APP_NAME'))
-                ->permittedFor(env('APP_NAME'))
-                ->identifiedBy(config('app.app_id'))
-                ->issuedAt($now)
-                ->getToken($config_jwt->signer(), $config_jwt->signingKey());
-        }
-        return null;
-    }
-
-    public static function validateJWT($token): array
-    {
-        $config_jwt = self::configJWT();
-        if ($config_jwt) {
-            $parse_token = $config_jwt->parser()->parse($token);
-
-            $issue_by = new IssuedBy(env('APP_NAME'));
-            $permitted_for = new PermittedFor(env('APP_NAME'));
-            $identified_by = new IdentifiedBy(config('app.app_id'));
-            $config_jwt->setValidationConstraints($issue_by, $permitted_for, $identified_by);
-
-            $constraints = $config_jwt->validationConstraints();
-
-            try {
-                $config_jwt->validator()->assert($parse_token, ...$constraints);
-                return ['success' => true];
-            } catch (RequiredConstraintsViolated $e) {
-                return ['success' => false, 'error' => $e->getMessage()];
+        $keyFile = Path::var('app.key');
+        if (file_exists($keyFile)) {
+            $contents = file_get_contents($keyFile);
+            if (is_string($contents) && $contents !== '') {
+                return trim($contents);
             }
         }
-        return ['success' => false, 'error' => 'No key'];
+        return null;
+    }
+
+    private static function jwt(): ?Jwt
+    {
+        $secret = self::secret();
+        if ($secret === null) {
+            return null;
+        }
+        try {
+            return new Jwt(
+                $secret,
+                (string) env('APP_NAME', 'ions'),
+                (string) env('APP_NAME', 'ions'),
+                (int) config('app.jwt.ttl', 3600),
+            );
+        } catch (TokenException) {
+            return null;
+        }
+    }
+
+    /**
+     * @deprecated Use Ions\Security\Jwt directly. Tokens issued WITHOUT an explicit
+     *             $subject are bound to the constant app id, NOT a user identity —
+     *             callers must pass the authenticated user's id as $subject.
+     *
+     * @param string|null $subject The subject (user id) to bind the token to.
+     */
+    public static function createJWT(?string $subject = null): ?string
+    {
+        return self::jwt()?->issue($subject ?? (string) config('app.app_id', 'app'));
+    }
+
+    public static function validateJWT(string $token): array
+    {
+        $jwt = self::jwt();
+        if ($jwt === null) {
+            return ['success' => false, 'error' => 'No key'];
+        }
+        try {
+            $jwt->verify($token);
+            return ['success' => true];
+        } catch (TokenException $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
     }
 }
