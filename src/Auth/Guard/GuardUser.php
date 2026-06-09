@@ -248,6 +248,8 @@ class GuardUser extends Singleton
                     $role->users()->attach($user);
                 }
             }
+
+            return $user;
         });
 
     }

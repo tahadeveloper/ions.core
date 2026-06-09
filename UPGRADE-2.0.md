@@ -15,7 +15,7 @@ This document tracks breaking changes and deprecations introduced during the v2 
 | CSP / security headers | Review/set `app.security.csp` |
 | View engine | Port Smarty templates to Twig |
 | Database engine | Replace `'redbean'` with `'db'` (Eloquent) |
-| Illuminate | Review Eloquent / container deltas (v9 → v10) |
+| Illuminate | Review Eloquent / container deltas (v9 → v11) |
 | QueryBuilder filters | Switch to `allowFilters([...])` array-only API |
 | ApiController | Add `return` to every `$this->display(...)` / `$this->returnStructure(...)` call |
 | Auth backend | Set `config('auth.provider')` (`'sentinel'` or `'eloquent'`) |
@@ -150,12 +150,33 @@ $ok   = $user && $provider->validateCredentials($user, ['password' => $password]
 
 ## Phase 4 — Illuminate Upgrade
 
-### Illuminate 9 → 10 (Breaking — Phase 4.2 / 4.3)
+### Illuminate 9 → 11 / Symfony 7 / Monolog 3 / Pest 3 (Breaking — Phase 4.2 / 4.3 / 4.6)
 
-The framework now requires Illuminate 10. Review the official
-[Laravel 10 upgrade guide](https://laravel.com/docs/10.x/upgrade) for
-Eloquent/container deltas. Generators emit `id()`, use `SoftDeletes`, and
+The framework now requires **Illuminate 11**, **Symfony 7**, **Monolog 3**, and
+**Pest 3 / PHPUnit 11**. The upgrade was performed incrementally (9→10→11).
+Review the official [Laravel 11 upgrade guide](https://laravel.com/docs/11.x/upgrade)
+for Eloquent/container deltas. Generators emit `id()`, use `SoftDeletes`, and
 declare `$casts` as an array property.
+
+**Cartalyst Sentinel** was bumped to `^8.0` (the L11-compatible release) and
+remains the default auth provider (`auth.provider = sentinel`). No Sentinel-optional
+refactor was required — Sentinel 8 supports Illuminate 11 directly.
+
+**`spatie/ignition` and `filp/whoops` removed from `require`** (Phase 4.6). These
+were unused at runtime after Phase 3.3 replaced the exception handler. They are no
+longer listed in `require` and do not need to be in host `composer.json` either.
+Whoops remains available transitively through dev dependencies (Pest / Collision),
+but production code must not rely on it being present.
+
+**Symfony 7 routing loaders renamed** — `Annotation*Loader` classes are replaced by
+`Attribute*Loader`. This is an internal change and requires no action in host apps
+using `Route::get/post/...` or the `#[Route]` attribute. If you extend
+`src/Bundles/AttributeRouteControllerLoader.php` directly, update any `extends
+AnnotationClassLoader` to `extends AttributeClassLoader`.
+
+**`Ions\Support\Route` now extends `Symfony\Component\Routing\Attribute\Route`**
+(the canonical class) instead of the `Annotation\Route` shim. The public
+constructor interface is identical; host apps using `#[Route(...)]` are unaffected.
 
 ### Query filtering allow-listed by default (Breaking — Phase 4.1)
 

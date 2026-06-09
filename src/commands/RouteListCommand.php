@@ -15,7 +15,7 @@ use JetBrains\PhpStorm\ArrayShape;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Terminal;
-use Symfony\Component\Routing\Loader\AnnotationDirectoryLoader;
+use Symfony\Component\Routing\Loader\AttributeDirectoryLoader;
 use Symfony\Component\Routing\Loader\YamlFileLoader;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
@@ -91,7 +91,7 @@ class RouteListCommand extends Command
         $target_folder === 'web' ? $attributesPath = Path::src('Http') : $attributesPath = Path::api();
         if (Storage::exists($attributesPath)) {
             $fileLocator = new FileLocator($attributesPath);
-            $loader = new AnnotationDirectoryLoader($fileLocator, new AttributeRouteControllerLoader());
+            $loader = new AttributeDirectoryLoader($fileLocator, new AttributeRouteControllerLoader());
             $attributesRoutes = $loader->load($attributesPath);
             if ($attributesRoutes !== null && !empty($attributesRoutes->all())) {
                 $routes->addCollection($attributesRoutes);

@@ -139,12 +139,6 @@ parameters:
 			path: src/Builders/DatatableQuery.php
 
 		-
-			message: '#^Call to an undefined method Illuminate\\Contracts\\Pagination\\LengthAwarePaginator\:\:pluck\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Builders/QueryBuilder.php
-
-		-
 			message: '#^Method Ions\\Builders\\QueryBuilder\:\:allowFilters\(\) has invalid return type Ions\\Traits\\BuilderFilters\.$#'
 			identifier: return.trait
 			count: 1

@@ -253,6 +253,8 @@ class GuardControl
 
                 self::actionLanguages($action_id, $action->languages);
             }
+
+            return $control_id;
         });
     }
 
@@ -355,6 +357,8 @@ class GuardControl
                 }
                 self::actionLanguages($action_id, $action->languages);
             }
+
+            return $control_id;
         });
     }
 

@@ -3,8 +3,8 @@
 namespace Ions\Bundles;
 
 use Ions\Foundation\Singleton;
-use Monolog\Handler\FirePHPHandler;
 use Monolog\Handler\StreamHandler;
+use Monolog\Level;
 use Monolog\Logger;
 
 class Logs extends Singleton
@@ -23,13 +23,11 @@ class Logs extends Singleton
         }
 
         // Create some handlers
-        $stream = new StreamHandler(Path::logs($file_name), Logger::DEBUG);
-        $firephp = new FirePHPHandler();
+        $stream = new StreamHandler(Path::logs($file_name), Level::Debug);
 
         // Create the main logger of the app
         $logger = new Logger('ions');
         $logger->pushHandler($stream);
-        $logger->pushHandler($firephp);
 
         return $logger;
     }

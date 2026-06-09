@@ -2,39 +2,36 @@
 
 namespace Ions\Support;
 
-use Symfony\Component\Routing\Annotation\Route as BaseRoute;
+use Symfony\Component\Routing\Attribute\Route as BaseRoute;
 
 #[\Attribute(\Attribute::IS_REPEATABLE | \Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
 class Route extends BaseRoute
 {
-    public string $path;
-
     public function __construct(
-        string $path,
-        string $name = null,
-        array  $requirements = [],
-        array  $options = [],
-        string $host = '',
-        array  $methods = [],
-        array  $schemes = [],
-        string $condition = '',
-        array  $defaults = [],
-        int    $priority = 0,
-        string $env = null
+        string|array|null $path = null,
+        ?string           $name = null,
+        array             $requirements = [],
+        array             $options = [],
+        array             $defaults = [],
+        ?string           $host = null,
+        array|string      $methods = [],
+        array|string      $schemes = [],
+        ?string           $condition = null,
+        ?int              $priority = null,
+        string|array|null $env = null,
     ) {
-        $this->path = $path;
         parent::__construct(
             path: $path,
             name: $name,
             requirements: $requirements,
             options: $options,
+            defaults: $defaults,
             host: $host,
             methods: $methods,
             schemes: $schemes,
             condition: $condition,
-            defaults: $defaults,
             priority: $priority,
-            env: $env
+            env: $env,
         );
     }
 }

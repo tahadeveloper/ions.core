@@ -36,7 +36,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Exception\MethodNotAllowedException;
 use Symfony\Component\Routing\Exception\NoConfigurationException;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
-use Symfony\Component\Routing\Loader\AnnotationDirectoryLoader;
+use Symfony\Component\Routing\Loader\AttributeDirectoryLoader;
 use Symfony\Component\Routing\Loader\YamlFileLoader;
 use Symfony\Component\Routing\Matcher\UrlMatcher;
 use Symfony\Component\Routing\RequestContext;
@@ -624,7 +624,7 @@ class Kernel extends Singleton
         $targetFolder === 'web' ? $attributesPath = Path::src('Http') : $attributesPath = Path::api();
         if (Storage::exists($attributesPath)) {
             $fileLocator = new FileLocator($attributesPath);
-            $loader = new AnnotationDirectoryLoader($fileLocator, new AttributeRouteControllerLoader());
+            $loader = new AttributeDirectoryLoader($fileLocator, new AttributeRouteControllerLoader());
             $attributesRoutes = $loader->load($attributesPath);
             if ($attributesRoutes !== null && !empty($attributesRoutes->all())) {
                 $routes->addCollection($attributesRoutes);
