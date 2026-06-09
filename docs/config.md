@@ -338,3 +338,55 @@ config, so `Storage::url()` works for disks that declare a `public_url`.
 > **Note:** `Ions\Bundles\IonDisk` reads `filesystem.disks.default` (a string under
 > `disks`) to pick its adapter and now delegates its operations to the
 > `FilesystemManager` while keeping its existing static API.
+
+---
+
+## Session config (`config/session.php`)
+
+`Ions\Session\SessionManager` wraps a Symfony `Session` with a config-driven
+storage driver. It is bound in the container as `session` by `SessionProvider`
+and exposed through the `session()` helper. The `StartSessionMiddleware`
+(web stack, before CSRF) starts it at the front of the request and persists it
+on the way out. CSRF tokens are stored in this same session (single source of
+truth) via `SessionTokenStorage`.
+
+```php
+// config/session.php
+return [
+    'driver' => 'native',          // 'native' | 'array' | 'mock'
+    'name' => 'ion_session',       // session cookie name (native driver)
+    'lifetime' => 0,               // cookie lifetime in seconds (0 = until browser close)
+    'cookie_secure' => false,
+    'cookie_httponly' => true,
+    'cookie_samesite' => 'lax',
+];
+```
+
+### `session.driver`
+
+**Type:** `string`  **Default:** `'native'`
+
+- `native` — `NativeSessionStorage`; the real PHP session. Use in production/web.
+- `array` / `mock` — `MockArraySessionStorage`; in-memory, no real session. Use
+  in tests and CLI where starting a native session would emit "headers already
+  sent" warnings.
+
+### `session.name` / `session.lifetime` / `session.cookie_*`
+
+Cookie options passed to `NativeSessionStorage` (ignored by the array/mock
+driver). `cookie_samesite` accepts `'lax'`, `'strict'`, or `'none'`.
+
+### The `session()` helper
+
+Mirrors the `config()` helper overloads:
+
+```php
+session();                  // the SessionManager instance
+session('key');             // get a value
+session('key', 'default');  // get with a default
+session(['k' => 'v']);      // put one or more values (starts the session)
+```
+
+The manager API: `start()`, `get()`, `put()`, `has()`, `forget()`, `all()`,
+`flush()`, `flash()`/`getFlash()`, `regenerate()`, `token()`, `getId()`, `save()`,
+and `getSession()` (the underlying Symfony session).
