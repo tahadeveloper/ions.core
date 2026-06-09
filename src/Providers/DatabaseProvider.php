@@ -5,16 +5,15 @@ namespace Ions\Providers;
 use Illuminate\Container\Container as IlluminateContainer;
 use Illuminate\Database\Capsule\Manager;
 use Illuminate\Events\Dispatcher;
+use Ions\Bundles\Logs;
 use Ions\Bundles\Path;
 use Ions\Container\ServiceProvider;
 use Ions\Foundation\Config;
 use Ions\Support\DB;
-use RedBeanPHP\R;
-use RedBeanPHP\RedException;
 use Throwable;
 
 /**
- * Wires up database connections (Eloquent / RedBeanPHP) into the container.
+ * Wires up database connections (Eloquent) into the container.
  */
 final class DatabaseProvider extends ServiceProvider
 {
@@ -57,7 +56,8 @@ final class DatabaseProvider extends ServiceProvider
     }
 
     /**
-     * Boot Eloquent and optionally enable query logging; run RedBean setup.
+     * Boot Eloquent and optionally enable query logging.
+     * A 'redbean' entry in database_engine logs a deprecation warning and is otherwise ignored.
      */
     public function boot(): void
     {
@@ -76,103 +76,9 @@ final class DatabaseProvider extends ServiceProvider
         }
 
         if (in_array('redbean', $engines, true)) {
-            $this->redBeanConnection();
-        }
-    }
-
-    /**
-     * Set up RedBeanPHP connections from database.php config.
-     * Guarded so a repeated call does not fatal (R::setup / R::addDatabase
-     * are not idempotent, so we check R::testConnection before re-initialising).
-     *
-     * @throws RedException
-     */
-    private function redBeanConnection(): void
-    {
-        // If RedBean is already connected, skip the setup to stay idempotent.
-        try {
-            if (R::testConnection()) {
-                return;
-            }
-        } catch (Throwable) {
-            // R::testConnection may throw if RedBean was never initialised; proceed.
-        }
-
-        $databases = new Config(include(Path::config('database.php')));
-        $default_database = config('database.default', 'mysql');
-        foreach ($databases['connections'] as $key => $connection) {
-            if ($key === $default_database) {
-                $this->redBeanDriverSetup($connection);
-            } else {
-                $this->redBeanDriverConnection($connection, $key);
-            }
-        }
-
-        R::useFeatureSet('novice/latest');
-        try {
-            R::freeze(!env('APP_DEBUG'));
-            R::ext('xdispense', static function ($type) {
-                return R::getRedBean()->dispense($type);
-            });
-        } catch (RedException) {
-            die('Can not connect by redbean');
-        }
-    }
-
-    /**
-     * Set up the default RedBean connection for the given driver config.
-     *
-     * @param mixed $connection
-     * @throws RedException
-     */
-    private function redBeanDriverSetup(mixed $connection): void
-    {
-        if ($connection['driver'] === 'mysql') {
-            R::setup(
-                'mysql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
-                $connection['username'],
-                $connection['password']
+            Logs::create('database.log')->warning(
+                "The 'redbean' database engine was removed in v2; ignoring. Use the 'db' (Eloquent) engine."
             );
-        } elseif ($connection['driver'] === 'sqlite') {
-            R::setup('sqlite:' . $connection['database'], null, null);
-        } elseif ($connection['driver'] === 'pgsql') {
-            R::setup(
-                'pgsql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
-                $connection['username'],
-                $connection['password']
-            );
-        } else {
-            throw new RedException('Invalid database driver');
-        }
-    }
-
-    /**
-     * Register an additional named RedBean connection.
-     *
-     * @param mixed $connection
-     * @param int|string $key
-     * @throws RedException
-     */
-    private function redBeanDriverConnection(mixed $connection, int|string $key): void
-    {
-        if ($connection['driver'] === 'mysql') {
-            R::addDatabase(
-                $key,
-                'mysql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
-                $connection['username'],
-                $connection['password']
-            );
-        } elseif ($connection['driver'] === 'sqlite') {
-            R::addDatabase($key, 'sqlite:' . $connection['database']);
-        } elseif ($connection['driver'] === 'pgsql') {
-            R::addDatabase(
-                $key,
-                'pgsql:host=' . $connection['host'] . ';dbname=' . $connection['database'],
-                $connection['username'],
-                $connection['password']
-            );
-        } else {
-            throw new RedException('Unsupported database driver: ' . $connection['driver']);
         }
     }
 }
