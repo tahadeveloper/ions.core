@@ -116,19 +116,37 @@ test('no requested filters is a no-op (no throw) under the strict default', func
     expect(fn () => $qb->allowFilters(['name']))->not->toThrow(InvalidFilterQuery::class);
 });
 
-// 5) Variadic string form: allowFilters('a', 'b') should still work exactly
-//    like allowFilters(['a', 'b']).  A request carrying filter[a]=1 must pass;
-//    filter[secret]=1 must fail.
-test('variadic string form allowFilters("name") allows matching filter', function () {
-    $qb = makeQB(['filter' => ['name' => 'bob']]);
+// 5) Multi-column array form: allowFilters(['name', 'email']) must enforce the
+//    full allow-list — a request carrying a non-listed column must throw, and a
+//    request carrying a listed column must be applied.
+test('allowFilters([name,email]) rejects a request filter on a non-allow-listed column', function () {
+    $qb = makeQB(['filter' => ['secret' => '1']]);
 
-    expect(fn () => $qb->allowFilters('name'))->not->toThrow(InvalidFilterQuery::class);
+    expect(fn () => $qb->allowFilters(['name', 'email']))->toThrow(InvalidFilterQuery::class);
 });
 
-test('variadic string form allowFilters("name") rejects a non-allow-listed filter', function () {
-    $qb = makeQB(['filter' => ['secret' => 'x']]);
+test('allowFilters([name,email]) applies a request filter on a listed column', function () {
+    $qb = makeQB(['filter' => ['name' => 'carol']]);
 
-    expect(fn () => $qb->allowFilters('name'))->toThrow(InvalidFilterQuery::class);
+    // Should not throw.
+    $qb->allowFilters(['name', 'email']);
+
+    $ref   = new ReflectionProperty(QueryBuilder::class, 'query');
+    $ref->setAccessible(true);
+    $inner = $ref->getValue($qb);
+
+    expect($inner->toSql())->toContain('name');
+    expect($inner->getBindings())->toContain('carol');
+});
+
+// 6) Regression: the dangerous two-string variadic form allowFilters('name', 'email')
+//    previously coerced 'email' → true for $allow_all, silently bypassing the
+//    allow-list.  Now the signature is array-only, so passing a string is a
+//    TypeError — the injection path is closed hard.
+test('the unsafe two-string variadic form is rejected with a TypeError, not a silent bypass', function () {
+    $qb = makeQB(['filter' => ['secret' => '1']]);
+
+    expect(fn () => $qb->allowFilters('name', 'email'))->toThrow(\TypeError::class);
 });
 
 // ---------------------------------------------------------------------------

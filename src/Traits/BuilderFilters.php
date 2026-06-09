@@ -31,27 +31,20 @@ trait BuilderFilters
      * want pass-through behaviour — every filter in the request will be applied
      * without validation.
      *
-     * Variadic string form: allowFilters('col_a', 'col_b') is equivalent to
-     * allowFilters(['col_a', 'col_b']).  When using the variadic form the
-     * $allow_all flag must NOT be passed as a positional argument (use the
-     * named-argument form or call allowAllFilters() instead).
+     * $filters MUST be an array. The old single-string/variadic forms
+     * (allowFilters('col_a', 'col_b')) have been removed because they could
+     * silently bypass allow-list enforcement via PHP's boolean coercion.
+     * Passing a non-array will now throw a TypeError — fails closed/loud.
      *
-     * @param array|string $filters   Column name(s) to allow, or variadic strings.
-     * @param bool         $allow_all Set to true to disable allow-list enforcement.
+     * To opt out of allow-listing explicitly: allowFilters([], true) or allowAllFilters().
+     *
+     * @param array $filters   Column names to allow, e.g. ['name', 'email'].
+     * @param bool  $allow_all Set to true to disable allow-list enforcement.
      * @return BuilderFilters|QueryBuilder
      */
-    public function allowFilters(array|string $filters = [], bool $allow_all = false): self
+    public function allowFilters(array $filters = [], bool $allow_all = false): self
     {
-        if (is_array($filters)) {
-            // Normal array form: allowFilters(['a', 'b']) — use as-is.
-            $this->allowedFilters = collect($filters);
-        } else {
-            // Variadic string form: allowFilters('a', 'b', ...).
-            // func_get_args() captures every positional arg; strip any trailing
-            // boolean so it does not pollute the filter-name list.
-            $args = array_filter(func_get_args(), static fn ($v) => !is_bool($v));
-            $this->allowedFilters = collect(array_values($args));
-        }
+        $this->allowedFilters = collect($filters);
 
         $this->ensureAllFiltersExist($allow_all);
 
