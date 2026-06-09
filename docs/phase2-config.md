@@ -102,6 +102,78 @@ Clock-skew leeway passed to `StrictValidAt` when verifying JWT timestamps (`iat`
 
 ---
 
+## `app.jwt.refresh_ttl`
+
+**Type:** `int` (seconds)
+
+**Default:** `1209600` (14 days)
+
+Lifetime of refresh tokens issued by `Jwt::issueRefresh()`. After this period the refresh token expires and the user must re-authenticate to obtain a new one.
+
+```php
+// config/app.php
+'jwt' => [
+    'ttl'         => 3600,      // access token lifetime (1 hour)
+    'refresh_ttl' => 1209600,   // refresh token lifetime (14 days)
+    'leeway'      => 0,
+],
+```
+
+**D5-B status:** implemented — `refreshTtlSeconds` is the 7th constructor parameter of `Ions\Security\Jwt`.
+
+---
+
+## JWT Token Types and Revocation (D5-B)
+
+### Token types
+
+Access and refresh tokens are distinguished by a `typ` claim:
+
+| Token | `typ` claim | Issued by | Accepted by |
+|-------|-------------|-----------|-------------|
+| Access token | `'access'` | `Jwt::issue()` | `Jwt::verify()` |
+| Refresh token | `'refresh'` | `Jwt::issueRefresh()` | `Jwt::refresh()` |
+
+`Jwt::verify()` rejects tokens with `typ !== 'access'`, so refresh tokens cannot be used as access tokens and vice-versa.
+
+### Revocation (jti deny-list)
+
+`Jwt::revoke(string $token)` adds the token's `jti` (JWT ID) to the configured `RevocationStore`. After revocation, `Jwt::verify()` throws `TokenException` for that token even if it has not yet expired.
+
+**Refresh token rotation:** `Jwt::refresh()` automatically revokes the presented refresh token before issuing a new access token. Reusing a rotated refresh token throws `TokenException`.
+
+### RevocationStore contract
+
+```php
+interface RevocationStore {
+    public function revoke(string $jti, int $ttlSeconds): void;
+    public function isRevoked(string $jti): bool;
+}
+```
+
+### Default store: `ArrayRevocationStore`
+
+The default implementation is in-memory (`ArrayRevocationStore`). Revocations only persist within the lifetime of the PHP process (a single request). This is sufficient for refresh-token rotation within a request but **does not** provide cross-request logout persistence.
+
+### Persistent revocation (cross-request logout)
+
+To enable revocations that survive across requests (e.g. logout invalidating a token), bind a persistent `RevocationStore` implementation in the container **before** `AuthProvider` registers:
+
+```php
+// In your application service provider or bootstrap:
+Kernel::app()->singleton('revocation_store', function () {
+    return new \App\Security\CacheRevocationStore(cache());
+});
+```
+
+A `CacheRevocationStore` backed by Illuminate Cache (or any PSR-16 compatible cache) can be added as a follow-up. The interface is stable — only the store implementation needs to change.
+
+### BC guarantee
+
+When `Jwt` is constructed without a `RevocationStore` (`$revocations = null`), `verify()` behaves exactly as before — no revocation check is performed and no revocation-store dependency is required.
+
+---
+
 ## `app.trusted_hosts`
 
 **Type:** `array` of regex patterns (strings WITHOUT delimiters)
