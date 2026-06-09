@@ -8,7 +8,9 @@
 
 **Tech Stack:** PHP 8.2+, Symfony 7.x (Routing, Config, HttpFoundation, Mailer, Translation, Security-CSRF, Yaml), Illuminate 11.x (Database/Eloquent, Validation, Cache, Console, Filesystem), `lcobucci/jwt` 5.x, `league/flysystem` 3.x, Pest 3 + PHPUnit 11, PHPStan 2 (level 6→8), PHP-CS-Fixer 3, Rector 2, GitHub Actions CI.
 
-> **Interim toolchain note (Phase 0 actual):** Pest 3 / PHPUnit 11 cannot be installed yet — `pestphp/pest:^3` requires `nunomaduro/termwind:^2`, which conflicts with the pinned EOL `illuminate/console:v9.52.4` (needs `termwind:^1`). Phase 0 therefore landed on **Pest 2 + PHPUnit 10**. The Pest 3 upgrade is gated on the Illuminate 9→11 upgrade in **Phase 4**; do it there. Likewise `illuminate/container` + `illuminate/support` were pinned to `v9.52.4` to match the other illuminate/* pins (a transitive `9.52.16` broke `new Container()` under PHP 8.2).
+> **Interim toolchain note (updated after Task 4.2 — Illuminate 9→10):** The interim `illuminate/*` exact pins (`v9.52.4`) are **GONE**: all `illuminate/*` are now `^10.0` (resolved `10.49.0`), so `illuminate/container` + `illuminate/support` are **no longer specially pinned** — they're plain `^10.0` like the rest. `cartalyst/sentinel` upgraded `^6.0.1` → `^7.0` (resolved `7.0.2`, the Laravel-10-compatible release). `monolog/monolog` **stayed on `^2.10`** (resolved `2.11.0`) — Illuminate 10 does not force monolog 3, so `src/Bundles/Logs.php` was untouched. Symfony **stayed on `^6.4`** for our direct deps (Illuminate 10 supports Symfony 6.2+); a few transitive Symfony components (security-core, password-hasher, event-dispatcher, http-kernel sub-deps) resolved to 7.x but no direct constraint was bumped to 7. PHP stays `8.2`.
+>
+> **Pest 3 still blocked (expected):** `pestphp/pest:^3` requires `nunomaduro/termwind:^2`, which still conflicts under Illuminate 10 (its console ships `termwind:^1`). Phase 0 landed on **Pest 2 + PHPUnit 10** and that holds; the Pest 3 / PHPUnit 11 upgrade is now gated on the Illuminate 10→11 jump (Task 4.6), not 4.2.
 
 ---
 

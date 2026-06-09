@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
+use RectorLaravel\Set\LaravelSetList;
 
 return RectorConfig::configure()
     ->withPaths([
@@ -11,7 +12,10 @@ return RectorConfig::configure()
     ->withSkip([
         __DIR__ . '/src/commands/stubs',
     ])
-    // Conservative starting point: target the current language level only.
-    // Upgrade rule sets (Laravel/Symfony) are enabled in later modernization phases.
+    // Target the current language level.
     ->withPhpSets(php82: true)
+    // Laravel/Illuminate 10 upgrade set (Task 4.2: Illuminate 9 -> 10).
+    ->withSets([
+        LaravelSetList::LARAVEL_100,
+    ])
     ->withRules([]);
