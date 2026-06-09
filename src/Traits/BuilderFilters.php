@@ -22,14 +22,28 @@ trait BuilderFilters
     ];
 
     /**
-     * @param array|string $filters
-     * @param bool $allow_all
+     * Allow specific request filters to be applied to the query.
+     *
+     * By default ($allow_all = false) the allow-list is ENFORCED: any requested
+     * filter column not present in $filters throws InvalidFilterQuery.
+     *
+     * Pass $allow_all = true (or call allowAllFilters()) only when you deliberately
+     * want pass-through behaviour — every filter in the request will be applied
+     * without validation.
+     *
+     * $filters MUST be an array. The old single-string/variadic forms
+     * (allowFilters('col_a', 'col_b')) have been removed because they could
+     * silently bypass allow-list enforcement via PHP's boolean coercion.
+     * Passing a non-array will now throw a TypeError — fails closed/loud.
+     *
+     * To opt out of allow-listing explicitly: allowFilters([], true) or allowAllFilters().
+     *
+     * @param array $filters   Column names to allow, e.g. ['name', 'email'].
+     * @param bool  $allow_all Set to true to disable allow-list enforcement.
      * @return BuilderFilters|QueryBuilder
      */
-    public function allowFilters(array|string $filters = [], bool $allow_all = true): self
+    public function allowFilters(array $filters = [], bool $allow_all = false): self
     {
-        $filters = is_array($filters) ? $filters : func_get_args();
-
         $this->allowedFilters = collect($filters);
 
         $this->ensureAllFiltersExist($allow_all);
@@ -37,6 +51,17 @@ trait BuilderFilters
         $this->addFiltersToQuery();
 
         return $this;
+    }
+
+    /**
+     * Convenience method: apply every request filter without allow-list validation.
+     *
+     * Equivalent to allowFilters([], true).  Use this only when you genuinely
+     * want pass-through behaviour.
+     */
+    public function allowAllFilters(): self
+    {
+        return $this->allowFilters([], true);
     }
 
     /**
