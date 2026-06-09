@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Auth\Providers;
 
 use Cartalyst\Sentinel\Users\UserInterface;
@@ -17,7 +19,7 @@ final class SentinelUserAdapter implements Authenticatable
     ) {
     }
 
-    public function getAuthIdentifier(): int
+    public function getAuthIdentifier(): int|string
     {
         return $this->sentinelUser->getUserId();
     }

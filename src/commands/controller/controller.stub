@@ -4,11 +4,12 @@ namespace {{ namespace }};
 
 use Ions\Foundation\BaseController;
 use Ions\Support\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class {{ class }} extends BaseController
 {
-    public function index(Request $request): void
+    public function index(Request $request): Response
     {
-        $this->{{ template }}->display('{{ html_name }}/index{{ html_ext }}');
+        return $this->{{ template }}->display('{{ html_name }}/index{{ html_ext }}');
     }
 }

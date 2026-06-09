@@ -1,5 +1,7 @@
 # Phase 2 Config Keys Reference
 
+> **This document is preserved for historical context.** The canonical config reference is [`docs/config.md`](config.md), which covers all phases.
+
 This document describes the `app.*` configuration keys introduced in Phase 2 of the ions.core modernization. All keys live in `config/app.php` (or whatever config file is loaded from `Path::config()`).
 
 ---

@@ -1,5 +1,7 @@
 # Ions Core Modernization Implementation Plan
 
+> **✅ STATUS — COMPLETE (v2.0.0, 2026-06-09).** All phases shipped: **0** (foundation/tooling/CI), **1** (security hardening), **2** (DI container + providers + middleware pipeline), **3** (HTTP/routing/controllers + ExceptionHandler + Twig-only), **4 incl. 4.6** (query-injection fix, Illuminate 9→**11**, Symfony 6→**7**, Monolog 2→**3**, Pest 2→**3**, RedBean/Smarty/verot removed, MySQL CI), **5** (pluggable auth: UserProvider, JWT refresh/revocation/leeway, rate-limit, CSRF enforcement, Guard deprecated), **6** (level-8 core PHPStan + strict_types, generators, README/`/docs`/CHANGELOG, `IonDisk::download` fix). 1 trivial test → **200 tests** green; PHPStan + CS-Fixer clean; CI on PHP 8.2/8.3 + MySQL. See `CHANGELOG.md` + `UPGRADE-2.0.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Modernize `ionzile/core` into a secure, testable, dependency-honest PHP 8.2+ micro-framework with a real DI container, middleware pipeline, hardened auth, upgraded Eloquent, and a full DX toolchain — while keeping the `Ions\` public surface familiar and shipping a documented v2 upgrade path.
@@ -725,7 +727,7 @@ Config keys (`app.providers`, `app.middleware`, `app.cors`, `app.jwt.ttl`, `app.
 
 ## Phase 6 — DX, docs, generators, release
 
-> **Expand into its own plan before executing.**
+> **Expanded into its own detailed plan:** `docs/superpowers/plans/2026-06-09-phase6-release.md`. Ships v2.0.0. Spec summary below.
 
 **Tasks:**
 1. Raise PHPStan to level 8 on `src/Security`, `src/Container`, `src/Http`; burn down baseline incrementally; add `declare(strict_types=1)` to all new/touched files.

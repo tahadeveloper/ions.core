@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Container;
 
 use Illuminate\Container\Container as IlluminateContainer;

@@ -1,0 +1,14 @@
+parameters:
+    level: 8
+    paths:
+        - src/Security
+        - src/Container
+        - src/Http
+        - src/Auth/Contracts
+        - src/Auth/Providers
+        - src/Providers
+        - src/View
+    scanFiles:
+        - src/helpers.php
+    # NO baseline — this code must be clean at level 8
+    treatPhpDocTypesAsCertain: false

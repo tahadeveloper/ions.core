@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Security;
 
 use DateTimeImmutable;
@@ -20,9 +22,15 @@ final class Jwt
 
     private Configuration $config;
 
+    /**
+     * @phpstan-param non-empty-string $issuer
+     * @phpstan-param non-empty-string $audience
+     */
     public function __construct(
         string $secret,
+        /** @phpstan-var non-empty-string */
         private string $issuer,
+        /** @phpstan-var non-empty-string */
         private string $audience,
         private int $ttlSeconds = 3600,
         private int $clockLeewaySeconds = 0,
@@ -32,14 +40,24 @@ final class Jwt
         if (strlen($secret) < 32) {
             throw new TokenException('JWT secret must be at least 32 bytes.');
         }
+        if ($issuer === '') {
+            throw new TokenException('JWT issuer must not be empty.');
+        }
+        if ($audience === '') {
+            throw new TokenException('JWT audience must not be empty.');
+        }
         $this->config = Configuration::forSymmetricSigner(new Sha256(), InMemory::plainText($secret));
     }
 
     /** Reserved claims that callers must not override. */
     private const RESERVED_CLAIMS = ['typ', 'jti', 'iss', 'aud', 'sub', 'iat', 'nbf', 'exp'];
 
+    /** @param array<non-empty-string,mixed> $claims */
     public function issue(string $userId, array $claims = []): string
     {
+        if ($userId === '') {
+            throw new TokenException('userId must not be empty.');
+        }
         $now = new DateTimeImmutable();
         $builder = $this->config->builder()
             ->issuedBy($this->issuer)
@@ -68,6 +86,9 @@ final class Jwt
      */
     public function issueRefresh(string $userId): string
     {
+        if ($userId === '') {
+            throw new TokenException('userId must not be empty.');
+        }
         $now = new DateTimeImmutable();
         $builder = $this->config->builder()
             ->issuedBy($this->issuer)
@@ -83,6 +104,9 @@ final class Jwt
 
     public function verify(string $token): Claims
     {
+        if ($token === '') {
+            throw new TokenException('Token must not be empty.');
+        }
         try {
             $parsed = $this->config->parser()->parse($token);
             $clock = SystemClock::fromSystemTimezone();
@@ -166,6 +190,9 @@ final class Jwt
      */
     public function refresh(string $refreshToken): string
     {
+        if ($refreshToken === '') {
+            throw new TokenException('Refresh token must not be empty.');
+        }
         try {
             $parsed = $this->config->parser()->parse($refreshToken);
             $clock = SystemClock::fromSystemTimezone();
@@ -221,6 +248,9 @@ final class Jwt
      */
     private function parseUnchecked(string $token): ?UnencryptedToken
     {
+        if ($token === '') {
+            return null;
+        }
         try {
             $parsed = $this->config->parser()->parse($token);
             return $parsed instanceof UnencryptedToken ? $parsed : null;

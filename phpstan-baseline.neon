@@ -1,24 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Call to an undefined static method Cartalyst\\Sentinel\\Native\\Facades\\Sentinel\:\:findById\(\)\.$#'
-			identifier: staticMethod.notFound
-			count: 1
-			path: src/Auth/Providers/SentinelUserProvider.php
-
-		-
-			message: '#^Call to an undefined static method Cartalyst\\Sentinel\\Native\\Facades\\Sentinel\:\:findByCredentials\(\)\.$#'
-			identifier: staticMethod.notFound
-			count: 1
-			path: src/Auth/Providers/SentinelUserProvider.php
-
-		-
-			message: '#^Call to an undefined static method Cartalyst\\Sentinel\\Native\\Facades\\Sentinel\:\:getUserRepository\(\)\.$#'
-			identifier: staticMethod.notFound
-			count: 1
-			path: src/Auth/Providers/SentinelUserProvider.php
-
-		-
 			message: '#^Call to an undefined static method Cartalyst\\Sentinel\\Native\\Facades\\Sentinel\:\:authenticate\(\)\.$#'
 			identifier: staticMethod.notFound
 			count: 1

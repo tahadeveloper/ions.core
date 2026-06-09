@@ -111,20 +111,22 @@ class IonDisk
 
     public static function download($filePath, $downloadPath): array|string
     {
-        // Retrieve file content or secure URL
+        // Read the stored file from the configured disk and write it to the local destination path.
         try {
             if (self::$filesystem->has($filePath)) {
-                $stream = fopen($downloadPath, 'r');
-                self::$filesystem->writeStream($filePath, $stream);
+                $stream = self::$filesystem->readStream($filePath);
+                $dest = fopen($downloadPath, 'wb');
+                stream_copy_to_stream($stream, $dest);
                 fclose($stream);
-                // Downloaded file is available at $downloadPath
+                fclose($dest);
+                // Downloaded file is now available at $downloadPath
                 return ['success' => true];
             } else {
-                // Handle the case where the file doesn't exist
+                // Handle the case where the file doesn't exist on the disk
                 return ['error' => 'File not found'];
             }
         } catch (Exception $e) {
-            // Handle any errors (e.g., file not found)
+            // Handle any errors (e.g., read failure, permission issue)
             return ['error' => $e->getMessage()];
         }
     }
