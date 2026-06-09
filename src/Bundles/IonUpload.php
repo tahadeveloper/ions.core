@@ -4,6 +4,7 @@ namespace Ions\Bundles;
 
 use Ions\Foundation\Kernel;
 use Ions\Foundation\Singleton;
+use Ions\Security\UploadValidator;
 use Ions\Support\Storage;
 use Ions\Support\Str;
 use Verot\Upload\Upload;
@@ -15,11 +16,36 @@ class IonUpload extends Singleton
     public static function store(mixed $file, string $path, array $options = []): static
     {
         $upload_arr = array();
+
+        // SECURITY: gate the upload by an extension allow-list BEFORE verot
+        // processes/moves the file. The client-supplied extension is never
+        // trusted to decide the stored extension — a dangerous extension
+        // (.php, .phtml, .phar, ...) is rejected outright, closing the RCE
+        // path where an attacker-controlled extension lands in a web-served
+        // directory. 'allowed' may be passed in $options or configured via
+        // app.uploads.allowed; default to a conservative media/document set.
+        $allowed = $options['allowed']
+            ?? config('app.uploads.allowed', [
+                'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg',
+                'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+                'txt', 'csv', 'zip', 'rar', 'mp3', 'mp4', 'webm', 'mov',
+            ]);
+        unset($options['allowed']);
+        $validator = new UploadValidator(is_array($allowed) ? $allowed : []);
+
+        $fileNameWithExt = $file->getClientOriginalName();
+        if (!$validator->isAllowed($fileNameWithExt)) {
+            static::$output = ['error' => 1, 'message' => 'File extension not allowed'];
+
+            return new self();
+        }
+
         $handle = new Upload($file);
         if ($handle->uploaded) {
 
-            $fileNameWithExt = $file->getClientOriginalName();
-            $extension = $file->getClientOriginalExtension();
+            // Force the stored extension to the validated, lower-cased one —
+            // never trust the raw client extension.
+            $extension = $validator->safeExtension($fileNameWithExt);
 
             $random_name = Str::random(15);
             $handle->file_new_name_body = $random_name;

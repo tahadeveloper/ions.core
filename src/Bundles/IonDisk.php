@@ -5,6 +5,7 @@ namespace Ions\Bundles;
 use Aws\S3\S3Client;
 use Exception;
 use InvalidArgumentException;
+use Ions\Security\UploadValidator;
 use Ions\Support\File;
 use Ions\Support\Str;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
@@ -194,7 +195,23 @@ class IonDisk
         }
 
         $fileNameWithExt = $file->getClientOriginalName();
-        $extension = $file->getClientOriginalExtension();
+
+        // SECURITY: gate by extension allow-list BEFORE writing anywhere, and
+        // never trust the client extension for the stored name. Mirrors the
+        // gate in IonUpload::store() — closes the upload RCE path.
+        $allowed = $options['allowed']
+            ?? config('app.uploads.allowed', [
+                'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg',
+                'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+                'txt', 'csv', 'zip', 'rar', 'mp3', 'mp4', 'webm', 'mov',
+            ]);
+        unset($options['allowed']);
+        $validator = new UploadValidator(is_array($allowed) ? $allowed : []);
+        if (!$validator->isAllowed($fileNameWithExt)) {
+            return ['error' => 'File extension not allowed'];
+        }
+
+        $extension = $validator->safeExtension($fileNameWithExt);
         $randomFilename = $withOriginal ? pathinfo($fileNameWithExt, PATHINFO_FILENAME) : Str::random(15);
 
         if ($disk === null) {
