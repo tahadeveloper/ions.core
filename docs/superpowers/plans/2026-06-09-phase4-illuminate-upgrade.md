@@ -20,14 +20,16 @@ Illuminate 11 forces **Symfony 7** components and **Monolog 3**, and requires **
 - **Option A (RECOMMENDED): incremental 9 → 10 → 11.** Sub-phase 4.2 upgrades to **10** (low blast radius: drop interim pins, Eloquent/container deltas, Sentinel 7, Symfony stays 6.4). Then a later sub-phase 4.6 does **10 → 11** (Symfony 7 + Monolog 3 + Pest 3 + the Sentinel-for-11 question). Each step ships independently; the risky Symfony-7/Sentinel jump is isolated.
 - **Option B: straight 9 → 11.** One big coordinated jump (Illuminate 11 + Symfony 7 + Monolog 3 + Sentinel + Pest 3). Faster nominal path, but a large all-at-once BC surface — harder to bisect failures.
 
-**This plan is written for Option A.** Confirm with the user before 4.2; if Option B is chosen, merge 4.2 and 4.6 into one jump.
+**This plan is written for Option A.** **RESOLVED (user, 2026-06-09): Option A — incremental 9 → 10 → 11.**
 
 ### Decision D-S — Cartalyst Sentinel's fate
 Sentinel 6 targets Laravel 9. The auth layer (`src/Auth/Guard/*`, `src/Auth/Sentinel/User.php`, `Auth/Sentinel/config.php`) is tightly coupled to Sentinel static facades.
 - **For Illuminate 10:** `cartalyst/sentinel:^7.0` supports Laravel 10 — **verify on Packagist** and upgrade in 4.2.
 - **For Illuminate 11:** Sentinel L11 support is uncertain. Options: (a) wait for/upgrade to a Sentinel release supporting L11; (b) **replace Sentinel** behind Phase 5's `UserProvider` abstraction (recommended end-state — Phase 5 already plans `Authenticatable`/`UserProvider` with Sentinel as one adapter). **Recommended: defer the Sentinel-for-11 decision to Phase 5**, and have Phase 4 stop at Illuminate 10 with Sentinel 7 IF Sentinel has no clean L11 path. i.e. the 10→11 jump (4.6) is gated on D-S being resolved (Sentinel-11 available, OR Phase 5's UserProvider landed first).
 
-> **Practical sequencing implication:** 4.1 (injection hardening), 4.3 (stubs), 4.4 (builder consolidation), 4.5 (RedBean) are **independent of the upgrade** and can land first. 4.2 (→10) needs D-S(10)=Sentinel 7. 4.6 (→11) needs D-S(11) resolved — which may mean **doing Phase 5 before 4.6**. Surface this ordering to the user.
+> **RESOLVED (user, 2026-06-09):** D-S(10) = **upgrade to Cartalyst Sentinel 7** for Illuminate 10. D-S(11) = **deferred to Phase 5** (pluggable `UserProvider`); the 10→11 step (4.6) is gated on Phase 5 resolving Sentinel-for-11 (likely run Phase 5 before 4.6). **Execution order chosen: start with 4.1 (injection hardening) now.**
+
+> **Practical sequencing implication:** 4.1 (injection hardening), 4.3 (stubs), 4.4 (builder consolidation), 4.5 (RedBean) are **independent of the upgrade** and can land first. 4.2 (→10) needs D-S(10)=Sentinel 7. 4.6 (→11) needs D-S(11) resolved — which may mean **doing Phase 5 before 4.6**.
 
 ---
 
