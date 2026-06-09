@@ -5,13 +5,12 @@ namespace Ions\Bundles;
 use Aws\S3\S3Client;
 use Exception;
 use InvalidArgumentException;
+use Ions\Filesystem\FilesystemManager;
 use Ions\Security\UploadValidator;
 use Ions\Support\File;
 use Ions\Support\Str;
-use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\Filesystem;
 use League\Flysystem\FilesystemException;
-use League\Flysystem\Local\LocalFilesystemAdapter;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -37,31 +36,55 @@ class IonDisk
         return config('filesystem.disks.default', 'local');
     }
 
+    /**
+     * Build the Flysystem instance for the current $type via the shared
+     * FilesystemManager, honouring IonDisk's runtime-mutable bucket/basePath.
+     */
     private static function initializeFilesystem(): Filesystem
     {
-        // Initialize the appropriate Flysystem adapter based on the type
+        return self::manager()->buildDisk(self::diskConfig());
+    }
+
+    /**
+     * The container-bound FilesystemManager (falls back to a fresh instance
+     * when the kernel/container is not available, e.g. legacy direct usage).
+     */
+    private static function manager(): FilesystemManager
+    {
+        try {
+            /** @var FilesystemManager $manager */
+            $manager = \Ions\Foundation\Kernel::app()->get('filesystem.manager');
+            return $manager;
+        } catch (\Throwable) {
+            return new FilesystemManager();
+        }
+    }
+
+    /**
+     * Resolve the driver config for IonDisk's current $type, layering in its
+     * runtime-mutable bucket/basePath for the s3 driver.
+     *
+     * @return array<string, mixed>
+     */
+    private static function diskConfig(): array
+    {
         if (self::$type === 'local') {
-            $adapter = new LocalFilesystemAdapter(
-                config('filesystem.disks.local.root')
-            );
-            return new Filesystem($adapter);
+            return [
+                'driver' => 'local',
+                'root' => config('filesystem.disks.local.root'),
+            ];
         }
 
         if (self::$type === 's3') {
-            $options = [
+            return [
+                'driver' => 's3',
                 'region' => config('filesystem.disks.s3.region'),
                 'version' => config('filesystem.disks.s3.version', 'latest'),
-                'credentials' => [
-                    'key' => config('filesystem.disks.s3.key'),
-                    'secret' => config('filesystem.disks.s3.secret'),
-                ],
+                'key' => config('filesystem.disks.s3.key'),
+                'secret' => config('filesystem.disks.s3.secret'),
+                'bucket' => self::$bucket,
+                'root' => self::$basePath,
             ];
-            $adapter = new AwsS3V3Adapter(
-                new S3Client($options),
-                self::$bucket,
-                self::$basePath
-            );
-            return new Filesystem($adapter);
         }
 
         throw new RuntimeException("Unsupported IonDisk type: " . self::$type);
@@ -183,22 +206,14 @@ class IonDisk
     {
         switch (self::$type) {
             case 'local':
-                // No configuration needed
-                break;
+                // Local operations are handled with native PHP/Filesystem calls
+                // by the callers; returning null preserves that BC branch.
+                return null;
             case 's3':
-                $s3Client = self::getS3Client();
-                // Create the Flysystem adapter
-                $adapter = new AwsS3V3Adapter(
-                    $s3Client,
-                    self::$bucket,
-                    self::$basePath
-                );
-                return new Filesystem($adapter);
+                return self::manager()->buildDisk(self::diskConfig());
             default:
                 throw new InvalidArgumentException("Unsupported disk type: " . self::$type);
         }
-
-        return null;
     }
 
     public static function put(mixed $file, string $path = '', bool $withOriginal = false, array $options = []): array
