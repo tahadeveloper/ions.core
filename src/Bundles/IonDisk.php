@@ -64,12 +64,26 @@ class IonDisk
         throw new RuntimeException("Unsupported IonDisk type: " . self::$type);
     }
 
-    public static function putFile($fileContent, $originalFilename, $userProvidedPath, $withOriginal = false): array
+    public static function putFile($fileContent, $originalFilename, $userProvidedPath, $withOriginal = false, array $options = []): array
     {
+        // SECURITY: gate by extension allow-list BEFORE writing anything, and
+        // never trust the client extension for the stored name. Mirrors the
+        // gate in IonDisk::put()/IonUpload — closes the upload RCE path.
+        $allowed = $options['allowed']
+            ?? config('app.uploads.allowed', [
+                'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg',
+                'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+                'txt', 'csv', 'zip', 'rar', 'mp3', 'mp4', 'webm', 'mov',
+            ]);
+        $validator = new UploadValidator(is_array($allowed) ? $allowed : []);
+        if (!$validator->isAllowed($originalFilename)) {
+            return ['error' => 'File extension not allowed'];
+        }
+
         // Generate a random filename
         $randomName = $withOriginal ? pathinfo($originalFilename, PATHINFO_FILENAME) : Str::random(15);
-        // get extension
-        $extension = pathinfo($originalFilename, PATHINFO_EXTENSION);
+        // force the stored extension to the validated, safe extension
+        $extension = $validator->safeExtension($originalFilename);
         $randomName .= '.' . $extension;
         $filePath = "$userProvidedPath/$randomName";
 
