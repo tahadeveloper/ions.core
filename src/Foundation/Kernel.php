@@ -183,6 +183,7 @@ class Kernel extends Singleton
             \Ions\Providers\FilesystemProvider::class,
             \Ions\Providers\SessionProvider::class,
             \Ions\Providers\DatabaseProvider::class,
+            \Ions\Providers\CacheProvider::class,
             \Ions\Providers\AuthProvider::class,
             \Ions\Providers\MailProvider::class,
             \Ions\Providers\ViewProvider::class,

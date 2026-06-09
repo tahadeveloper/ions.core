@@ -356,6 +356,45 @@ if (!function_exists('session')) {
     }
 }
 
+if (!function_exists('cache')) {
+    /**
+     * Interact with the shared cache.
+     *
+     * Mirrors the config()/session() overloads:
+     *   cache()                 -> the default cache repository
+     *   cache('key')            -> get a value (with optional default)
+     *   cache(['k' => 'v'], $t) -> put one or more values (TTL in seconds, null = forever)
+     *
+     * @param string|array<string,mixed>|null $key
+     * @param mixed $default When getting: the fallback. When putting: the TTL in seconds.
+     * @return \Illuminate\Contracts\Cache\Repository|mixed
+     */
+    function cache(string|array|null $key = null, mixed $default = null)
+    {
+        /** @var \Illuminate\Cache\CacheManager $manager */
+        $manager = Kernel::app()->get('cache');
+        $repository = $manager->store();
+
+        if (is_null($key)) {
+            return $repository;
+        }
+
+        if (is_array($key)) {
+            foreach ($key as $k => $value) {
+                if ($default === null) {
+                    $repository->forever((string) $k, $value);
+                } else {
+                    $repository->put((string) $k, $value, $default);
+                }
+            }
+
+            return $repository;
+        }
+
+        return $repository->get($key, $default);
+    }
+}
+
 if (!function_exists('trans')) {
     /**
      * @param string|null $key

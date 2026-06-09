@@ -8,3 +8,7 @@ parameters:
     excludePaths:
         - src/commands/stubs/*
     treatPhpDocTypesAsCertain: false
+    # Some @phpstan-ignore lines target errors only surfaced at the stricter
+    # core level (level 8 in phpstan-core.neon); they are legitimately unmatched
+    # at level 4, so don't fail the main gate on them.
+    reportUnmatchedIgnoredErrors: false

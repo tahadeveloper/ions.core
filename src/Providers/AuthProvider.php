@@ -25,10 +25,16 @@ final class AuthProvider extends ServiceProvider
         // Apps that need distributed revocation (e.g. Redis) should bind their own
         // RevocationStore implementation as 'revocation_store' BEFORE AuthProvider runs.
         if (!$this->container->bound('revocation_store')) {
-            $this->container->singleton('revocation_store', static function () {
-                $dir = \Ions\Bundles\Path::cache('revocations');
-                $store = new \Illuminate\Cache\FileStore(new \Illuminate\Filesystem\Filesystem(), $dir);
-                return new CacheRevocationStore(new \Illuminate\Cache\Repository($store));
+            $container = $this->container;
+            $this->container->singleton('revocation_store', static function () use ($container) {
+                // Reuse the shared cache manager so the framework has a single
+                // cache configuration. The 'file' store keeps revocations
+                // persistent across requests (matching the previous behaviour);
+                // hosts can point cache.stores.file at redis/etc. as needed.
+                /** @var \Illuminate\Cache\CacheManager $cache */
+                $cache = $container->get('cache');
+
+                return new CacheRevocationStore($cache->store(self::persistentStore()));
             });
         }
 
@@ -73,17 +79,37 @@ final class AuthProvider extends ServiceProvider
         // from resolveMiddleware() when the 'throttle' alias (or the FQCN) is used on a route.
         // Limits are read from config('app.ratelimit.*') with sensible defaults.
         if (!$this->container->bound(RateLimitMiddleware::class)) {
-            $this->container->singleton(RateLimitMiddleware::class, static function () {
-                $dir = \Ions\Bundles\Path::cache('ratelimit');
-                $store = new \Illuminate\Cache\FileStore(new \Illuminate\Filesystem\Filesystem(), $dir);
-                $cacheRepo = new \Illuminate\Cache\Repository($store);
+            $container = $this->container;
+            $this->container->singleton(RateLimitMiddleware::class, static function () use ($container) {
+                // Throttle counters live in the shared cache (persistent store).
+                /** @var \Illuminate\Cache\CacheManager $cache */
+                $cache = $container->get('cache');
 
                 return new RateLimitMiddleware(
-                    $cacheRepo,
+                    $cache->store(self::persistentStore()),
                     (int) config('app.ratelimit.max', 60),
                     (int) config('app.ratelimit.decay', 60),
                 );
             });
         }
+    }
+
+    /**
+     * The cache store used for data that must survive across requests
+     * (revocations, throttle counters). Hosts may override it via
+     * config('cache.persistent_store'); defaults to the 'file' store, falling
+     * back to whatever the cache default is when 'file' is not configured.
+     */
+    private static function persistentStore(): string
+    {
+        $store = config('cache.persistent_store');
+        if (is_string($store) && $store !== '') {
+            return $store;
+        }
+
+        /** @var array<string,mixed> $stores */
+        $stores = (array) config('cache.stores', []);
+
+        return isset($stores['file']) ? 'file' : (string) config('cache.default', 'file');
     }
 }
