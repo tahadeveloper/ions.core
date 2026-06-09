@@ -23,7 +23,6 @@
     "ext-zip": "*",
     "cartalyst/sentinel": "^7.0",
     "filp/whoops": "^2.15",
-    "gabordemooij/redbean": "^5.7",
     "illuminate/cache": "^10.0",
     "illuminate/console": "^10.0",
     "illuminate/container": "^10.0",

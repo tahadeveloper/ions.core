@@ -25,7 +25,7 @@ class MigrateCommand extends Command
             Schema::connection($connection->getName());
             if (!Schema::connection($connection->getName())->hasTable($table_name)) {
                 Schema::connection($connection->getName())->create($table_name, static function (Blueprint $table) {
-                    $table->increments('id');
+                    $table->id();
                     $table->string('migration');
                     $table->integer('batch');
                 });

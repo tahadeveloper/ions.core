@@ -66,8 +66,8 @@ class ModelCommand extends Command
             $fillable = "'" . implode("',\n        '", $fields) . "'";
 
             if (in_array('deleted_at', $fields, true)) {
-                $import = "use Illuminate\\Database\\Eloquent\\SoftDeletingTrait;\n\n";
-                $use = "use SoftDeletingTrait;\n\n    protected \$dates = ['deleted_at'];\n        ";
+                $import = "use Illuminate\\Database\\Eloquent\\SoftDeletes;\n\n";
+                $use = "use SoftDeletes;\n\n    protected \$casts = ['deleted_at' => 'datetime'];\n        ";
             }
         }
 
