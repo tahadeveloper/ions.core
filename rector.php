@@ -13,9 +13,9 @@ return RectorConfig::configure()
         __DIR__ . '/src/commands/stubs',
     ])
     // Target the current language level.
-    ->withPhpSets(php82: true)
-    // Laravel/Illuminate 11 upgrade set (Task 4.6.3: Illuminate 10 -> 11).
+    ->withPhpSets(php83: true)
+    // Laravel/Illuminate 12 upgrade set (Task 7.1: Illuminate 11 -> 12).
     ->withSets([
-        LaravelSetList::LARAVEL_110,
+        LaravelSetList::LARAVEL_120,
     ])
     ->withRules([]);
