@@ -689,7 +689,7 @@ Config keys (`app.providers`, `app.middleware`, `app.cors`, `app.jwt.ttl`, `app.
 
 ## Phase 4 — Database / ORM consolidation + Eloquent upgrade
 
-> **Expand into its own plan before executing.**
+> **Expanded into its own detailed plan:** `docs/superpowers/plans/2026-06-09-phase4-illuminate-upgrade.md`. Two gating decisions surfaced there: **D-U** (upgrade path — recommended incremental 9→10→11) and **D-S** (Cartalyst Sentinel's fate — the critical blocker; may require running Phase 5's pluggable UserProvider before the 10→11 step). Spec summary below.
 
 **Tasks:**
 1. Upgrade Illuminate `9.52.4` → `^11.0` (Rector + `illuminate/*` bumps). Run Rector's Laravel sets where applicable; fix breaking changes (e.g. `Capsule`/Eloquent API deltas). Verify against fixture SQLite + a MySQL CI service.
