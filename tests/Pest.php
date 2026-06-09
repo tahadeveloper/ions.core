@@ -49,3 +49,79 @@ function bootFixtureKernel(string $path = __DIR__ . '/fixtures/app'): void
     \Ions\Foundation\Kernel::resetForTesting();
     \Ions\Foundation\Kernel::boot($path);
 }
+
+/**
+ * Creates all Sentinel tables on the in-memory SQLite connection.
+ * Shared by SentinelUserProviderTest and GuardTest to avoid duplication.
+ * InnoDB engine declarations in the original migration are ignored by SQLite.
+ */
+function createSentinelTables(): void
+{
+    $schema = \Ions\Foundation\Kernel::app()->get('db')->connection()->getSchemaBuilder();
+
+    // Drop in reverse FK order to keep things clean across test runs.
+    foreach (['throttle', 'role_users', 'roles', 'reminders', 'persistences', 'activations', 'users'] as $table) {
+        $schema->dropIfExists($table);
+    }
+
+    $schema->create('users', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->increments('id');
+        $t->string('email')->unique();
+        $t->string('password');
+        $t->text('permissions')->nullable();
+        $t->timestamp('last_login')->nullable();
+        $t->string('first_name')->nullable();
+        $t->string('last_name')->nullable();
+        $t->timestamps();
+    });
+
+    $schema->create('activations', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->increments('id');
+        $t->integer('user_id')->unsigned();
+        $t->string('code');
+        $t->boolean('completed')->default(0);
+        $t->timestamp('completed_at')->nullable();
+        $t->timestamps();
+    });
+
+    $schema->create('persistences', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->increments('id');
+        $t->integer('user_id')->unsigned();
+        $t->string('code');
+        $t->timestamps();
+        $t->unique('code');
+    });
+
+    $schema->create('reminders', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->increments('id');
+        $t->integer('user_id')->unsigned();
+        $t->string('code');
+        $t->boolean('completed')->default(0);
+        $t->timestamp('completed_at')->nullable();
+        $t->timestamps();
+    });
+
+    $schema->create('roles', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->increments('id');
+        $t->string('slug')->unique();
+        $t->string('name');
+        $t->text('permissions')->nullable();
+        $t->timestamps();
+    });
+
+    $schema->create('role_users', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->integer('user_id')->unsigned();
+        $t->integer('role_id')->unsigned();
+        $t->nullableTimestamps();
+        $t->primary(['user_id', 'role_id']);
+    });
+
+    $schema->create('throttle', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->increments('id');
+        $t->integer('user_id')->unsigned()->nullable();
+        $t->string('type');
+        $t->string('ip')->nullable();
+        $t->timestamps();
+        $t->index('user_id');
+    });
+}
