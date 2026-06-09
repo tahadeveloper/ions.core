@@ -17,3 +17,12 @@ test('does not re-bind if already bound', function () {
     (new FilesystemProvider($c))->register();
     expect($c->get('filesystem'))->toBe($existing); // preserved, not overwritten
 });
+
+test('binds the FilesystemManager and default disk', function () {
+    bootFixtureKernel();
+    $c = \Ions\Foundation\Kernel::app();
+
+    expect($c->get('filesystem.manager'))->toBeInstanceOf(\Ions\Filesystem\FilesystemManager::class)
+        ->and($c->get('filesystem.manager'))->toBe($c->get('filesystem.manager')) // singleton
+        ->and($c->get('filesystem.disk'))->toBeInstanceOf(\League\Flysystem\Filesystem::class);
+});

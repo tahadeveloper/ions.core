@@ -249,3 +249,92 @@ Compiled template cache directory.
 **Type:** `string[]`  **Default:** `[]`
 
 Additional named namespace paths added to the Twig `FilesystemLoader`.
+
+---
+
+## Filesystem config (`config/filesystem.php`)
+
+The config-driven filesystem is backed by [Flysystem](https://flysystem.thephpleague.com/).
+`Ions\Filesystem\FilesystemManager` resolves named disks from `filesystem.disks`,
+each entry being a driver name plus its options. The `Storage` helper
+(`Ions\Filesystem\Storage`) is a thin static facade over the container-bound
+manager (`filesystem.manager`).
+
+```php
+// config/filesystem.php
+return [
+    'default' => 'local',
+
+    'disks' => [
+        'local' => [
+            'driver' => 'local',
+            'root'   => Path::filesRoot(), // base directory
+        ],
+
+        'memory' => [
+            'driver' => 'memory',          // ephemeral, in-process (great for tests)
+        ],
+
+        's3' => [
+            'driver' => 's3',
+            'key'    => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION'),
+            'bucket' => env('AWS_BUCKET'),
+            'version' => 'latest',
+            'root'   => '',                 // key prefix (a.k.a. prefix)
+            // optional: 'endpoint', 'use_path_style_endpoint', 'public_url'
+        ],
+
+        'ftp' => [
+            'driver'   => 'ftp',
+            'host'     => env('FTP_HOST'),
+            'username' => env('FTP_USERNAME'),
+            'password' => env('FTP_PASSWORD'),
+            // optional: 'port', 'root', 'ssl', 'timeout', 'passive', ...
+        ],
+
+        'sftp' => [
+            'driver'   => 'sftp',
+            'host'     => env('SFTP_HOST'),
+            'username' => env('SFTP_USERNAME'),
+            'password' => env('SFTP_PASSWORD'),
+            'root'     => '/upload',
+            // optional: 'port', 'privateKey', 'passphrase', 'hostFingerprint', ...
+        ],
+    ],
+];
+```
+
+### `filesystem.default`
+
+**Type:** `string`  **Default:** `'local'`
+
+Name of the disk returned by `Storage::disk()` / `FilesystemManager::disk()` when
+no name is given.
+
+### `filesystem.disks.{name}`
+
+**Type:** `array`
+
+One entry per disk. Each entry MUST contain a `driver` key
+(`local` | `memory` | `s3` | `ftp` | `sftp`, or a custom driver registered via
+`FilesystemManager::extend()`); an unknown driver throws
+`InvalidArgumentException("Unsupported filesystem driver [...]")`. Per-driver options:
+
+- **local** — `root` (base directory).
+- **memory** — no options (in-process, non-persistent).
+- **s3** — `key`, `secret`, `region`, `bucket`, `version` (default `latest`),
+  `root`/`prefix` (key prefix), optional `endpoint`, `use_path_style_endpoint`, `public_url`.
+- **ftp** — passed to `FtpConnectionOptions::fromArray()`: `host`, `username`,
+  `password`, optional `port`, `root`, `ssl`, `timeout`, `passive`, `utf8`, ...
+- **sftp** — passed to `SftpConnectionProvider::fromArray()` (`host`, `username`,
+  `password`/`privateKey`, optional `port`, `passphrase`, `hostFingerprint`, ...)
+  plus a top-level `root`.
+
+Any extra keys (e.g. `public_url`) are forwarded to the Flysystem `Filesystem`
+config, so `Storage::url()` works for disks that declare a `public_url`.
+
+> **Note:** `Ions\Bundles\IonDisk` reads `filesystem.disks.default` (a string under
+> `disks`) to pick its adapter and now delegates its operations to the
+> `FilesystemManager` while keeping its existing static API.

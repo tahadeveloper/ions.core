@@ -6,6 +6,7 @@ parameters:
         - src/Http
         - src/Auth/Contracts
         - src/Auth/Providers
+        - src/Filesystem
         - src/Providers
         - src/View
     scanFiles:
