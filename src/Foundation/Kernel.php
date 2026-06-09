@@ -156,6 +156,14 @@ class Kernel extends Singleton
     {
         static::$app = new Container();
         Facade::setFacadeApplication(static::$app);
+
+        // Bind the container to itself under its concrete class and the PSR /
+        // Illuminate container contracts so libraries that type-hint a Container
+        // (e.g. the queue's CallQueuedHandler) resolve the live Ions container.
+        static::$app->instance(Container::class, static::$app);
+        static::$app->instance(\Illuminate\Container\Container::class, static::$app);
+        static::$app->instance(\Illuminate\Contracts\Container\Container::class, static::$app);
+
         // These inline bindings MUST stay here: captureConfig() calls Storage::files()
         // which requires 'filesystem'/'files' to exist BEFORE providers are bootstrapped.
         // FilesystemProvider's bound() guard makes it a harmless no-op at provider time.
@@ -186,6 +194,7 @@ class Kernel extends Singleton
             \Ions\Providers\DatabaseProvider::class,
             \Ions\Providers\CacheProvider::class,
             \Ions\Providers\EventProvider::class,
+            \Ions\Providers\QueueProvider::class,
             \Ions\Providers\AuthProvider::class,
             \Ions\Providers\MailProvider::class,
             \Ions\Providers\ViewProvider::class,

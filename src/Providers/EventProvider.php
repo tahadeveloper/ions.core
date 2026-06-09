@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ions\Providers;
 
+use Illuminate\Contracts\Events\Dispatcher as DispatcherContract;
 use Illuminate\Events\Dispatcher;
 use Ions\Container\ServiceProvider;
 
@@ -25,6 +26,15 @@ final class EventProvider extends ServiceProvider
         if (!$this->container->bound('events')) {
             $container = $this->container;
             $this->container->singleton('events', static fn (): Dispatcher => new Dispatcher($container));
+        }
+
+        // Alias the contracts so libraries that type-hint the interface (e.g. the
+        // queue's CallQueuedHandler) resolve the same shared dispatcher.
+        if (!$this->container->bound(DispatcherContract::class)) {
+            $this->container->alias('events', DispatcherContract::class);
+        }
+        if (!$this->container->bound(Dispatcher::class)) {
+            $this->container->alias('events', Dispatcher::class);
         }
     }
 

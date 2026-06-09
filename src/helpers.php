@@ -435,6 +435,31 @@ if (!function_exists('listen')) {
     }
 }
 
+if (!function_exists('dispatch')) {
+    /**
+     * Dispatch a job onto the queue.
+     *
+     * The job is pushed onto its target connection (the job's own
+     * ->onConnection()/->onQueue() take precedence, otherwise the configured
+     * default connection). On the 'sync' connection the job runs immediately;
+     * on persistent connections (e.g. 'database') it is stored for a worker.
+     *
+     * @param object $job
+     * @return mixed The queue driver's push result (e.g. the inserted job id).
+     */
+    function dispatch(object $job): mixed
+    {
+        /** @var \Illuminate\Queue\QueueManager $manager */
+        $manager = Kernel::app()->get('queue');
+
+        $connection = property_exists($job, 'connection') ? $job->connection : null;
+        $queue = property_exists($job, 'queue') ? $job->queue : null;
+
+        return $manager->connection(is_string($connection) ? $connection : null)
+            ->push($job, '', is_string($queue) ? $queue : null);
+    }
+}
+
 if (!function_exists('trans')) {
     /**
      * @param string|null $key

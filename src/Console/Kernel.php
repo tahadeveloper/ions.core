@@ -50,6 +50,7 @@ class Kernel
         \DumpCommand::class,
         \SuperCommand::class,
         \ScheduleRunCommand::class,
+        \QueueWorkCommand::class,
     ];
 
     private function __construct(ConsoleApplication $application)
