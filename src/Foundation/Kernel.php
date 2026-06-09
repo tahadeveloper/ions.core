@@ -6,7 +6,6 @@ use App\Booting;
 use Closure;
 use Dotenv\Dotenv;
 use Illuminate\Container\Container;
-use Illuminate\Contracts\Encryption\EncryptException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Facade;
@@ -69,6 +68,12 @@ class Kernel extends Singleton
 
             static::Container();
             static::captureConfig();
+
+            // SECURITY: validate the Host header against an explicit allow-list
+            // (patterns without delimiters) instead of trusting the client Host.
+            if ($hosts = static::config()->get('app.trusted_hosts', [])) {
+                Request::setTrustedHosts($hosts);
+            }
 
             static::$collection = new RouteCollection();
 
@@ -442,15 +447,6 @@ class Kernel extends Singleton
 
         // add matcher to request parameters
         static::$request->attributes->add($matcherParams);
-
-        // secure app, accept request from app_url
-        $host = static::$request->headers->get('host') . env('APP_FOLDER');
-        // remove http:// or https:// from APP_URL
-        $removeProtcals = ['http://', 'https://'];
-        $appUrl = Str::remove($removeProtcals, env('APP_URL'));
-        if ($host !== $appUrl) {
-            throw new EncryptException('App host does not exist!.');
-        }
 
         $needles = array_merge(['super', 'api', 'Api'], static::config()->get('app.needles', []));
         // add namespace to controller if didn't have
