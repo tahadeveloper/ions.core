@@ -395,6 +395,46 @@ if (!function_exists('cache')) {
     }
 }
 
+if (!function_exists('event')) {
+    /**
+     * Dispatch an event through the shared dispatcher.
+     *
+     *   event($eventObject)            -> dispatch an event object (class name = event name)
+     *   event('name', [$a, $b])        -> dispatch a named event with a payload
+     *
+     * Listeners are invoked synchronously. Returns the array of listener
+     * responses (or null when a listener halts propagation), mirroring
+     * Illuminate's dispatcher.
+     *
+     * @param object|string $event
+     * @param array<int,mixed> $payload
+     * @return array<int,mixed>|null
+     */
+    function event(object|string $event, array $payload = []): ?array
+    {
+        /** @var \Illuminate\Contracts\Events\Dispatcher $dispatcher */
+        $dispatcher = Kernel::app()->get('events');
+
+        return $dispatcher->dispatch($event, $payload);
+    }
+}
+
+if (!function_exists('listen')) {
+    /**
+     * Register an event listener with the shared dispatcher.
+     *
+     * @param string|array<int,string> $events
+     * @param \Closure|string|array<int,string>|null $listener
+     * @return void
+     */
+    function listen(string|array $events, \Closure|string|array|null $listener = null): void
+    {
+        /** @var \Illuminate\Contracts\Events\Dispatcher $dispatcher */
+        $dispatcher = Kernel::app()->get('events');
+        $dispatcher->listen($events, $listener);
+    }
+}
+
 if (!function_exists('trans')) {
     /**
      * @param string|null $key

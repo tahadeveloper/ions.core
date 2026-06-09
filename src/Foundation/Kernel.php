@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\File;
 use Ions\Bundles\AttributeRouteControllerLoader;
 use Ions\Bundles\Path;
 use Ions\Container\Container;
+use Ions\Events\RequestHandled;
 use Ions\Http\ExceptionHandler;
 use Ions\Http\Middleware\AuthMiddleware;
 use Ions\Http\Middleware\ControllerDispatcher;
@@ -184,6 +185,7 @@ class Kernel extends Singleton
             \Ions\Providers\SessionProvider::class,
             \Ions\Providers\DatabaseProvider::class,
             \Ions\Providers\CacheProvider::class,
+            \Ions\Providers\EventProvider::class,
             \Ions\Providers\AuthProvider::class,
             \Ions\Providers\MailProvider::class,
             \Ions\Providers\ViewProvider::class,
@@ -423,16 +425,46 @@ class Kernel extends Singleton
                 $response->headers->addCacheControlDirective('must-revalidate', true);
             }
 
+            self::fireRequestHandled($request, $response);
+
             return $response;
 
         } catch (NoConfigurationException $e) {
-            return self::exceptionHandler()->render(new NotFoundHttpException('Page route not found', $e), $request);
+            $response = self::exceptionHandler()->render(new NotFoundHttpException('Page route not found', $e), $request);
+            self::fireRequestHandled($request, $response);
+            return $response;
         } catch (MethodNotAllowedException $e) {
-            return self::exceptionHandler()->render(new MethodNotAllowedHttpException([], 'Method not allowed', $e), $request);
+            $response = self::exceptionHandler()->render(new MethodNotAllowedHttpException([], 'Method not allowed', $e), $request);
+            self::fireRequestHandled($request, $response);
+            return $response;
         } catch (ResourceNotFoundException $e) {
-            return self::exceptionHandler()->render(new NotFoundHttpException('Page route not found', $e), $request);
+            $response = self::exceptionHandler()->render(new NotFoundHttpException('Page route not found', $e), $request);
+            self::fireRequestHandled($request, $response);
+            return $response;
         } catch (Throwable $e) {
-            return self::exceptionHandler()->render($e, $request);
+            $response = self::exceptionHandler()->render($e, $request);
+            self::fireRequestHandled($request, $response);
+            return $response;
+        }
+    }
+
+    /**
+     * Fire the framework's RequestHandled event in a fire-and-continue manner:
+     * the dispatcher (and any listener) must never break the response, so all
+     * failures — including the events binding being absent (e.g. in a partially
+     * booted test) — are swallowed.
+     */
+    private static function fireRequestHandled(Request $request, SymfonyResponse $response): void
+    {
+        try {
+            if (!static::$app->bound('events')) {
+                return;
+            }
+            /** @var \Illuminate\Contracts\Events\Dispatcher $events */
+            $events = static::$app->get('events');
+            $events->dispatch(new RequestHandled($request, $response));
+        } catch (Throwable) {
+            // Intentionally ignored: lifecycle events are best-effort.
         }
     }
 
