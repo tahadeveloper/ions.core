@@ -8,9 +8,6 @@
 
 **Tech Stack:** PHP 8.2+, Symfony 7.x (Routing, Config, HttpFoundation, Mailer, Translation, Security-CSRF, Yaml), Illuminate 11.x (Database/Eloquent, Validation, Cache, Console, Filesystem), `lcobucci/jwt` 5.x, `league/flysystem` 3.x, Pest 3 + PHPUnit 11, PHPStan 2 (level 6→8), PHP-CS-Fixer 3, Rector 2, GitHub Actions CI.
 
-> **Interim toolchain note (updated after Task 4.2 — Illuminate 9→10):** The interim `illuminate/*` exact pins (`v9.52.4`) are **GONE**: all `illuminate/*` are now `^10.0` (resolved `10.49.0`), so `illuminate/container` + `illuminate/support` are **no longer specially pinned** — they're plain `^10.0` like the rest. `cartalyst/sentinel` upgraded `^6.0.1` → `^7.0` (resolved `7.0.2`, the Laravel-10-compatible release). `monolog/monolog` **stayed on `^2.10`** (resolved `2.11.0`) — Illuminate 10 does not force monolog 3, so `src/Bundles/Logs.php` was untouched. Symfony **stayed on `^6.4`** for our direct deps (Illuminate 10 supports Symfony 6.2+); a few transitive Symfony components (security-core, password-hasher, event-dispatcher, http-kernel sub-deps) resolved to 7.x but no direct constraint was bumped to 7. PHP stays `8.2`.
->
-> **Pest 3 still blocked (expected):** `pestphp/pest:^3` requires `nunomaduro/termwind:^2`, which still conflicts under Illuminate 10 (its console ships `termwind:^1`). Phase 0 landed on **Pest 2 + PHPUnit 10** and that holds; the Pest 3 / PHPUnit 11 upgrade is now gated on the Illuminate 10→11 jump (Task 4.6), not 4.2.
 
 ---
 
@@ -689,7 +686,9 @@ Config keys (`app.providers`, `app.middleware`, `app.cors`, `app.jwt.ttl`, `app.
 
 ---
 
-## Phase 4 — Database / ORM consolidation + Eloquent upgrade
+## Phase 4 — Database / ORM consolidation + Eloquent upgrade ✅ COMPLETE
+
+> **Status: COMPLETE (incl. Phase 4.6).** Running on **Illuminate 11 / Symfony 7 / Monolog 3 / Pest 3 + PHPUnit 11 / Cartalyst Sentinel 8**. `spatie/ignition` + `filp/whoops` dropped from `require` (Whoops still transitively present via dev). RedBean removed. Sentinel 8 supports Illuminate 11 (Path 1 — stayed the default). See `docs/superpowers/plans/2026-06-09-phase4.6-illuminate11.md`.
 
 > **Expanded into its own detailed plan:** `docs/superpowers/plans/2026-06-09-phase4-illuminate-upgrade.md`. Two gating decisions surfaced there: **D-U** (upgrade path — recommended incremental 9→10→11) and **D-S** (Cartalyst Sentinel's fate — the critical blocker; may require running Phase 5's pluggable UserProvider before the 10→11 step). Spec summary below.
 
