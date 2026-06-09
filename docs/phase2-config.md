@@ -102,6 +102,89 @@ Clock-skew leeway passed to `StrictValidAt` when verifying JWT timestamps (`iat`
 
 ---
 
+## `app.jwt.refresh_ttl`
+
+**Type:** `int` (seconds)
+
+**Default:** `1209600` (14 days)
+
+Lifetime of refresh tokens issued by `Jwt::issueRefresh()`. After this period the refresh token expires and the user must re-authenticate to obtain a new one.
+
+```php
+// config/app.php
+'jwt' => [
+    'ttl'         => 3600,      // access token lifetime (1 hour)
+    'refresh_ttl' => 1209600,   // refresh token lifetime (14 days)
+    'leeway'      => 0,
+],
+```
+
+**D5-B status:** implemented — `refreshTtlSeconds` is the 7th constructor parameter of `Ions\Security\Jwt`.
+
+---
+
+## JWT Token Types and Revocation (D5-B)
+
+### Token types
+
+Access and refresh tokens are distinguished by a `typ` claim:
+
+| Token | `typ` claim | Issued by | Accepted by |
+|-------|-------------|-----------|-------------|
+| Access token | `'access'` | `Jwt::issue()` | `Jwt::verify()` |
+| Refresh token | `'refresh'` | `Jwt::issueRefresh()` | `Jwt::refresh()` |
+
+`Jwt::verify()` rejects tokens with `typ !== 'access'`, so refresh tokens cannot be used as access tokens and vice-versa.
+
+### Revocation (jti deny-list)
+
+`Jwt::revoke(string $token)` adds the token's `jti` (JWT ID) to the configured `RevocationStore`. After revocation, `Jwt::verify()` throws `TokenException` for that token even if it has not yet expired.
+
+**Refresh token rotation:** `Jwt::refresh()` automatically revokes the presented refresh token before issuing a new access token. Reusing a rotated refresh token throws `TokenException`.
+
+### RevocationStore contract
+
+```php
+interface RevocationStore {
+    public function revoke(string $jti, int $ttlSeconds): void;
+    public function isRevoked(string $jti): bool;
+}
+```
+
+### Default store: `CacheRevocationStore` (file-backed, persistent)
+
+The default implementation is `Ions\Security\CacheRevocationStore`, backed by an Illuminate file cache at `var/cache/revocations`. Revocations **persist across requests** — `revoke()` writes an entry to the cache directory, and subsequent requests (new PHP processes) will see it via `isRevoked()`. This means logout/token invalidation works out of the box without any additional configuration.
+
+`AuthProvider` sets this up automatically. The cache directory is created on first use by the Illuminate `FileStore`.
+
+### Swapping to a distributed store (Redis etc.)
+
+For multi-server deployments, bind a different `RevocationStore` implementation **before** `AuthProvider` registers:
+
+```php
+// In your application service provider or bootstrap:
+Kernel::app()->singleton('revocation_store', function () {
+    // Example: Redis-backed via Illuminate Cache
+    return new \Ions\Security\CacheRevocationStore(
+        new \Illuminate\Cache\Repository(
+            new \Illuminate\Cache\RedisStore(app('redis'), 'jwt_revoked')
+        )
+    );
+});
+```
+
+Any class implementing `RevocationStore` is accepted.
+
+### In-memory store for unit tests
+
+`Ions\Security\ArrayRevocationStore` is the in-memory implementation used in unit tests that construct `Jwt` directly. Revocations only persist within the lifetime of the PHP process (a single request), so it is **not** suitable for production use.
+
+### BC guarantee
+
+When `Jwt` is constructed without a `RevocationStore` (`$revocations = null`), `verify()` behaves exactly as before — no revocation check is performed and no revocation-store dependency is required.
+
+---
+
 ## `app.trusted_hosts`
 
 **Type:** `array` of regex patterns (strings WITHOUT delimiters)
@@ -215,3 +298,59 @@ The column that stores the bcrypt/argon2 password hash in the users table. Used 
 **Default:** `'id'`
 
 The primary-key column of the users table. Used by `EloquentUserProvider::retrieveById()` and exposed via `Authenticatable::getAuthIdentifierName()`.
+
+---
+
+## Rate-limiting (Phase 5.5)
+
+### `app.ratelimit.max`
+
+**Type:** `int` (requests)
+
+**Default:** `60`
+
+Maximum number of requests allowed per `app.ratelimit.decay`-second window for a given IP + route combination. Applies when `RateLimitMiddleware` is in the pipeline for a route.
+
+### `app.ratelimit.decay`
+
+**Type:** `int` (seconds)
+
+**Default:** `60`
+
+The sliding window duration in seconds. After `app.ratelimit.max` hits within this window, subsequent requests from the same IP to the same path receive a `429 Too Many Requests` response with a `Retry-After` header until the window expires.
+
+```php
+// config/app.php
+'ratelimit' => [
+    'max'   => 5,   // max 5 attempts
+    'decay' => 60,  // per 60-second window
+],
+```
+
+### `app.middleware_aliases` — `'throttle'`
+
+`AuthProvider` registers `RateLimitMiddleware` in the container so the `'throttle'` alias resolves it automatically. Add the alias to your config and attach it to any route:
+
+```php
+// config/app.php
+'middleware_aliases' => [
+    'throttle' => \Ions\Http\Middleware\RateLimitMiddleware::class,
+],
+```
+
+```php
+// routes/web.php  (or api.php)
+Route::post('/login', 'AuthController::login')->middleware(['throttle']);
+```
+
+**Bucket key:** `sha1($ip . '|' . $path)` — each IP + route combination has its own independent counter.
+
+**Injection for testing:** Construct `RateLimitMiddleware` directly with an in-memory `Illuminate\Cache\Repository(new ArrayStore())` for deterministic unit tests.
+
+```php
+$mw = new RateLimitMiddleware(
+    new Repository(new ArrayStore()),
+    maxAttempts: 5,
+    decaySeconds: 60,
+);
+```

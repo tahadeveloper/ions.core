@@ -10,6 +10,11 @@ use Ions\Foundation\Singleton;
 use Ions\Support\DB;
 use Throwable;
 
+/**
+ * @deprecated Inject Ions\Auth\Contracts\UserProvider instead; the static Guard facade is retained for BC.
+ *             Sentinel-specific features (activation, reminders, throttling) remain routed through Sentinel.
+ *             New code should resolve the UserProvider from the container and call its methods directly.
+ */
 class GuardUser extends Singleton
 {
     /**
