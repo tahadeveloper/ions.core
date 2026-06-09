@@ -6,6 +6,9 @@ use Ions\Auth\Providers\EloquentUserProvider;
 use Ions\Auth\Providers\SentinelUserProvider;
 use Ions\Container\ServiceProvider;
 use Ions\Foundation\Kernel;
+use Symfony\Component\Security\Csrf\CsrfTokenManager;
+use Symfony\Component\Security\Csrf\TokenGenerator\UriSafeTokenGenerator;
+use Symfony\Component\Security\Csrf\TokenStorage\NativeSessionTokenStorage;
 
 final class AuthProvider extends ServiceProvider
 {
@@ -28,6 +31,13 @@ final class AuthProvider extends ServiceProvider
                         : new SentinelUserProvider(),
                 };
             });
+        }
+
+        if (!$this->container->bound('csrf')) {
+            $this->container->singleton('csrf', static fn () => new CsrfTokenManager(
+                new UriSafeTokenGenerator(),
+                new NativeSessionTokenStorage()
+            ));
         }
     }
 }

@@ -14,3 +14,5 @@ Route::get('/boom', function () {
 Route::get('/forbidden', function () {
     abort(403, 'no access');
 });
+
+Route::post('/csrf-protected', fn () => new \Symfony\Component\HttpFoundation\Response('posted'));

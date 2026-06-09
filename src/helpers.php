@@ -25,64 +25,93 @@ use Symfony\Component\Security\Csrf\TokenGenerator\UriSafeTokenGenerator;
 use Symfony\Component\Security\Csrf\TokenStorage\NativeSessionTokenStorage;
 use Symfony\Component\Translation\Translator;
 
+if (!function_exists('ionCsrfManager')) {
+    /**
+     * Resolve the shared CSRF token manager from the container when available,
+     * falling back to a native-session manager for contexts where the container
+     * has not been booted (e.g. early bootstrapping or isolated scripts).
+     *
+     * @return \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface
+     */
+    function ionCsrfManager(): \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface
+    {
+        try {
+            $app = Kernel::app();
+            if ($app->has('csrf')) {
+                return $app->get('csrf');
+            }
+        } catch (\Throwable) {
+            // container not booted / binding absent — fall back to native storage
+        }
+        return new CsrfTokenManager(
+            new UriSafeTokenGenerator(),
+            new NativeSessionTokenStorage()
+        );
+    }
+}
+
 if (!function_exists('csrfToken')) {
     /**
-     * create csrf token
+     * Generate a CSRF token string for the given form name.
+     *
+     * The default form name is 'web', which matches the tokenId used by
+     * CsrfMiddleware.  A no-arg call — csrfToken() — therefore produces a
+     * token that the middleware will accept out of the box.
+     *
      * @param string $form_name
      * @return string
      */
-    function csrfToken(string $form_name = ''): string
+    function csrfToken(string $form_name = 'web'): string
     {
-        // csrf create
-        $csrfGenerator = new UriSafeTokenGenerator();
-        $csrfStorage = new NativeSessionTokenStorage();
-        return (new CsrfTokenManager($csrfGenerator, $csrfStorage))->getToken($form_name);
+        return ionCsrfManager()->getToken($form_name)->getValue();
     }
 }
 
 if (!function_exists('ionToken')) {
     /**
-     * create csrf token
+     * Render a hidden CSRF input element for the given form name.
+     *
+     * The default form name is 'web', matching the tokenId used by
+     * CsrfMiddleware, so ionToken() (no arg) works with the web pipeline.
+     *
      * @param string $form_name
      * @param string $input_name
      * @return string
      */
-    function ionToken(string $form_name = '', string $input_name = '_ion_token'): string
+    function ionToken(string $form_name = 'web', string $input_name = '_ion_token'): string
     {
-        // csrf create
-        $csrfGenerator = new UriSafeTokenGenerator();
-        $csrfStorage = new NativeSessionTokenStorage();
-        $csrfManager = new CsrfTokenManager($csrfGenerator, $csrfStorage);
-
-        return '<input type="hidden" value="' . $csrfManager->getToken($form_name) . '" name="'.$input_name.'" id="'.$input_name.'"/>';
+        $token = ionCsrfManager()->getToken($form_name)->getValue();
+        return '<input type="hidden" value="' . $token . '" name="' . $input_name . '" id="' . $input_name . '"/>';
     }
 }
 
 if (!function_exists('csrfCheck')) {
     /**
-     * csrf check
-     * @param $id
+     * Validate a CSRF token for the given id and, on success, remove it.
+     *
+     * The default id is 'web', matching the tokenId used by CsrfMiddleware.
+     *
+     * @param string $id
      * @param string $token
-     * @param int $request
+     * @param int    $request  When 1 the token is read from the current request
+     *                         input field ($input_name); pass 0 to supply $token
+     *                         directly.
      * @param string $input_name
      * @return bool
      */
-    function csrfCheck($id, string $token = '', int $request = 1, string $input_name = '_ion_token'): bool
+    function csrfCheck(string $id = 'web', string $token = '', int $request = 1, string $input_name = '_ion_token'): bool
     {
-        $csrfGenerator = new UriSafeTokenGenerator();
-        $csrfStorage = new NativeSessionTokenStorage();
-        $csrfManager = new CsrfTokenManager($csrfGenerator, $csrfStorage);
+        $csrfManager = ionCsrfManager();
         if ($request === 1) {
             $token = Kernel::request()->get($input_name);
         }
 
-        $is_valid = false;
         $csrf_token = new CsrfToken($id, $token);
         if ($csrfManager->isTokenValid($csrf_token)) {
             $csrfManager->removeToken($id);
-            $is_valid = true;
+            return true;
         }
-        return $is_valid;
+        return false;
     }
 }
 

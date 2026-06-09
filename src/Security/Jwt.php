@@ -22,6 +22,7 @@ final class Jwt
         private string $issuer,
         private string $audience,
         private int $ttlSeconds = 3600,
+        private int $clockLeewaySeconds = 0,
     ) {
         if (strlen($secret) < 32) {
             throw new TokenException('JWT secret must be at least 32 bytes.');
@@ -50,10 +51,14 @@ final class Jwt
     {
         try {
             $parsed = $this->config->parser()->parse($token);
+            $clock = SystemClock::fromSystemTimezone();
+            $validAt = $this->clockLeewaySeconds > 0
+                ? new StrictValidAt($clock, new \DateInterval('PT' . $this->clockLeewaySeconds . 'S'))
+                : new StrictValidAt($clock);
             $this->config->validator()->assert(
                 $parsed,
                 new SignedWith($this->config->signer(), $this->config->signingKey()),
-                new StrictValidAt(SystemClock::fromSystemTimezone()),
+                $validAt,
                 new IssuedBy($this->issuer),
                 new PermittedFor($this->audience),
             );

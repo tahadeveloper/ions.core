@@ -79,6 +79,29 @@ Token lifetime used by `Kernel::buildJwt()` when constructing the `Ions\Security
 
 ---
 
+## `app.jwt.leeway`
+
+**Type:** `int` (seconds)
+
+**Default:** `0` (strict — no tolerance)
+
+Clock-skew leeway passed to `StrictValidAt` when verifying JWT timestamps (`iat`, `nbf`, `exp`). A non-zero value allows tokens whose expiry (or nbf/iat) is off by at most this many seconds relative to the verifier's clock to still be accepted. This compensates for NTP drift between the issuer node and the verifier node.
+
+```php
+// config/app.php
+'jwt' => [
+    'ttl'    => 3600,
+    'leeway' => 5,   // tolerate up to 5 seconds of clock skew
+],
+```
+
+- `0` (default): strict validation — a token expired even 1 second ago is rejected.
+- Recommended range: `0`–`30` seconds. Values above 60 s significantly weaken expiry enforcement.
+
+**D5-A status:** implemented — `clockLeewaySeconds` is the 5th constructor parameter of `Ions\Security\Jwt`.
+
+---
+
 ## `app.trusted_hosts`
 
 **Type:** `array` of regex patterns (strings WITHOUT delimiters)
@@ -95,6 +118,35 @@ Patterns are passed to `TrustedHostMiddleware`, which wraps them with Symfony's 
 ```
 
 Requests from hosts not matching any pattern will be rejected by the middleware.
+
+---
+
+## `app.csrf.enabled`
+
+**Type:** `bool`
+
+**Default:** `true`
+
+Controls whether `CsrfMiddleware` is included in the **web** middleware stack. When `true` (the default), all state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`) on web routes must include a valid CSRF token either as a `_ion_token` field in the request body or an `X-CSRF-TOKEN` header. Missing or invalid tokens return a `419` response.
+
+```php
+// config/app.php
+'csrf' => [
+    'enabled' => true,   // set to false to disable CSRF enforcement (e.g. in API-only apps or during testing)
+],
+```
+
+Token generation in views:
+- `ionToken()` — renders a hidden `<input>` field with the token.
+- `csrfToken()` — returns the raw token string for use in headers or custom fields.
+
+The CSRF token manager is bound in the container as `'csrf'` (a `CsrfTokenManagerInterface` singleton) so it can be swapped for a test double:
+
+```php
+Kernel::app()->instance('csrf', $myTestManager);
+```
+
+> **v2 Upgrade Guide:** CSRF is now **enforced by default** on all state-changing web routes. Include `ionToken()` or a `_ion_token` field (or `X-CSRF-TOKEN` header) in all web forms/requests. To disable: set `app.csrf.enabled = false` in config.
 
 ---
 
