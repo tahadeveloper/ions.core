@@ -10,9 +10,11 @@ use Ions\Container\ServiceProvider;
 use Ions\Foundation\Kernel;
 use Ions\Http\Middleware\RateLimitMiddleware;
 use Ions\Security\CacheRevocationStore;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 use Symfony\Component\Security\Csrf\TokenGenerator\UriSafeTokenGenerator;
 use Symfony\Component\Security\Csrf\TokenStorage\NativeSessionTokenStorage;
+use Symfony\Component\Security\Csrf\TokenStorage\SessionTokenStorage;
 
 final class AuthProvider extends ServiceProvider
 {
@@ -50,10 +52,21 @@ final class AuthProvider extends ServiceProvider
         }
 
         if (!$this->container->bound('csrf')) {
-            $this->container->singleton('csrf', static fn () => new CsrfTokenManager(
-                new UriSafeTokenGenerator(),
-                new NativeSessionTokenStorage()
-            ));
+            $container = $this->container;
+            $this->container->singleton('csrf', static function () use ($container): CsrfTokenManager {
+                // Prefer the framework session (single source of truth) via the
+                // shared RequestStack bound by SessionProvider. Fall back to the
+                // native PHP session when no session subsystem is registered.
+                if ($container->bound('request_stack')) {
+                    /** @var RequestStack $stack */
+                    $stack = $container->get('request_stack');
+                    $storage = new SessionTokenStorage($stack);
+                } else {
+                    $storage = new NativeSessionTokenStorage();
+                }
+
+                return new CsrfTokenManager(new UriSafeTokenGenerator(), $storage);
+            });
         }
 
         // Bind RateLimitMiddleware so container->make(RateLimitMiddleware::class) works

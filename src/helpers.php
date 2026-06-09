@@ -40,6 +40,16 @@ if (!function_exists('ionCsrfManager')) {
             if ($app->has('csrf')) {
                 return $app->get('csrf');
             }
+            // No explicit csrf binding but a framework session is available:
+            // back the manager with the session token storage (single source of truth).
+            if ($app->has('request_stack')) {
+                /** @var \Symfony\Component\HttpFoundation\RequestStack $stack */
+                $stack = $app->get('request_stack');
+                return new CsrfTokenManager(
+                    new UriSafeTokenGenerator(),
+                    new \Symfony\Component\Security\Csrf\TokenStorage\SessionTokenStorage($stack)
+                );
+            }
         } catch (\Throwable) {
             // container not booted / binding absent — fall back to native storage
         }
@@ -309,6 +319,40 @@ if (!function_exists('config')) {
         }
 
         return Kernel::config()->get($key, $default);
+    }
+}
+
+if (!function_exists('session')) {
+    /**
+     * Get / set session values, or resolve the session manager.
+     *
+     * Mirrors the config() helper's overloads:
+     *   session()            -> the SessionManager
+     *   session('key')       -> get a value (with optional default)
+     *   session(['k' => 'v']) -> put one or more values
+     *
+     * @param string|array<string,mixed>|null $key
+     * @param mixed $default
+     * @return \Ions\Session\SessionManager|mixed
+     */
+    function session(string|array|null $key = null, mixed $default = null)
+    {
+        $manager = Kernel::app()->get('session');
+        /** @var \Ions\Session\SessionManager $manager */
+
+        if (is_null($key)) {
+            return $manager;
+        }
+
+        if (is_array($key)) {
+            $manager->start();
+            foreach ($key as $k => $value) {
+                $manager->put((string) $k, $value);
+            }
+            return $manager;
+        }
+
+        return $manager->get($key, $default);
     }
 }
 

@@ -18,6 +18,7 @@ use Ions\Http\Middleware\CorsMiddleware;
 use Ions\Http\Middleware\CsrfMiddleware;
 use Ions\Http\Middleware\Pipeline;
 use Ions\Http\Middleware\SecurityHeadersMiddleware;
+use Ions\Http\Middleware\StartSessionMiddleware;
 use Ions\Http\Middleware\TrustedHostMiddleware;
 use Ions\Security\ArrayRevocationStore;
 use Ions\Security\Jwt;
@@ -180,6 +181,7 @@ class Kernel extends Singleton
         return [
             \Ions\Providers\ConfigProvider::class,
             \Ions\Providers\FilesystemProvider::class,
+            \Ions\Providers\SessionProvider::class,
             \Ions\Providers\DatabaseProvider::class,
             \Ions\Providers\AuthProvider::class,
             \Ions\Providers\MailProvider::class,
@@ -503,6 +505,12 @@ class Kernel extends Singleton
             new SecurityHeadersMiddleware(),
             new CorsMiddleware((array) config('app.cors', [])),
         ];
+        // Start the session early (before CSRF) so CSRF and downstream code share it.
+        if (static::$app->has('session')) {
+            /** @var \Ions\Session\SessionManager $session */
+            $session = static::$app->get('session');
+            $web[] = new StartSessionMiddleware($session);
+        }
         if (config('app.csrf.enabled', true) && static::$app->has('csrf')) {
             /** @var \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface $csrfManager */
             $csrfManager = static::$app->get('csrf');

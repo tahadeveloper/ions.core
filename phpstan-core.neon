@@ -8,6 +8,7 @@ parameters:
         - src/Auth/Providers
         - src/Filesystem
         - src/Providers
+        - src/Session
         - src/View
     scanFiles:
         - src/helpers.php
