@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Auth\Providers;
 
 use Cartalyst\Sentinel\Native\Facades\Sentinel;
@@ -16,6 +18,7 @@ final class SentinelUserProvider implements UserProvider
 {
     public function retrieveById(string|int $id): ?Authenticatable
     {
+        /** @phpstan-ignore staticMethod.notFound */
         $user = Sentinel::findById((int) $id);
 
         return $user !== null ? new SentinelUserAdapter($user) : null;
@@ -24,6 +27,7 @@ final class SentinelUserProvider implements UserProvider
     /** @param array<string,mixed> $credentials */
     public function retrieveByCredentials(array $credentials): ?Authenticatable
     {
+        /** @phpstan-ignore staticMethod.notFound */
         $user = Sentinel::findByCredentials($credentials);
 
         return $user !== null ? new SentinelUserAdapter($user) : null;
@@ -36,6 +40,7 @@ final class SentinelUserProvider implements UserProvider
             return false;
         }
 
+        /** @phpstan-ignore staticMethod.notFound */
         return Sentinel::getUserRepository()->validateCredentials(
             $user->getSentinelUser(),
             $credentials,

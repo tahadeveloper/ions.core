@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Auth\Providers;
 
 use Ions\Auth\Contracts\Authenticatable;
@@ -37,7 +39,7 @@ final class EloquentUserProvider implements UserProvider
             ->where($this->idColumn, $id)
             ->first();
 
-        return $row !== null ? $this->adapt($row) : null;
+        return $row instanceof \stdClass ? $this->adapt($row) : null;
     }
 
     /** @param array<string,mixed> $credentials */
@@ -54,7 +56,7 @@ final class EloquentUserProvider implements UserProvider
             ->where($this->identifierColumn, $identifier)
             ->first();
 
-        return $row !== null ? $this->adapt($row) : null;
+        return $row instanceof \stdClass ? $this->adapt($row) : null;
     }
 
     /** @param array<string,mixed> $credentials */

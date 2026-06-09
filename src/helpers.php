@@ -294,11 +294,11 @@ if (!function_exists('config')) {
      *
      * If an array is passed as the key, we will assume you want to set an array of values.
      *
-     * @param null $key
-     * @param mixed|null $default
-     * @return Config|mixed|void
+     * @param string|array<string,mixed>|null $key
+     * @param mixed $default
+     * @return Config|mixed
      */
-    function config($key = null, mixed $default = null)
+    function config(string|array|null $key = null, mixed $default = null)
     {
         if (is_null($key)) {
             return Kernel::config();

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Http\Middleware;
 
 use Ions\Support\Request;
@@ -7,17 +9,21 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class CorsMiddleware implements MiddlewareInterface
 {
+    /** @var string[] */
     private array $origins;
+    /** @var string[] */
     private array $methods;
+    /** @var string[] */
     private array $headers;
     private int $maxAge;
 
+    /** @param array<string,mixed> $config */
     public function __construct(private array $config = [])
     {
-        $this->origins = $config['origins'] ?? ['*'];
-        $this->methods = $config['methods'] ?? ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
-        $this->headers = $config['headers'] ?? ['Content-Type', 'Authorization', 'X-Requested-With'];
-        $this->maxAge  = $config['max_age'] ?? 3600;
+        $this->origins = (array) ($config['origins'] ?? ['*']);
+        $this->methods = (array) ($config['methods'] ?? ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
+        $this->headers = (array) ($config['headers'] ?? ['Content-Type', 'Authorization', 'X-Requested-With']);
+        $this->maxAge  = (int) ($config['max_age'] ?? 3600);
     }
 
     public function handle(Request $request, callable $next): Response
@@ -47,7 +53,7 @@ final class CorsMiddleware implements MiddlewareInterface
             return '*';
         }
 
-        $origin = $request->headers->get('Origin', '');
+        $origin = (string) $request->headers->get('Origin', '');
         if ($origin !== '' && in_array($origin, $this->origins, true)) {
             return $origin;
         }

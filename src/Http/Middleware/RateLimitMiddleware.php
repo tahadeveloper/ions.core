@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Http\Middleware;
 
 use Illuminate\Contracts\Cache\Repository;

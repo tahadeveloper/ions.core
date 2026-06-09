@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Auth\Providers;
 
 use Ions\Auth\Contracts\Authenticatable;

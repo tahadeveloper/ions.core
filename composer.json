@@ -74,10 +74,11 @@
   "scripts": {
     "test": "pest",
     "stan": "phpstan analyse",
+    "stan:core": "phpstan analyse -c phpstan-core.neon",
     "cs": "php-cs-fixer fix --dry-run --diff",
     "cs:fix": "php-cs-fixer fix",
     "rector": "rector process --dry-run",
-    "qa": ["@cs", "@stan", "@test"]
+    "qa": ["@cs", "@stan", "@stan:core", "@test"]
   },
   "minimum-stability": "stable",
   "prefer-stable": true
