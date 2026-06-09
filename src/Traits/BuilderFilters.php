@@ -22,21 +22,53 @@ trait BuilderFilters
     ];
 
     /**
-     * @param array|string $filters
-     * @param bool $allow_all
+     * Allow specific request filters to be applied to the query.
+     *
+     * By default ($allow_all = false) the allow-list is ENFORCED: any requested
+     * filter column not present in $filters throws InvalidFilterQuery.
+     *
+     * Pass $allow_all = true (or call allowAllFilters()) only when you deliberately
+     * want pass-through behaviour — every filter in the request will be applied
+     * without validation.
+     *
+     * Variadic string form: allowFilters('col_a', 'col_b') is equivalent to
+     * allowFilters(['col_a', 'col_b']).  When using the variadic form the
+     * $allow_all flag must NOT be passed as a positional argument (use the
+     * named-argument form or call allowAllFilters() instead).
+     *
+     * @param array|string $filters   Column name(s) to allow, or variadic strings.
+     * @param bool         $allow_all Set to true to disable allow-list enforcement.
      * @return BuilderFilters|QueryBuilder
      */
-    public function allowFilters(array|string $filters = [], bool $allow_all = true): self
+    public function allowFilters(array|string $filters = [], bool $allow_all = false): self
     {
-        $filters = is_array($filters) ? $filters : func_get_args();
-
-        $this->allowedFilters = collect($filters);
+        if (is_array($filters)) {
+            // Normal array form: allowFilters(['a', 'b']) — use as-is.
+            $this->allowedFilters = collect($filters);
+        } else {
+            // Variadic string form: allowFilters('a', 'b', ...).
+            // func_get_args() captures every positional arg; strip any trailing
+            // boolean so it does not pollute the filter-name list.
+            $args = array_filter(func_get_args(), static fn ($v) => !is_bool($v));
+            $this->allowedFilters = collect(array_values($args));
+        }
 
         $this->ensureAllFiltersExist($allow_all);
 
         $this->addFiltersToQuery();
 
         return $this;
+    }
+
+    /**
+     * Convenience method: apply every request filter without allow-list validation.
+     *
+     * Equivalent to allowFilters([], true).  Use this only when you genuinely
+     * want pass-through behaviour.
+     */
+    public function allowAllFilters(): self
+    {
+        return $this->allowFilters([], true);
     }
 
     /**

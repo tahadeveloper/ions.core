@@ -751,6 +751,7 @@ Breaking changes apps must address, each with before/after:
    - **`ApiController` response helpers now RETURN a Response (no longer send+exit):** `display()`, `returnStructure()`, `unauthorizedResponse()`, and `notFoundResponse()` now return a `Symfony\Component\HttpFoundation\Response` instead of calling `send()`+`exit()`. Controllers that previously wrote `$this->display($json);` (as a statement, relying on exit to terminate) **must** now `return $this->display($json);`. The response is sent by the pipeline. The `#[NoReturn]` attributes are removed from these methods. Response body shapes (the `{status_code, success, error, data}` envelope from `returnStructure`) are preserved unchanged.
 7. **Dependencies:** Twig/Ignition/Whoops now declared by core; remove duplicate requires from host `composer.json` if desired.
 8. **Smarty removed:** Twig is the only view engine; port Smarty templates to Twig; a `smarty` entry in `app.templates` is ignored.
+9. **Query filtering is now allow-listed by default — `QueryBuilder::allowFilters([...])` enforces the list** (previously the allow-list was silently ignored unless you passed a second `false` arg, meaning any column in the request was applied to the query). To keep the old pass-through behaviour, call `allowFilters([], true)` or the new `allowAllFilters()` explicitly. Example: `$qb->allowFilters(['name', 'status'])` now rejects `?filter[secret]=1`; the old code silently applied it.
 
 ---
 
