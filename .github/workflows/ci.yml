@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php: ['8.2', '8.3']
+        php: ['8.3', '8.4']
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -17,10 +17,11 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - run: composer cs
       - run: composer stan
+      - run: composer stan:core
       - run: composer test
 
   # ── MySQL job: exercises the same test-suite against a real MySQL 8 server.
-  #    Runs on PHP 8.2 only (the matrix above already covers multi-version).
+  #    Runs on PHP 8.3 only (the matrix above already covers multi-version).
   #    Gated by IONS_TEST_MYSQL=1; the fixture database.php switches driver
   #    based on that variable so SQLite jobs above are unaffected.
   mysql:
@@ -42,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.3'
           extensions: openssl, zip, pdo_sqlite, pdo_mysql
           coverage: none
       - run: composer install --no-interaction --prefer-dist
