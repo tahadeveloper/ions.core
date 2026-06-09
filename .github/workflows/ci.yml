@@ -1,6 +1,7 @@
 name: CI
 on: [push, pull_request]
 jobs:
+  # ── Primary matrix: SQLite-only, fast, runs on every PHP version ─────────
   qa:
     runs-on: ubuntu-latest
     strategy:
@@ -17,3 +18,40 @@ jobs:
       - run: composer cs
       - run: composer stan
       - run: composer test
+
+  # ── MySQL job: exercises the same test-suite against a real MySQL 8 server.
+  #    Runs on PHP 8.2 only (the matrix above already covers multi-version).
+  #    Gated by IONS_TEST_MYSQL=1; the fixture database.php switches driver
+  #    based on that variable so SQLite jobs above are unaffected.
+  mysql:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ions_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: openssl, zip, pdo_sqlite, pdo_mysql
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist
+      - name: Run test-suite against MySQL
+        env:
+          IONS_TEST_MYSQL: "1"
+          MYSQL_HOST: "127.0.0.1"
+          MYSQL_PORT: "3306"
+          MYSQL_DATABASE: "ions_test"
+          MYSQL_USERNAME: "root"
+          MYSQL_PASSWORD: "root"
+        run: composer test
