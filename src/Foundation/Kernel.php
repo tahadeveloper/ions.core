@@ -532,6 +532,7 @@ class Kernel extends Singleton
                 (string) env('APP_NAME', 'ions'),
                 (string) env('APP_NAME', 'ions'),
                 (int) config('app.jwt.ttl', 3600),
+                (int) config('app.jwt.leeway', 0),
             );
         } catch (\Throwable) {
             return null;

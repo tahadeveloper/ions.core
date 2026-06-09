@@ -44,3 +44,24 @@ test('rejects a token meant for a different audience', function () {
     $token = $other->issue('42');
     expect(fn () => $this->jwt->verify($token))->toThrow(\Ions\Security\TokenException::class);
 });
+
+test('a token expired within the clock leeway is still accepted', function () {
+    $secret = str_repeat('a', 32);
+    // issue a token that expired 2 seconds ago
+    $expiredToken = (new Jwt($secret, 'ions', 'ions-app', ttlSeconds: -2))->issue('42');
+
+    // verifier with NO leeway rejects it
+    $strict = new Jwt($secret, 'ions', 'ions-app', 3600, clockLeewaySeconds: 0);
+    expect(fn () => $strict->verify($expiredToken))->toThrow(\Ions\Security\TokenException::class);
+
+    // verifier with 5s leeway accepts it (2s expiry < 5s leeway)
+    $lenient = new Jwt($secret, 'ions', 'ions-app', 3600, clockLeewaySeconds: 5);
+    expect($lenient->verify($expiredToken)->userId)->toBe('42');
+});
+
+test('a token expired beyond the leeway is still rejected', function () {
+    $secret = str_repeat('a', 32);
+    $longExpired = (new Jwt($secret, 'ions', 'ions-app', ttlSeconds: -60))->issue('42');
+    $lenient = new Jwt($secret, 'ions', 'ions-app', 3600, clockLeewaySeconds: 5);
+    expect(fn () => $lenient->verify($longExpired))->toThrow(\Ions\Security\TokenException::class);
+});

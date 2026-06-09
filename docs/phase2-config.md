@@ -79,6 +79,29 @@ Token lifetime used by `Kernel::buildJwt()` when constructing the `Ions\Security
 
 ---
 
+## `app.jwt.leeway`
+
+**Type:** `int` (seconds)
+
+**Default:** `0` (strict — no tolerance)
+
+Clock-skew leeway passed to `StrictValidAt` when verifying JWT timestamps (`iat`, `nbf`, `exp`). A non-zero value allows tokens whose expiry (or nbf/iat) is off by at most this many seconds relative to the verifier's clock to still be accepted. This compensates for NTP drift between the issuer node and the verifier node.
+
+```php
+// config/app.php
+'jwt' => [
+    'ttl'    => 3600,
+    'leeway' => 5,   // tolerate up to 5 seconds of clock skew
+],
+```
+
+- `0` (default): strict validation — a token expired even 1 second ago is rejected.
+- Recommended range: `0`–`30` seconds. Values above 60 s significantly weaken expiry enforcement.
+
+**D5-A status:** implemented — `clockLeewaySeconds` is the 5th constructor parameter of `Ions\Security\Jwt`.
+
+---
+
 ## `app.trusted_hosts`
 
 **Type:** `array` of regex patterns (strings WITHOUT delimiters)
