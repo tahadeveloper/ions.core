@@ -706,7 +706,7 @@ Config keys (`app.providers`, `app.middleware`, `app.cors`, `app.jwt.ttl`, `app.
 
 ## Phase 5 — Auth subsystem rebuild
 
-> **Expand into its own plan before executing.**
+> **Expanded into its own detailed plan:** `docs/superpowers/plans/2026-06-09-phase5-auth.md`. Decision **D-A** (default auth backend — recommended: keep Sentinel adapter + ship native EloquentUserProvider) is surfaced there; resolving Phase 5 unblocks **Phase 4.6** (Illuminate 11) by making auth no longer hard-bound to Sentinel. Spec summary below.
 
 **Tasks:**
 1. Define an `Authenticatable` contract + `UserProvider` interface so auth isn't hardwired to Sentinel.
