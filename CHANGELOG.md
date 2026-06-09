@@ -1,12 +1,12 @@
 # Changelog — 1.x
 
-All notable changes to the `1.x` (pre-v2) line of `ionzile/core`.
+All notable changes to the `1.x` (pre-3.0) line of `ionzile/core`.
 
-The `1.x` line exists to deliver **security fixes to the legacy codebase** without the breaking changes of v2. For the modernized framework see the `main` branch / `v2.0.0` (`CHANGELOG.md` there + `UPGRADE-2.0.md`).
+The `1.x` line exists to deliver **security fixes to the legacy codebase** without the breaking changes of 3.0.0. For the modernized framework see the `main` branch / `3.0.0` (`CHANGELOG.md` there + `UPGRADE-3.0.md`).
 
 This project adheres to [Keep a Changelog](https://keepachangelog.com) and [Semantic Versioning](https://semver.org).
 
-## [1.1.0] - 2026-06-09 — Security hardening backport
+## [1.8.0] - 2026-06-10 — Security hardening backport
 
 Backports the critical security fixes from the v2 modernization onto the legacy 1.x codebase, kept surgical (no v2 architecture — no container/middleware/pipeline). PHP 8.2+.
 
@@ -22,4 +22,4 @@ Backports the critical security fixes from the v2 modernization onto the legacy 
 - `lcobucci/jwt` `^4.3` → `^5.0` (+ `lcobucci/clock`) — required for the secure JWT.
 
 ### Notes / not backported (v2‑only)
-- CSRF enforcement, the container/middleware pipeline, `Kernel::handle()`, controller‑returns‑Response, Twig‑only views, and the Illuminate 11 / Symfony 7 / Monolog 3 upgrades are **v2 features** — not applicable to the 1.x architecture. Upgrade to v2 for those (see `UPGRADE-2.0.md` on `main`).
+- CSRF enforcement, the container/middleware pipeline, `Kernel::handle()`, controller‑returns‑Response, Twig‑only views, and the Illuminate 11 / Symfony 7 / Monolog 3 upgrades are **3.0.0 features** — not applicable to the 1.x architecture. Upgrade to 3.0.0 for those (see `UPGRADE-3.0.md` on `main`).
