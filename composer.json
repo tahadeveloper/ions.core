@@ -50,6 +50,11 @@
     "twig/twig": "^3.10",
     "vlucas/phpdotenv": "^5.6.1"
   },
+  "autoload-dev": {
+    "psr-4": {
+      "IonsFixture\\": "tests/fixtures/app/src/"
+    }
+  },
   "require-dev": {
     "driftingly/rector-laravel": "^2.5",
     "friendsofphp/php-cs-fixer": "^3.64",

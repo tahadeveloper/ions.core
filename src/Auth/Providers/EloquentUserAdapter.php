@@ -15,7 +15,8 @@ final class EloquentUserAdapter implements Authenticatable
         private readonly \stdClass $row,
         private readonly string $idColumn,
         private readonly string $passwordColumn,
-    ) {}
+    ) {
+    }
 
     public function getAuthIdentifier(): string|int
     {

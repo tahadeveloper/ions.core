@@ -2,6 +2,7 @@
 
 namespace Ions\Http\Middleware;
 
+use Ions\Auth\Contracts\UserProvider;
 use Ions\Security\Jwt;
 use Ions\Security\TokenException;
 use Ions\Support\Request;
@@ -10,7 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class AuthMiddleware implements MiddlewareInterface
 {
-    public function __construct(private ?Jwt $jwt)
+    public function __construct(private ?Jwt $jwt, private ?UserProvider $users = null)
     {
     }
 
@@ -32,7 +33,18 @@ final class AuthMiddleware implements MiddlewareInterface
         } catch (TokenException) {
             return $this->unauthorized('Invalid or expired token');
         }
+
+        // Always attach the user id (BC).
         $request->attributes->set('auth_user_id', $claims->userId);
+
+        // If a UserProvider is configured, resolve and validate the user object.
+        if ($this->users !== null) {
+            $user = $this->users->retrieveById($claims->userId);
+            if ($user === null) {
+                return $this->unauthorized('User no longer exists');
+            }
+            $request->attributes->set('auth_user', $user);
+        }
 
         return $next($request);
     }

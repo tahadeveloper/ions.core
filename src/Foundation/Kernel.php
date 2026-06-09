@@ -492,6 +492,9 @@ class Kernel extends Singleton
         $jwt = static::$app->has('jwt') ? static::$app->get('jwt') : self::buildJwt();
         /** @var \Ions\Security\Jwt|null $jwt */
 
+        $userProvider = static::$app->has('user_provider') ? static::$app->get('user_provider') : null;
+        /** @var \Ions\Auth\Contracts\UserProvider|null $userProvider */
+
         return [
             'web' => [
                 new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
@@ -502,7 +505,7 @@ class Kernel extends Singleton
                 new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
                 new SecurityHeadersMiddleware(),
                 new CorsMiddleware((array) config('app.cors', [])),
-                new AuthMiddleware($jwt),
+                new AuthMiddleware($jwt, $userProvider),
             ],
         ];
     }
