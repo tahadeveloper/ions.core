@@ -130,7 +130,7 @@ The framework resolves application paths relative to the host-app root (five dir
 | [docs/auth.md](docs/auth.md) | UserProvider, JWT, AuthMiddleware, rate limiting, CSRF |
 | [docs/config.md](docs/config.md) | All `app.*` and `auth.*` config keys |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
-| [UPGRADE-2.0.md](UPGRADE-2.0.md) | Breaking changes and migration guide for v1 → v2 |
+| [UPGRADE-3.0.md](UPGRADE-3.0.md) | Breaking changes and migration guide for 2.1.x → 3.0.0 |
 
 ---
 

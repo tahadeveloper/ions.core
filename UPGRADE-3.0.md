@@ -1,6 +1,6 @@
-# Ions Framework — v2 Upgrade Guide
+# Ions Framework — 3.0.0 Upgrade Guide
 
-This document tracks breaking changes and deprecations introduced during the v2 modernisation phases (Phases 1–5). Entries are grouped by area; the phase tag shows when each change was shipped.
+This document tracks breaking changes and deprecations introduced during the 3.0.0 modernisation phases (Phases 1–5). Entries are grouped by area; the phase tag shows when each change was shipped. This is an upgrade guide for the **2.1.x → 3.0.0** transition.
 
 ---
 
@@ -262,7 +262,7 @@ functional.
 ### JWT secret / `APP_KEY` required (Breaking — Phase 1.1)
 
 See the JWT section above. Short summary: set `APP_KEY` (≥ 32 bytes) in `.env`;
-all pre-v2 tokens are invalid on upgrade.
+all pre-3.0 tokens are invalid on upgrade.
 
 ### Upload allow-list enforced (Breaking — Phase 1.2)
 
@@ -313,7 +313,7 @@ that is already present.
 
 ## Deprecations (still functional)
 
-These remain functional in v2 but will be removed in a future major version:
+These remain functional in 3.0 but will be removed in a future major version:
 
 | Deprecated | Replacement |
 |---|---|

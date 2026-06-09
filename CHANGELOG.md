@@ -4,11 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-For migration instructions see [UPGRADE-2.0.md](UPGRADE-2.0.md).
+For migration instructions see [UPGRADE-3.0.md](UPGRADE-3.0.md).
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-06-09
+## [3.0.0] - 2026-06-10
 
 ### Added
 
@@ -52,7 +52,7 @@ For migration instructions see [UPGRADE-2.0.md](UPGRADE-2.0.md).
 
 ### Removed
 
-- **RedBean** (`idiorm/idiorm` / `tightenco/collect`) — database layer is Illuminate Eloquent only.
+- **RedBean** (`gabordemooij/redbean`) — database layer is Illuminate Eloquent only.
 - **Smarty** (`smarty/smarty`) — Twig is the sole view engine.
 - **`verot/class.upload.php`** — replaced by `Ions\Security\UploadValidator`.
 - **`MRoute` facade** — use `Ions\Bundles\Route` directly.
@@ -62,11 +62,11 @@ For migration instructions see [UPGRADE-2.0.md](UPGRADE-2.0.md).
 
 ### Security
 
-- **JWT fully rebuilt** (`Ions\Security\Jwt`) — HMAC-SHA256 signing via `lcobucci/jwt` 5; mandatory `APP_KEY` ≥ 32 bytes; short-lived access tokens + long-lived refresh tokens; `jti` revocation deny-list; `typ` claim prevents cross-type token misuse; clock leeway for NTP drift tolerance. All pre-v2 tokens are invalid after upgrading.
+- **JWT fully rebuilt** (`Ions\Security\Jwt`) — HMAC-SHA256 signing via `lcobucci/jwt` 5; mandatory `APP_KEY` ≥ 32 bytes; short-lived access tokens + long-lived refresh tokens; `jti` revocation deny-list; `typ` claim prevents cross-type token misuse; clock leeway for NTP drift tolerance. All pre-3.0 tokens are invalid after upgrading.
 - **Upload RCE vector closed** — `UploadValidator` enforces an extension allow-list and a hard-coded deny-list that includes all PHP-executable, script, and binary extensions; used by both `IonUpload` and `IonDisk`.
 - **Trusted-host enforcement** — `TrustedHostMiddleware` replaces the previous `Host == APP_URL` comparison which was spoofable via `X-Forwarded-Host`.
 - **CSRF enforced by default** — `CsrfMiddleware` is in the default web stack; all state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`) require a valid `_ion_token` field or `X-CSRF-TOKEN` header (HTTP 419 otherwise).
 - **Query-filter allow-listing** — `QueryBuilder::allowFilters()` now enforces a strict allow-list; unrecognised filter columns throw `InvalidFilterQuery`; passing a non-array argument throws `TypeError` (fail-closed).
 
-[Unreleased]: https://github.com/tahadeveloper/ions.core/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/tahadeveloper/ions.core/releases/tag/v2.0.0
+[Unreleased]: https://github.com/tahadeveloper/ions.core/compare/3.0.0...HEAD
+[3.0.0]: https://github.com/tahadeveloper/ions.core/releases/tag/3.0.0
