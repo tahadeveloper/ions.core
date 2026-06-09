@@ -15,6 +15,7 @@ use Ions\Http\ExceptionHandler;
 use Ions\Http\Middleware\AuthMiddleware;
 use Ions\Http\Middleware\ControllerDispatcher;
 use Ions\Http\Middleware\CorsMiddleware;
+use Ions\Http\Middleware\CsrfMiddleware;
 use Ions\Http\Middleware\Pipeline;
 use Ions\Http\Middleware\SecurityHeadersMiddleware;
 use Ions\Http\Middleware\TrustedHostMiddleware;
@@ -495,12 +496,19 @@ class Kernel extends Singleton
         $userProvider = static::$app->has('user_provider') ? static::$app->get('user_provider') : null;
         /** @var \Ions\Auth\Contracts\UserProvider|null $userProvider */
 
+        $web = [
+            new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
+            new SecurityHeadersMiddleware(),
+            new CorsMiddleware((array) config('app.cors', [])),
+        ];
+        if (config('app.csrf.enabled', true) && static::$app->has('csrf')) {
+            /** @var \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface $csrfManager */
+            $csrfManager = static::$app->get('csrf');
+            $web[] = new CsrfMiddleware($csrfManager);
+        }
+
         return [
-            'web' => [
-                new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
-                new SecurityHeadersMiddleware(),
-                new CorsMiddleware((array) config('app.cors', [])),
-            ],
+            'web' => $web,
             'api' => [
                 new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
                 new SecurityHeadersMiddleware(),

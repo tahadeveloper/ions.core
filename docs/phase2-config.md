@@ -121,6 +121,35 @@ Requests from hosts not matching any pattern will be rejected by the middleware.
 
 ---
 
+## `app.csrf.enabled`
+
+**Type:** `bool`
+
+**Default:** `true`
+
+Controls whether `CsrfMiddleware` is included in the **web** middleware stack. When `true` (the default), all state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`) on web routes must include a valid CSRF token either as a `_ion_token` field in the request body or an `X-CSRF-TOKEN` header. Missing or invalid tokens return a `419` response.
+
+```php
+// config/app.php
+'csrf' => [
+    'enabled' => true,   // set to false to disable CSRF enforcement (e.g. in API-only apps or during testing)
+],
+```
+
+Token generation in views:
+- `ionToken()` — renders a hidden `<input>` field with the token.
+- `csrfToken()` — returns the raw token string for use in headers or custom fields.
+
+The CSRF token manager is bound in the container as `'csrf'` (a `CsrfTokenManagerInterface` singleton) so it can be swapped for a test double:
+
+```php
+Kernel::app()->instance('csrf', $myTestManager);
+```
+
+> **v2 Upgrade Guide:** CSRF is now **enforced by default** on all state-changing web routes. Include `ionToken()` or a `_ion_token` field (or `X-CSRF-TOKEN` header) in all web forms/requests. To disable: set `app.csrf.enabled = false` in config.
+
+---
+
 ## Auth config keys (Phase 5)
 
 These keys configure the authentication subsystem introduced in Phase 5.
