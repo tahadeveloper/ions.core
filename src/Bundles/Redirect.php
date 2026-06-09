@@ -4,7 +4,6 @@ namespace Ions\Bundles;
 
 use Illuminate\Http\RedirectResponse;
 use Ions\Foundation\Kernel;
-use JetBrains\PhpStorm\NoReturn;
 
 class Redirect
 {
@@ -14,7 +13,7 @@ class Redirect
      * @param int $status
      * @return void
      */
-    #[NoReturn] public static function home(int $status = 302): void
+    public static function home(int $status = 302): void
     {
         self::to(appUrl(), $status)->send();
     }
@@ -43,7 +42,7 @@ class Redirect
      * @param array $headers
      * @return void
      */
-    #[NoReturn] public static function refresh(int $status = 302, array $headers = []): void
+    public static function refresh(int $status = 302, array $headers = []): void
     {
         $path = Kernel::request()->getUri();
         self::to($path, $status, $headers)->send();
@@ -58,7 +57,7 @@ class Redirect
      * @param array $headers
      * @return RedirectResponse
      */
-    #[NoReturn] protected static function to(string $path, int $status = 302, array $headers = []): RedirectResponse
+    protected static function to(string $path, int $status = 302, array $headers = []): RedirectResponse
     {
         return self::createRedirect($path, $status, $headers);
     }
@@ -69,9 +68,9 @@ class Redirect
      * @param string $path
      * @param int $status
      * @param array $headers
-     * @return void
+     * @return never
      */
-    #[NoReturn] public static function away(string $path, int $status = 302, array $headers = []): void
+    public static function away(string $path, int $status = 302, array $headers = []): never
     {
         self::createRedirect($path, $status, $headers)->send();
         exit();
@@ -83,9 +82,9 @@ class Redirect
      * @param string $path
      * @param int $status
      * @param array $headers
-     * @return void
+     * @return never
      */
-    #[NoReturn] public static function internal(string $path, int $status = 302, array $headers = []): void
+    public static function internal(string $path, int $status = 302, array $headers = []): never
     {
         self::createRedirect(appUrl().DIRECTORY_SEPARATOR.$path, $status, $headers)->send();
         exit();

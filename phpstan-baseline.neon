@@ -253,124 +253,16 @@ parameters:
 			path: src/Bundles/IonUpload.php
 
 		-
-			message: '#^Method Ions\\Bundles\\MRoute\:\:any\(\) should return static\(Ions\\Bundles\\MRoute\) but returns Ions\\Bundles\\MRoute\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Method Ions\\Bundles\\MRoute\:\:delete\(\) should return static\(Ions\\Bundles\\MRoute\) but returns Ions\\Bundles\\MRoute\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Method Ions\\Bundles\\MRoute\:\:get\(\) should return static\(Ions\\Bundles\\MRoute\) but returns Ions\\Bundles\\MRoute\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Method Ions\\Bundles\\MRoute\:\:match\(\) should return static\(Ions\\Bundles\\MRoute\) but returns Ions\\Bundles\\MRoute\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Method Ions\\Bundles\\MRoute\:\:name\(\) should return static\(Ions\\Bundles\\MRoute\) but returns Ions\\Bundles\\MRoute\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Method Ions\\Bundles\\MRoute\:\:options\(\) should return static\(Ions\\Bundles\\MRoute\) but returns Ions\\Bundles\\MRoute\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Method Ions\\Bundles\\MRoute\:\:patch\(\) should return static\(Ions\\Bundles\\MRoute\) but returns Ions\\Bundles\\MRoute\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Method Ions\\Bundles\\MRoute\:\:post\(\) should return static\(Ions\\Bundles\\MRoute\) but returns Ions\\Bundles\\MRoute\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Method Ions\\Bundles\\MRoute\:\:prefix\(\) should return static\(Ions\\Bundles\\MRoute\) but returns Ions\\Bundles\\MRoute\.$#'
-			identifier: return.type
-			count: 2
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Method Ions\\Bundles\\MRoute\:\:put\(\) should return static\(Ions\\Bundles\\MRoute\) but returns Ions\\Bundles\\MRoute\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Method Ions\\Bundles\\MRoute\:\:where\(\) should return static\(Ions\\Bundles\\MRoute\) but returns Ions\\Bundles\\MRoute\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Bundles\\MRoute\:\:\$action through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 10
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Bundles\\MRoute\:\:\$defaults through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 10
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Bundles\\MRoute\:\:\$methods through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 10
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Bundles\\MRoute\:\:\$name through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 5
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Bundles\\MRoute\:\:\$path through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 10
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Bundles\\MRoute\:\:\$prefix through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 6
-			path: src/Bundles/MRoute.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Bundles\\MRoute\:\:\$where through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 5
-			path: src/Bundles/MRoute.php
-
-		-
 			message: '#^Attribute class JetBrains\\PhpStorm\\Pure does not exist\.$#'
 			identifier: attribute.notFound
 			count: 1
 			path: src/Bundles/QueryBuilder.php
 
 		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\NoReturn does not exist\.$#'
-			identifier: attribute.notFound
-			count: 5
-			path: src/Bundles/Redirect.php
+			message: '#^Property Ions\\Bundles\\Route\:\:\$lastRoute is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Bundles/Route.php
 
 		-
 			message: '#^Unsafe access to private property Ions\\Bundles\\Route\:\:\$controls through static\:\:\.$#'
@@ -407,12 +299,6 @@ parameters:
 			identifier: new.static
 			count: 1
 			path: src/Exceptions/InvalidSubject.php
-
-		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\NoReturn does not exist\.$#'
-			identifier: attribute.notFound
-			count: 4
-			path: src/Foundation/ApiController.php
 
 		-
 			message: '#^Access to an undefined property Ions\\Foundation\\BaseController\:\:\$locale_folder\.$#'
@@ -539,12 +425,6 @@ parameters:
 			identifier: method.notFound
 			count: 1
 			path: src/commands/migrate/DumpCommand.php
-
-		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\NoReturn does not exist\.$#'
-			identifier: attribute.notFound
-			count: 2
-			path: src/helpers.php
 
 		-
 			message: '#^Function toJson\(\) never returns null so it can be removed from the return type\.$#'

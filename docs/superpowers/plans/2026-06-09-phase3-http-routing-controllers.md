@@ -21,8 +21,8 @@ Six sequenced sub-phases, each shippable and reviewable. Guardrails for **every*
 - **3.5 ViewProvider** — needs a product decision first (Twig-only vs keep Smarty — see Decision D-V below); spec assumes "keep both, make locale-aware".
 - **3.6 RoutingProvider** — optional; do only if it cleanly reduces static coupling.
 
-### Decision needed before 3.5 — **D-V: view engine**
-`BaseController` currently inits **both** Twig and Smarty per request based on `config('app.templates')`. Smarty is pinned at ^4 (Smarty 5 is a namespaced rewrite — tracked debt). Before 3.5, decide: **(a)** keep both (ViewProvider builds whichever the config lists; Smarty stays ^4), **(b)** Twig-only (drop Smarty, simpler, one less dep), or **(c)** keep both but migrate Smarty→5. This plan's 3.5 assumes **(a)** as the lowest-disruption default; if (b)/(c) is chosen, 3.5 expands accordingly. Surface this to the user before executing 3.5.
+### Decision D-V — view engine: **RESOLVED → (b) Twig-only**
+**Decision (user, 2026-06-09): drop Smarty; Twig is the sole view engine.** So sub-phase 3.5 additionally: removes the `smarty/smarty` dependency from `composer.json`; removes the `Smarty` branch from `BaseController::_loadInit`; removes/retires `src/Traits/Smarty.php`; and the `ViewProvider`/`ViewFactory` builds **only** a Twig `Environment`. This **resolves the Smarty-5 tracked debt** (no migration needed — Smarty is gone). Breaking change for any app using Smarty templates → document in the v2 upgrade guide (Smarty removed; port templates to Twig). The `config('app.templates')` key becomes effectively `['twig']`; treat a `smarty` entry as a no-op (or a logged deprecation).
 
 ---
 
@@ -249,10 +249,12 @@ test('web request gets an HTML response', function () {
 
 **Files:** `src/Foundation/Kernel.php`, tests.
 
-- [ ] Wrap the route-match + pipeline in `handle()` in a single `try { ... } catch (Throwable $e) { return $handler->render($e, $request); }`. The routing-exception catches collapse into this (map `ResourceNotFound`→404, `MethodNotAllowed`→405 by translating to `HttpException` before/within the handler, or keep explicit catches that delegate to the handler with the right status). Remove the per-request `errorDebug()`/`errorDebugApi()` registration and the now-unused `errorResponse()` (fold into `ExceptionHandler`). Keep `Spatie\Ignition`/`Whoops` usage INSIDE the handler for debug rendering.
-- [ ] **Integration test:** a fixture route whose action calls `abort(403)` → `Kernel::handle()` returns a 403 Response (JSON for `/api/...`, HTML for web) — proving `abort()` (HttpException) is now caught and rendered, not fatal. Add fixture routes for this.
-- [ ] **Integration test:** a fixture route whose action throws a generic `\RuntimeException` → 500 Response (no leaked trace when `APP_DEBUG` off).
-- [ ] Confirm all existing tests still pass (BootErrorTest etc. unaffected — that's boot-time, separate from request handling). Commit `refactor(kernel): handle() routes all Throwables through ExceptionHandler; drop duplicated debug registration`.
+- [x] Wrap the route-match + pipeline in `handle()` in a single `try { ... } catch (Throwable $e) { return $handler->render($e, $request); }`. Routing-exception catches translated to `NotFoundHttpException`/`MethodNotAllowedHttpException` before delegating to the handler. Removed `errorDebug()`/`errorDebugApi()` per-request registration and `errorResponse()` / `HtmlErrorRender()`.
+- [x] **Integration test:** a fixture route whose action calls `abort(403)` → `Kernel::handle()` returns a 403 Response — proving `abort()` (HttpException) is now caught and rendered, not fatal.
+- [x] **Integration test:** a fixture route whose action throws a generic `\RuntimeException` → 500 Response (no leaked trace when `APP_DEBUG` off).
+- [x] Confirmed all existing tests still pass (BootErrorTest etc. unaffected — boot-time, separate from request handling). Committed `refactor(kernel): funnel all request Throwables through ExceptionHandler; drop errorDebug/errorDebugApi/errorResponse`.
+
+> **DX trade-off (tracked future enhancement):** Removing `errorDebug`/`errorDebugApi` drops the global Spatie Ignition / Whoops pretty-error registration that previously decorated PHP-level errors outside the request cycle. `ExceptionHandler` now renders errors (simple HTML in debug; no-leak prod behavior). Richer Ignition rendering inside `ExceptionHandler::html()` for the debug path is a tracked future enhancement (wire `Ignition::make()->renderException($e)` in a follow-up once the ExceptionHandler test surface is broader).
 
 ---
 
@@ -265,9 +267,9 @@ test('web request gets an HTML response', function () {
 
 ---
 
-## Sub-phase 3.5 — ViewProvider (deferred from 2.6) — **gated on Decision D-V**
+## Sub-phase 3.5 — ViewProvider (deferred from 2.6) — **D-V resolved: Twig-only**
 
-> Default assumption: keep both Twig + Smarty, make the factory locale-aware. If Decision D-V picks Twig-only or Smarty-5, adjust.
+> Per Decision D-V: **Twig-only**. This sub-phase builds a locale-aware Twig `ViewFactory` in the container AND removes Smarty (dependency, trait, BaseController branch). Resolves the Smarty-5 tracked debt. Add a task to: `composer remove smarty/smarty`; delete `src/Traits/Smarty.php` and its `use Smarty;` in `BaseController`; strip the `smarty` branch from `_loadInit`; treat a `smarty` value in `config('app.templates')` as a no-op. Document the Smarty removal in the upgrade guide.
 
 **Files:** `src/Providers/ViewProvider.php`, `src/Foundation/BaseController.php`, `src/Traits/{Twig,Smarty}.php` (maybe), tests.
 
@@ -278,9 +280,9 @@ test('web request gets an HTML response', function () {
 
 ---
 
-## Sub-phase 3.6 — RoutingProvider (optional)
+## Sub-phase 3.6 — RoutingProvider (optional) — **SKIPPED (no clean benefit now)**
 
-- [ ] Only if it cleanly reduces static coupling: bind `router`/`routes` so `handle()`/`RouteListCommand` resolve the `RouteCollection` from the container instead of static `Kernel::RouteCollection()`. Test: `routes` resolves to the collection. If it doesn't reduce coupling without churn, SKIP and note that `Kernel::RouteCollection()` remains the source (acceptable).
+- [x] **Decision (2026-06-09): SKIPPED.** Rationale: the `Bundles\Route` fluent facade writes routes directly into the static `Kernel::RouteCollection()`, and `Kernel::captureRoute()` rebuilds the collection per request (php/yaml + attribute routes). Binding a `routes`/`router` container service would not change that source-of-truth without first reworking the `Route` facade itself — i.e. it adds a binding nothing meaningfully consumes. Per the "skip if it doesn't reduce coupling without churn" guidance, `Kernel::RouteCollection()` remains the route source. **Revisit** when/if routing is further reworked (e.g. an instance-based router replacing the static `Route` facade) — at which point a `RoutingProvider` becomes worthwhile.
 
 ---
 

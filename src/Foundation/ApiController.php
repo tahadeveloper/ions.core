@@ -5,11 +5,9 @@ namespace Ions\Foundation;
 use BadMethodCallException;
 use Ions\Bundles\Localization;
 use Ions\Http\RequestInput;
-use Ions\Security\SecurityHeaders;
 use Ions\Support\JsonResponse;
 use Ions\Support\Request;
 use Ions\Support\Response;
-use JetBrains\PhpStorm\NoReturn;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 
 abstract class ApiController implements BluePrint
@@ -54,30 +52,24 @@ abstract class ApiController implements BluePrint
         // Implement _endState() method.
     }
 
-    #[NoReturn] protected function unauthorizedResponse($response): void
+    protected function unauthorizedResponse($response): ResponseAlias
     {
-        $this->returnStructure($response, ResponseAlias::HTTP_UNAUTHORIZED);
+        return $this->returnStructure($response, ResponseAlias::HTTP_UNAUTHORIZED);
     }
 
-    #[NoReturn] private function returnStructure($error, $status): void
+    private function returnStructure($error, $status): ResponseAlias
     {
-        $data = [];
         $result = [
             'status_code' => $status,
             'success' => false,
             'error' => $error,
-            'data' => $data
+            'data' => [],
         ];
 
         $json_response = new JsonResponse($result, $status);
         $json_response->setEncodingOptions($json_response->getEncodingOptions() | JSON_PRETTY_PRINT);
 
-        $response_info = $this->response;
-        $response_info->setStatusCode($status);
-        $response_info->setContent($json_response->getContent());
-        SecurityHeaders::apply($response_info);
-        $response_info->send();
-        exit();
+        return $json_response;
     }
 
     /**
@@ -97,25 +89,18 @@ abstract class ApiController implements BluePrint
         }
     }
 
-    #[NoReturn] public function notFoundResponse($response): void
+    public function notFoundResponse($response): ResponseAlias
     {
-        $this->returnStructure($response, ResponseAlias::HTTP_NOT_FOUND);
+        return $this->returnStructure($response, ResponseAlias::HTTP_NOT_FOUND);
     }
 
-    #[NoReturn] protected function display($jsonResponse): void
+    protected function display($jsonResponse): ResponseAlias
     {
         if (!is_string($jsonResponse)) {
             abort(500, 'Data send to api must be Json type.');
         }
 
-        $response = Kernel::response();
-        $response->setContent($jsonResponse);
-        if (!$response->headers->has('Content-Type')) {
-            $response->headers->set('Content-Type', 'application/json');
-        }
-        SecurityHeaders::apply($response);
-        $response->send();
-        exit();
+        return new ResponseAlias($jsonResponse, 200, ['Content-Type' => 'application/json']);
     }
 
     /**
@@ -123,11 +108,11 @@ abstract class ApiController implements BluePrint
      *
      * @param string $method
      * @param array $parameters
-     * @return void
+     * @return mixed
      */
-    public function callAction(string $method, array $parameters): void
+    public function callAction(string $method, array $parameters): mixed
     {
-        $this->{$method}(...array_values($parameters));
+        return $this->{$method}(...array_values($parameters));
     }
 
     /**

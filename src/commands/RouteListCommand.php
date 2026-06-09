@@ -6,7 +6,6 @@ use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Ions\Bundles\AttributeRouteControllerLoader;
-use Ions\Bundles\MRoute;
 use Ions\Bundles\Path;
 use Ions\Foundation\Kernel;
 use Ions\Support\Arr;
@@ -74,11 +73,9 @@ class RouteListCommand extends Command
 
     protected function captureRoute(string $path, $target): array
     {
-        MRoute::$collection = new RouteCollection();
-
         if ($target === 'php') {
             include_once $path;
-            $routes = Kernel::RouteCollection();//MRoute::$collection;
+            $routes = Kernel::RouteCollection();
         } else {
             $fileLocator = new FileLocator([__DIR__]);
             $loader = new YamlFileLoader($fileLocator);
