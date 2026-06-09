@@ -1,2 +1,8 @@
 /.idea
 /vendor
+/.php-cs-fixer.cache
+/.phpunit.cache/
+/.phpunit.result.cache
+# test-generated artifacts inside fixtures
+tests/fixtures/**/var/logs/*.log
+tests/fixtures/**/var/cache/twig/
