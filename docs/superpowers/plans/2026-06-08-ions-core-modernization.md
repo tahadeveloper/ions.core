@@ -725,7 +725,7 @@ Config keys (`app.providers`, `app.middleware`, `app.cors`, `app.jwt.ttl`, `app.
 
 ## Phase 6 — DX, docs, generators, release
 
-> **Expand into its own plan before executing.**
+> **Expanded into its own detailed plan:** `docs/superpowers/plans/2026-06-09-phase6-release.md`. Ships v2.0.0. Spec summary below.
 
 **Tasks:**
 1. Raise PHPStan to level 8 on `src/Security`, `src/Container`, `src/Http`; burn down baseline incrementally; add `declare(strict_types=1)` to all new/touched files.
