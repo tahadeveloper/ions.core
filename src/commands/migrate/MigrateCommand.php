@@ -31,7 +31,7 @@ class MigrateCommand extends Command
                 });
 
                 $this->info('Migrations table created successfully.');
-                exit();
+                return;
             }
 
             $this->info('Migrations table exits.');
