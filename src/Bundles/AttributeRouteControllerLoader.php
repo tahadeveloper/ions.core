@@ -2,22 +2,26 @@
 
 namespace Ions\Bundles;
 
+use Symfony\Component\Routing\Attribute\Route as RouteAttribute;
 use Symfony\Component\Routing\Loader\AttributeClassLoader;
 use Symfony\Component\Routing\Route;
 
 class AttributeRouteControllerLoader extends AttributeClassLoader
 {
+    /**
+     * @param RouteAttribute $annot
+     */
     protected function configureRoute(Route $route, \ReflectionClass $class, \ReflectionMethod $method, object $annot)
     {
         // Configure the route based on the attributes
-        $route->setPath($annot->path);
-        $route->setDefaults($annot->defaults ?? []);
-        $route->setRequirements($annot->requirements ?? []);
-        $route->setOptions($annot->options ?? []);
-        $route->setHost($annot->host ?? '');
-        $route->setSchemes($annot->schemes ?? []);
-        $route->setMethods($annot->methods ?? []);
-        $route->setCondition($annot->condition ?? '');
+        $route->setPath($annot->getPath() ?? '');
+        $route->setDefaults($annot->getDefaults());
+        $route->setRequirements($annot->getRequirements());
+        $route->setOptions($annot->getOptions());
+        $route->setHost($annot->getHost() ?? '');
+        $route->setSchemes($annot->getSchemes());
+        $route->setMethods($annot->getMethods());
+        $route->setCondition($annot->getCondition() ?? '');
     }
 
     protected function getDefaultRouteName(\ReflectionClass $class, \ReflectionMethod $method): string

@@ -7,8 +7,6 @@ use Symfony\Component\Routing\Annotation\Route as BaseRoute;
 #[\Attribute(\Attribute::IS_REPEATABLE | \Attribute::TARGET_CLASS | \Attribute::TARGET_METHOD)]
 class Route extends BaseRoute
 {
-    public string $path;
-
     public function __construct(
         string $path,
         string $name = null,
@@ -22,7 +20,6 @@ class Route extends BaseRoute
         int    $priority = 0,
         string $env = null
     ) {
-        $this->path = $path;
         parent::__construct(
             path: $path,
             name: $name,

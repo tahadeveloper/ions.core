@@ -146,6 +146,8 @@ class GuardRole extends Singleton
             DB::connection(self::$connection_name)->table(self::$tables_names['roles'])->where('id', $role_id)->update($role);
 
             self::roleLanguages($role_id, $params->languages);
+
+            return $role_id;
         });
     }
 
@@ -297,6 +299,8 @@ class GuardRole extends Singleton
 
             // update as tables
             self::rolePermissionTbl($params, $ids_controls_arr, $ids_actions_arr);
+
+            return $role;
         });
     }
 

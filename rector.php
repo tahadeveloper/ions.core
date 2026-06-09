@@ -14,8 +14,8 @@ return RectorConfig::configure()
     ])
     // Target the current language level.
     ->withPhpSets(php82: true)
-    // Laravel/Illuminate 10 upgrade set (Task 4.2: Illuminate 9 -> 10).
+    // Laravel/Illuminate 11 upgrade set (Task 4.6.3: Illuminate 10 -> 11).
     ->withSets([
-        LaravelSetList::LARAVEL_100,
+        LaravelSetList::LARAVEL_110,
     ])
     ->withRules([]);

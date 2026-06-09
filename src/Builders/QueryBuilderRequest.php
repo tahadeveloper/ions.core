@@ -152,7 +152,8 @@ class QueryBuilderRequest extends Request
             return $this->input($key, $default);
         }
 
-        return $this->get($key, $default);
+        // Symfony 7.4 deprecated Request::get(); read query params explicitly.
+        return $this->query($key, $default);
     }
 
     public static function setIncludesArrayValueDelimiter(string $includesArrayValueDelimiter): void
