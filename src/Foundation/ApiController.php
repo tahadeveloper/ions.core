@@ -82,6 +82,16 @@ abstract class ApiController implements BluePrint
         return $value !== null ? (string) $value : null;
     }
 
+    /**
+     * Return the resolved Authenticatable user placed on the request by AuthMiddleware
+     * (only available when a UserProvider is configured), or null otherwise.
+     */
+    protected function authUser(): ?\Ions\Auth\Contracts\Authenticatable
+    {
+        $u = $this->request->attributes->get('auth_user');
+        return $u instanceof \Ions\Auth\Contracts\Authenticatable ? $u : null;
+    }
+
     public function routeMethod($method, $callback): void
     {
         if ($callback !== null && $this->request_method === strtoupper($method)) {

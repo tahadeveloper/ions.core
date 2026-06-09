@@ -95,3 +95,71 @@ Patterns are passed to `TrustedHostMiddleware`, which wraps them with Symfony's 
 ```
 
 Requests from hosts not matching any pattern will be rejected by the middleware.
+
+---
+
+## Auth config keys (Phase 5)
+
+These keys configure the authentication subsystem introduced in Phase 5.
+
+### `auth.provider`
+
+**Type:** `string`
+
+**Default:** `'sentinel'`
+
+Selects the `UserProvider` implementation that `AuthProvider` binds as the `user_provider` singleton.
+
+| Value | Resolved class |
+|-------|---------------|
+| `'sentinel'` *(default)* | `Ions\Auth\Providers\SentinelUserProvider` |
+| `'eloquent'` | `Ions\Auth\Providers\EloquentUserProvider` |
+| Any FQCN (e.g. `App\Auth\CustomProvider`) | Resolved via the container (`$container->make($class)`) |
+| Unknown string | Falls back to `SentinelUserProvider` |
+
+```php
+// config/auth.php
+return [
+    'provider' => 'eloquent',   // or 'sentinel', or a FQCN
+];
+```
+
+---
+
+### `auth.table`
+
+**Type:** `string`
+
+**Default:** `'users'`
+
+The database table queried by `EloquentUserProvider`.
+
+---
+
+### `auth.identifier`
+
+**Type:** `string`
+
+**Default:** `'email'`
+
+The column used by `EloquentUserProvider::retrieveByCredentials()` to look up a user (the "login name" column). Credentials arrays must include this key.
+
+---
+
+### `auth.password`
+
+**Type:** `string`
+
+**Default:** `'password'`
+
+The column that stores the bcrypt/argon2 password hash in the users table. Used by `EloquentUserProvider::validateCredentials()` via `password_verify()`.
+
+---
+
+### `auth.id`
+
+**Type:** `string`
+
+**Default:** `'id'`
+
+The primary-key column of the users table. Used by `EloquentUserProvider::retrieveById()` and exposed via `Authenticatable::getAuthIdentifierName()`.
