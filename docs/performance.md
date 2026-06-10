@@ -153,6 +153,11 @@ Regenerate after upgrading `ionzile/core`.
 | + config cache | boot | 0.73 ms | 0.33 ms (~54% faster) |
 | Twig `view.env` singleton | no-override `ViewFactory::make()` | 0.060–0.069 ms | ~0.001 ms |
 
+Numbers were measured during the Phase 8.1 optimization work; absolute values
+are machine-dependent and boot has since gained weight from the 4.1 feature
+providers (a fresh `bench/bench.php` run reports boot ≈ 4.4 ms on the same
+fixture) — the per-step ratios are the point.
+
 ### Middleware stacks — evaluated and intentionally not cached
 
 `Kernel::defaultMiddleware()` costs **0.0071 ms/request** (measured, N=2000)

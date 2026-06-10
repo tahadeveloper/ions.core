@@ -16,11 +16,11 @@ Before 4.1, omitting the `cookie_*` keys from `config/session.php` left the
 native session cookie with raw PHP defaults (no `Secure`, no `SameSite`,
 httponly per php.ini). In 4.1 the native driver defaults to:
 
-| Option | 4.1 default |
-|---|---|
-| `cookie_httponly` | `true` |
-| `cookie_samesite` | `'lax'` |
-| `cookie_secure` | `true` |
+| Option            | 4.1 default |
+|-------------------|-------------|
+| `cookie_httponly` | `true`      |
+| `cookie_samesite` | `'lax'`     |
+| `cookie_secure`   | `true`      |
 
 Every default can still be overridden by setting the key explicitly in
 `config/session.php`. `cookie_secure` also accepts `'auto'`: the flag follows
@@ -106,7 +106,7 @@ shape as the route-level `throttle` middleware, and still enumeration-safe.
 
 Loggers built by `Logs::create()` now run `Ions\Bundles\RedactionProcessor`:
 context keys matching *password / passwd / token / secret / authorization /
-api_key / api-key* (case-insensitive, recursive through nested arrays) are masked to
+api_key / api-key / apikey* (case-insensitive, recursive through nested arrays) are masked to
 `[REDACTED]` before reaching the log file. If you intentionally log such
 values, build a bare Monolog `Logger` yourself.
 
@@ -182,7 +182,10 @@ must re-boot the kernel to have the change picked up.
 
 ### Richer debug error page (debug mode only)
 
-With `APP_DEBUG=true`, HTML errors now render a full debug page (`Ions\Http\DebugPage`: source excerpt, stack trace, `getPrevious()` chain, redacted request summary) instead of the bare `<h1>/<pre>` block. Production output (`APP_DEBUG` off) is byte-for-byte unchanged, and JSON/api error responses are unaffected. See `docs/lifecycle.md` → "Error rendering".
+With `APP_DEBUG=true`, HTML errors now render a full debug page (`Ions\Http\DebugPage`: source excerpt, stack trace,
+`getPrevious()` chain, redacted request summary) instead of the bare `<h1>/<pre>` block. Production output (`APP_DEBUG`
+off) is byte-for-byte unchanged, and JSON/api error responses are unaffected. See `docs/lifecycle.md` → "Error
+rendering".
 
 ## New (optional) production caches
 
