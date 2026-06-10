@@ -54,6 +54,10 @@ Route::post('/api/echo', function (Request $request) {
     return new \Symfony\Component\HttpFoundation\JsonResponse([
         'json' => json_decode((string) $request->getContent(), true),
         'content_type' => $request->headers->get('Content-Type'),
+        // Server bag directly — proves headers were passed INTO Request::create
+        // as server keys, not patched onto the header bag afterwards.
+        'server_content_type' => $request->server->get('CONTENT_TYPE'),
+        'accept' => $request->headers->get('Accept'),
         'x_custom' => $request->headers->get('X-Custom'),
     ]);
 });

@@ -44,8 +44,32 @@ class TestCaseTest extends TestCase
             ->assertJsonPath('json.tags.1', 'b')
             ->assertJsonPath('json.nested.deep', true);
 
-        // json() sends proper JSON headers.
+        // json() sends proper JSON headers — and they arrive as SERVER keys
+        // through Request::create (not post-hoc header-bag fixes), so the
+        // request's server bag and header bag agree.
         $this->assertSame('application/json', $response->json('content_type'));
+        $this->assertSame('application/json', $response->json('server_content_type'));
+        $this->assertSame('application/json', $response->json('accept'));
+    }
+
+    public function test_call_mirrors_laravels_positional_signature(): void
+    {
+        // call(method, uri, parameters, cookies, files, server, content)
+        $response = $this->call(
+            'POST',
+            '/api/echo',
+            [],
+            ['session_hint' => 'cookie-value'],
+            [],
+            ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CUSTOM' => 'via-server'],
+            '{"name":"ion"}'
+        );
+
+        $response->assertOk()
+            ->assertJsonPath('json.name', 'ion')
+            ->assertJsonPath('content_type', 'application/json')
+            ->assertJsonPath('server_content_type', 'application/json')
+            ->assertJsonPath('x_custom', 'via-server');
     }
 
     public function test_protected_api_route_returns_401_without_credentials(): void
@@ -92,6 +116,29 @@ class TestCaseTest extends TestCase
 
         // The stored default is untouched by the per-call override.
         $this->json('POST', '/api/echo')->assertJsonPath('x_custom', 'default');
+    }
+
+    public function test_with_headers_normalizes_key_case_so_overrides_never_duplicate(): void
+    {
+        // Same header stored twice with different casing — the later value
+        // must REPLACE the earlier one (keys are lowercased), not coexist.
+        $this->withHeaders(['X-CUSTOM' => 'first']);
+        $this->withHeaders(['x-custom' => 'second']);
+        $this->json('POST', '/api/echo')->assertJsonPath('x_custom', 'second');
+
+        // And the real-world case: an uppercase AUTHORIZATION default is
+        // overridden by actingAs()/withToken() ('Authorization'), so the
+        // valid token wins instead of a stale duplicate.
+        $this->flushHeaders();
+        $this->withHeaders(['AUTHORIZATION' => 'Bearer garbage']);
+        $this->actingAs('user-99');
+        $this->get('/api/secret')->assertOk();
+
+        // Inverse order: the garbage value stored last wins -> 401.
+        $this->flushHeaders();
+        $this->actingAs('user-99');
+        $this->withHeaders(['AUTHORIZATION' => 'Bearer garbage']);
+        $this->get('/api/secret')->assertStatus(401);
     }
 
     public function test_flush_headers_resets_stored_defaults(): void

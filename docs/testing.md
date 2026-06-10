@@ -40,9 +40,35 @@ Lifecycle — handled for you, per test:
 - `tearDown()` resets the kernel again and restores the env superglobals, so
   no framework or env state ever leaks between tests.
 
-> Tip: like the framework's own suite, point your test `.env` at in-memory
+When you override `setUp()` or `tearDown()`, **always call the parent** —
+`parent::setUp()` first, `parent::tearDown()` last:
+
+```php
+protected function setUp(): void
+{
+    parent::setUp();          // boots the kernel — required first
+
+    $this->seedDatabase();    // your per-test setup, kernel available
+}
+
+protected function tearDown(): void
+{
+    $this->cleanupFiles();    // your teardown, kernel still booted
+
+    parent::tearDown();       // resets the kernel — required last
+}
+```
+
+If you forget `parent::setUp()`, any request helper fails fast with
+`RuntimeException: Kernel not booted — did you forget parent::setUp() in your
+setUp() override?` instead of a confusing fatal deep inside the kernel.
+
+> Tips: like the framework's own suite, point your test `.env` at in-memory
 > drivers (`SESSION_DRIVER=array`, SQLite `:memory:`, array cache/queue) so
-> tests stay fast and hermetic.
+> tests stay fast and hermetic. Also set **`APP_DEBUG=true`** in the test
+> `.env`: boot/config errors then carry their real cause, and the kit's
+> testing mode guarantees they are **thrown** (reported by the runner as a
+> normal failure) rather than ending the process.
 
 ## Making requests
 
@@ -55,14 +81,37 @@ $this->delete('/users/7');
 
 // JSON body + Content-Type/Accept: application/json
 $this->json('POST', '/api/users', ['name' => 'Ion', 'tags' => ['a', 'b']]);
-
-// Low-level escape hatch (raw body, custom verb):
-$this->call('PURGE', '/cache/users', parameters: [], headers: [], content: null);
 ```
 
 Each helper builds an `Ions\Support\Request`, passes it through
 `Kernel::handle()` (the same pipeline production traffic takes) and returns a
-`TestResponse`.
+`TestResponse`. Header names are translated to the server keys
+`Request::create` expects (`X-Custom` → `HTTP_X_CUSTOM`, `Content-Type` →
+`CONTENT_TYPE`), so the request's header bag and server bag always agree.
+
+The low-level escape hatch mirrors Laravel's positional `call()` signature —
+use it for custom verbs, raw bodies, cookies or file uploads:
+
+```php
+public function call(
+    string $method,
+    string $uri,
+    array $parameters = [],   // query/form parameters
+    array $cookies = [],      // cookie name => value
+    array $files = [],        // file uploads (Symfony UploadedFile instances)
+    array $server = [],       // raw server keys: HTTP_X_CUSTOM, CONTENT_TYPE, …
+    ?string $content = null,  // raw request body
+): TestResponse;
+
+$this->call('PURGE', '/cache/users');
+$this->call('POST', '/upload', [], [], ['avatar' => $uploadedFile]);
+$this->call(
+    'POST',
+    '/api/import',
+    server: ['CONTENT_TYPE' => 'text/csv'],
+    content: "id,name\n1,Ion",
+);
+```
 
 ## Authentication: `actingAs()`
 
@@ -91,7 +140,9 @@ $this->flushHeaders();                         // reset (also happens per test)
 ```
 
 Stored defaults ride along on every subsequent request; per-call headers win
-on conflict.
+on conflict. Stored header names are lowercased, so setting the same header
+with different casing (`AUTHORIZATION` vs `Authorization`) overrides the
+previous value instead of storing a duplicate.
 
 ## `TestResponse` assertions
 
@@ -103,10 +154,19 @@ All assertions delegate to PHPUnit (failures report normally) and return
 | `assertStatus(int $code)` | Exact status code |
 | `assertOk()` / `assertCreated()` / `assertNoContent()` | 200 / 201 / 204 (204 also asserts an empty body) |
 | `assertRedirect(?string $to = null)` | Redirect response; optionally the exact `Location` |
-| `assertSee(string $value)` | Raw body contains the string |
+| `assertSee(string $value, bool $escape = true)` | Body contains the string — **HTML-escaped by default** (Laravel semantics: what a template renders for `$value` must appear); pass `escape: false` for a raw contains check |
 | `assertJson(array $subset)` | Decoded body contains the array as a **recursive subset**: every given key must exist with a matching value, nested arrays recurse, lists match by index, extra response keys are ignored |
 | `assertJsonPath(string $dotPath, mixed $expected)` | Value at a dot path (`data.user.id`, `tags.1`) is **identical** (`assertSame`) to `$expected` |
 | `assertHeader(string $name, ?string $value = null)` | Header presence, optionally its exact value |
+
+Failure messages from `assertStatus` (and the Ok/Created/NoContent shortcuts),
+`assertSee`, `assertJson` and `assertJsonPath` include the response body —
+pretty-printed when it is JSON, truncated to ~500 characters — so a failing
+CI run shows *what the app actually said* without re-running with dumps.
+
+Known wart: `assertJsonPath($path, null)` cannot distinguish a path whose
+value is `null` from a path that is **absent** — both decode to `null`. Use
+`assertJson(['key' => null])` when you need the key to actually exist.
 
 Accessors: `status()`, `content()`, `headers()`,
 `json(?string $key = null)` (full decoded body, or dot-path access; `null`

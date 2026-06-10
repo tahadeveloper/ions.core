@@ -74,7 +74,7 @@ class TestResponse
         Assert::assertSame(
             $expected,
             $this->status(),
-            sprintf('Expected response status code [%d] but received [%d].', $expected, $this->status())
+            $this->withBody(sprintf('Expected response status code [%d] but received [%d].', $expected, $this->status()))
         );
 
         return $this;
@@ -94,7 +94,7 @@ class TestResponse
     {
         $this->assertStatus(204);
 
-        Assert::assertSame('', $this->content(), 'Expected an empty response body for a 204 No Content response.');
+        Assert::assertSame('', $this->content(), $this->withBody('Expected an empty response body for a 204 No Content response.'));
 
         return $this;
     }
@@ -121,10 +121,22 @@ class TestResponse
     // Body assertions
     // -----------------------------------------------------------------------
 
-    /** Assert the raw response body contains the given string. */
-    public function assertSee(string $value): static
+    /**
+     * Assert the response body contains the given string.
+     *
+     * By default the expected value is HTML-escaped first (Laravel semantics:
+     * what a template renders for that string must appear in the body). Pass
+     * $escape: false to assert on the raw, unescaped string instead.
+     */
+    public function assertSee(string $value, bool $escape = true): static
     {
-        Assert::assertStringContainsString($value, $this->content(), 'Failed asserting that the response body contains the given string.');
+        $needle = $escape ? htmlspecialchars($value, ENT_QUOTES, 'UTF-8', false) : $value;
+
+        Assert::assertStringContainsString(
+            $needle,
+            $this->content(),
+            $this->withBody(sprintf('Failed asserting that the response body contains [%s].', $needle))
+        );
 
         return $this;
     }
@@ -141,7 +153,7 @@ class TestResponse
     {
         $actual = $this->json();
 
-        Assert::assertIsArray($actual, 'The response body is not valid JSON: ' . $this->content());
+        Assert::assertIsArray($actual, $this->withBody('The response body is not valid JSON.'));
 
         $this->assertJsonSubset($subset, $actual, '');
 
@@ -154,7 +166,7 @@ class TestResponse
         Assert::assertSame(
             $expected,
             $this->json($dotPath),
-            sprintf('Failed asserting that the response JSON at path [%s] matches the expected value.', $dotPath)
+            $this->withBody(sprintf('Failed asserting that the response JSON at path [%s] matches the expected value.', $dotPath))
         );
 
         return $this;
@@ -200,7 +212,7 @@ class TestResponse
             Assert::assertArrayHasKey(
                 $key,
                 $actual,
-                sprintf('Failed asserting that the response JSON has the key [%s].', $fullPath)
+                $this->withBody(sprintf('Failed asserting that the response JSON has the key [%s].', $fullPath))
             );
 
             $value = $actual[$key];
@@ -213,8 +225,32 @@ class TestResponse
             Assert::assertEquals(
                 $expected,
                 $value,
-                sprintf('Failed asserting that the response JSON at [%s] matches the expected value.', $fullPath)
+                $this->withBody(sprintf('Failed asserting that the response JSON at [%s] matches the expected value.', $fullPath))
             );
         }
+    }
+
+    /**
+     * Append a readable rendering of the response body to a failure message:
+     * pretty-printed when the body decodes as JSON, raw otherwise, truncated
+     * to ~500 characters either way.
+     */
+    private function withBody(string $message): string
+    {
+        $body = $this->content();
+
+        $decoded = json_decode($body, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $pretty = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            if ($pretty !== false) {
+                $body = $pretty;
+            }
+        }
+
+        if (mb_strlen($body) > 500) {
+            $body = mb_substr($body, 0, 500) . '… (truncated)';
+        }
+
+        return $message . "\nResponse body:\n" . ($body === '' ? '(empty)' : $body);
     }
 }

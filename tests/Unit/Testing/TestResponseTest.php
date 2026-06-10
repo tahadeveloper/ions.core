@@ -13,6 +13,18 @@ function jsonTestResponse(array $payload, int $status = 200): TestResponse
     return new TestResponse(new JsonResponse($payload, $status));
 }
 
+/** Run a failing assertion and return the AssertionFailedError message. */
+function captureAssertionFailure(callable $assertion): string
+{
+    try {
+        $assertion();
+    } catch (AssertionFailedError $e) {
+        return $e->getMessage();
+    }
+
+    throw new LogicException('Expected the assertion to fail, but it passed.');
+}
+
 // ---------------------------------------------------------------------------
 // Status assertions
 // ---------------------------------------------------------------------------
@@ -27,6 +39,35 @@ test('assertStatus fails with a PHPUnit assertion failure on mismatch', function
     $response = new TestResponse(new Response('hi', 500));
 
     expect(fn () => $response->assertStatus(200))->toThrow(AssertionFailedError::class);
+});
+
+test('assertStatus failure message includes the response body, pretty-printed when JSON', function () {
+    $response = jsonTestResponse(['error' => 'nope', 'code' => 'E42'], 500);
+
+    $message = captureAssertionFailure(fn () => $response->assertStatus(200));
+
+    expect($message)->toContain('Expected response status code [200] but received [500]')
+        ->and($message)->toContain('Response body:')
+        // Pretty-printed JSON (multi-line, indented), not the compact wire format.
+        ->and($message)->toContain("\"error\": \"nope\"")
+        ->and($message)->toContain("\"code\": \"E42\"");
+});
+
+test('assertStatus failure message includes a non-JSON body verbatim', function () {
+    $response = new TestResponse(new Response('<h1>Server exploded</h1>', 500));
+
+    $message = captureAssertionFailure(fn () => $response->assertStatus(200));
+
+    expect($message)->toContain('<h1>Server exploded</h1>');
+});
+
+test('failure-message bodies are truncated to ~500 characters', function () {
+    $response = new TestResponse(new Response(str_repeat('x', 2000), 500));
+
+    $message = captureAssertionFailure(fn () => $response->assertStatus(200));
+
+    expect($message)->toContain(str_repeat('x', 500) . '… (truncated)')
+        ->and($message)->not->toContain(str_repeat('x', 501));
 });
 
 test('assertOk / assertCreated / assertNoContent map to 200 / 201 / 204', function () {
@@ -79,6 +120,30 @@ test('assertSee checks the raw body', function () {
     $response->assertSee('Hello world');
 
     expect(fn () => $response->assertSee('absent'))->toThrow(AssertionFailedError::class);
+});
+
+test('assertSee escapes the expected value by default (Laravel semantics)', function () {
+    // The body contains the HTML-ESCAPED rendering of "Tom & Jerry".
+    $escaped = new TestResponse(new Response('<p>Tom &amp; Jerry</p>'));
+    $escaped->assertSee('Tom & Jerry');
+
+    // The raw (unescaped) string is NOT in the body, so escape:false fails…
+    expect(fn () => $escaped->assertSee('Tom & Jerry', false))
+        ->toThrow(AssertionFailedError::class);
+
+    // …while a body with the RAW string needs escape:false to match.
+    $raw = new TestResponse(new Response('<b>5 < 6</b>'));
+    $raw->assertSee('5 < 6', false);
+    expect(fn () => $raw->assertSee('5 < 6'))->toThrow(AssertionFailedError::class);
+});
+
+test('assertSee failure message includes the response body', function () {
+    $response = new TestResponse(new Response('<h1>Hello world</h1>'));
+
+    $message = captureAssertionFailure(fn () => $response->assertSee('absent'));
+
+    expect($message)->toContain('Response body:')
+        ->and($message)->toContain('<h1>Hello world</h1>');
 });
 
 // ---------------------------------------------------------------------------
@@ -134,6 +199,26 @@ test('assertJson fails when the body is not valid JSON', function () {
     expect(fn () => $response->assertJson(['any' => 'thing']))->toThrow(AssertionFailedError::class);
 });
 
+test('assertJson failure messages include the response body', function () {
+    $response = jsonTestResponse(['status' => 'error', 'detail' => 'bad input']);
+
+    // Value mismatch.
+    $mismatch = captureAssertionFailure(fn () => $response->assertJson(['status' => 'success']));
+    expect($mismatch)->toContain('Response body:')
+        ->and($mismatch)->toContain('"detail": "bad input"');
+
+    // Missing key.
+    $missing = captureAssertionFailure(fn () => $response->assertJson(['absent' => 1]));
+    expect($missing)->toContain('Response body:')
+        ->and($missing)->toContain('"status": "error"');
+
+    // Not JSON at all.
+    $notJson = captureAssertionFailure(
+        fn () => (new TestResponse(new Response('<html>boom</html>')))->assertJson(['a' => 1])
+    );
+    expect($notJson)->toContain('<html>boom</html>');
+});
+
 // ---------------------------------------------------------------------------
 // JSON path
 // ---------------------------------------------------------------------------
@@ -152,6 +237,16 @@ test('assertJsonPath is strict about types', function () {
 test('assertJsonPath fails on a missing path', function () {
     expect(fn () => jsonTestResponse(['id' => 7])->assertJsonPath('nope.deep', 1))
         ->toThrow(AssertionFailedError::class);
+});
+
+test('assertJsonPath failure message includes the response body', function () {
+    $message = captureAssertionFailure(
+        fn () => jsonTestResponse(['data' => ['id' => 7]])->assertJsonPath('data.id', 8)
+    );
+
+    expect($message)->toContain('path [data.id]')
+        ->and($message)->toContain('Response body:')
+        ->and($message)->toContain('"id": 7');
 });
 
 // ---------------------------------------------------------------------------

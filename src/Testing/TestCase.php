@@ -41,8 +41,11 @@ abstract class TestCase extends BaseTestCase
      */
     protected string $basePath = '';
 
-    /** @var array<string, string> Headers sent with every subsequent request. */
+    /** @var array<string, string> Headers (lowercased names) sent with every subsequent request. */
     private array $defaultHeaders = [];
+
+    /** Guards call(): true only between a completed setUp() and tearDown(). */
+    private bool $booted = false;
 
     /** @var array<array-key, mixed>|null */
     private ?array $envSnapshot = null;
@@ -78,10 +81,14 @@ abstract class TestCase extends BaseTestCase
 
         Kernel::resetForTesting();
         Kernel::boot($basePath);
+
+        $this->booted = true;
     }
 
     protected function tearDown(): void
     {
+        $this->booted = false;
+
         Kernel::resetForTesting();
         $this->defaultHeaders = [];
 
@@ -104,7 +111,7 @@ abstract class TestCase extends BaseTestCase
     /** @param array<string, string> $headers */
     public function get(string $uri, array $headers = []): TestResponse
     {
-        return $this->call('GET', $uri, [], $headers);
+        return $this->call('GET', $uri, server: $this->transformHeadersToServerVars($headers));
     }
 
     /**
@@ -113,7 +120,7 @@ abstract class TestCase extends BaseTestCase
      */
     public function post(string $uri, array $data = [], array $headers = []): TestResponse
     {
-        return $this->call('POST', $uri, $data, $headers);
+        return $this->call('POST', $uri, $data, server: $this->transformHeadersToServerVars($headers));
     }
 
     /**
@@ -122,7 +129,7 @@ abstract class TestCase extends BaseTestCase
      */
     public function put(string $uri, array $data = [], array $headers = []): TestResponse
     {
-        return $this->call('PUT', $uri, $data, $headers);
+        return $this->call('PUT', $uri, $data, server: $this->transformHeadersToServerVars($headers));
     }
 
     /**
@@ -131,7 +138,7 @@ abstract class TestCase extends BaseTestCase
      */
     public function patch(string $uri, array $data = [], array $headers = []): TestResponse
     {
-        return $this->call('PATCH', $uri, $data, $headers);
+        return $this->call('PATCH', $uri, $data, server: $this->transformHeadersToServerVars($headers));
     }
 
     /**
@@ -140,12 +147,14 @@ abstract class TestCase extends BaseTestCase
      */
     public function delete(string $uri, array $data = [], array $headers = []): TestResponse
     {
-        return $this->call('DELETE', $uri, $data, $headers);
+        return $this->call('DELETE', $uri, $data, server: $this->transformHeadersToServerVars($headers));
     }
 
     /**
      * Send a JSON request: the data is encoded as the raw body and the
-     * Content-Type / Accept headers are set to application/json.
+     * Content-Type / Accept headers are passed as CONTENT_TYPE / HTTP_ACCEPT
+     * server keys into Request::create, so the request's server bag and
+     * header bag stay consistent.
      *
      * @param array<string, mixed>  $data
      * @param array<string, string> $headers
@@ -153,30 +162,63 @@ abstract class TestCase extends BaseTestCase
     public function json(string $method, string $uri, array $data = [], array $headers = []): TestResponse
     {
         $headers = array_merge([
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-        ], $headers);
+            'content-type' => 'application/json',
+            'accept' => 'application/json',
+        ], array_change_key_case($headers, CASE_LOWER));
 
-        return $this->call($method, $uri, [], $headers, json_encode($data, JSON_THROW_ON_ERROR));
+        return $this->call(
+            $method,
+            $uri,
+            server: $this->transformHeadersToServerVars($headers),
+            content: json_encode($data, JSON_THROW_ON_ERROR)
+        );
     }
 
     /**
      * Low-level request builder: every verb helper funnels through here.
-     * Stored default headers (withHeaders/withToken/actingAs) merge into the
-     * request; per-call $headers win on conflict.
+     * Mirrors Laravel's positional signature (method, uri, parameters,
+     * cookies, files, server, content). Stored default headers
+     * (withHeaders/withToken/actingAs) are injected as HTTP_X / CONTENT_X
+     * server keys; explicit $server entries win on conflict.
      *
      * @param array<string, mixed>  $parameters
-     * @param array<string, string> $headers
+     * @param array<string, string> $cookies
+     * @param array<string, mixed>  $files
+     * @param array<string, mixed>  $server
      */
-    public function call(string $method, string $uri, array $parameters = [], array $headers = [], ?string $content = null): TestResponse
+    public function call(string $method, string $uri, array $parameters = [], array $cookies = [], array $files = [], array $server = [], ?string $content = null): TestResponse
     {
-        $request = Request::create($uri, strtoupper($method), $parameters, [], [], [], $content);
-
-        foreach (array_merge($this->defaultHeaders, $headers) as $name => $value) {
-            $request->headers->set($name, $value);
+        if (!$this->booted) {
+            throw new RuntimeException('Kernel not booted — did you forget parent::setUp() in your setUp() override?');
         }
 
+        $server = array_merge($this->transformHeadersToServerVars($this->defaultHeaders), $server);
+
+        $request = Request::create($uri, strtoupper($method), $parameters, $cookies, $files, $server, $content);
+
         return new TestResponse(Kernel::handle($request));
+    }
+
+    /**
+     * Translate HTTP header names into the server keys Request::create
+     * expects: uppercased, dashes to underscores, HTTP_-prefixed except for
+     * the CGI content headers (CONTENT_TYPE / CONTENT_LENGTH / CONTENT_MD5).
+     *
+     * @param array<string, string> $headers
+     * @return array<string, string>
+     */
+    private function transformHeadersToServerVars(array $headers): array
+    {
+        $server = [];
+        foreach ($headers as $name => $value) {
+            $key = strtr(strtoupper($name), '-', '_');
+            if (!in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH', 'CONTENT_MD5'], true) && !str_starts_with($key, 'HTTP_')) {
+                $key = 'HTTP_' . $key;
+            }
+            $server[$key] = $value;
+        }
+
+        return $server;
     }
 
     // -----------------------------------------------------------------------
@@ -203,13 +245,18 @@ abstract class TestCase extends BaseTestCase
 
     /**
      * Merge headers into the stored defaults sent with every subsequent
-     * request (until flushHeaders() or the end of the test).
+     * request (until flushHeaders() or the end of the test). Header names
+     * are lowercased on storage, so the same header set with different
+     * casing (e.g. AUTHORIZATION vs Authorization) overrides instead of
+     * duplicating.
      *
      * @param array<string, string> $headers
      */
     public function withHeaders(array $headers): static
     {
-        $this->defaultHeaders = array_merge($this->defaultHeaders, $headers);
+        foreach ($headers as $name => $value) {
+            $this->defaultHeaders[strtolower($name)] = $value;
+        }
 
         return $this;
     }
