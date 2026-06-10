@@ -51,6 +51,7 @@ class Kernel
         \SuperCommand::class,
         \ScheduleRunCommand::class,
         \QueueWorkCommand::class,
+        \OpenApiCommand::class,
     ];
 
     private function __construct(ConsoleApplication $application)

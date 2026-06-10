@@ -36,3 +36,8 @@ Route::post('/api/auth/password/reset', fn (Request $r) => (new AuthController()
 Route::get('/api/auth/login-history', function (Request $request) {
     return new Response('history for ' . $request->attributes->get('auth_user_id'));
 });
+
+// Protected route with a path placeholder — exercises OpenAPI path params.
+Route::get('/api/items/{id}', function (Request $request) {
+    return new Response('item ' . $request->attributes->get('id'));
+});

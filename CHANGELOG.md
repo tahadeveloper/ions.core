@@ -8,6 +8,14 @@ For migration instructions see [UPGRADE-3.0.md](UPGRADE-3.0.md).
 
 ## [Unreleased]
 
+### Added
+
+- **`Ions\Http\Resource`** — abstract, `Responsable` API resource that shapes a single model/array/`stdClass` into a typed JSON payload; `make()`, `collection()`, configurable `data` wrapping (`withoutWrapping()`/`wrappedBy()`).
+- **`Ions\Http\ResourceCollection`** — maps a collection/array/`LengthAwarePaginator` through a Resource class; paginator-aware (`meta` + `links`).
+- **`Ions\Http\FormRequest`** — typed, self-validating request object with `rules()`, `authorize()` and `validated()`; `MyRequest::validate($request)` static helper.
+- **ValidationException → 422 mapping** in `Ions\Http\ExceptionHandler` — Illuminate `ValidationException` renders as HTTP 422 with `{message, errors}` for API requests; failed `authorize()` renders as 403.
+- **`openapi:generate` command** (`OpenApiCommand`) — exports the routes (php/yaml + attribute routes) as an OpenAPI 3.0 spec with path params and bearer-auth security flags. Writes `--output` (default `openapi.json`) or `--stdout`.
+
 ## [3.0.0] - 2026-06-10
 
 ### Added
