@@ -64,6 +64,8 @@ These ship with the framework and are always registered:
 | `schema:dump` | `DumpCommand` | Dump a database schema. |
 | `install:super` | `SuperCommand` | Install the bundled super-admin. |
 | `schedule:run` | `ScheduleRunCommand` | Run the due scheduled tasks. |
+| `queue:work` | `QueueWorkCommand` | Process jobs from the queue. |
+| `openapi:generate` | `OpenApiCommand` | Export the routes as an OpenAPI 3.0 spec (see [resources.md](resources.md)). |
 
 The framework commands live in `src/commands` and are autoloaded via the
 Composer `classmap` entry (most are in the global namespace). The console Kernel
