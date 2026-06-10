@@ -137,6 +137,22 @@ test('callable state receives the current attributes and returns overrides', fun
     expect($widget->name)->toBe('Widget Pro');
 });
 
+test('an array state that satisfies is_callable is treated as attributes, not invoked', function () {
+    // [Str::class, 'random'] passes is_callable(), but only \Closure states
+    // are invoked — a plain array must always merge as attributes.
+    expect(is_callable([\Ions\Support\Str::class, 'random']))->toBeTrue();
+
+    $widget = WidgetFactory::new()
+        ->state([\Ions\Support\Str::class, 'random'])
+        ->make();
+
+    $attributes = $widget->getAttributes();
+
+    expect($attributes[0])->toBe(\Ions\Support\Str::class)
+        ->and($attributes[1])->toBe('random')
+        ->and($widget->name)->toBe('Widget'); // definition untouched
+});
+
 test('states stack in order, later states seeing earlier results', function () {
     $widget = WidgetFactory::new()
         ->state(['price' => 200])

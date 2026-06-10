@@ -52,7 +52,7 @@ abstract class Factory
     /**
      * Stacked state transformations applied over the definition, in order.
      *
-     * @var list<array<string, mixed>|callable(array<string, mixed>): array<string, mixed>>
+     * @var list<array<string, mixed>|Closure(array<string, mixed>): array<string, mixed>>
      */
     protected array $states = [];
 
@@ -98,12 +98,15 @@ abstract class Factory
     /**
      * Return a clone with an additional state layered on top.
      *
-     * Array states are merged over the current attributes; callable states
+     * Array states are merged over the current attributes; Closure states
      * receive the current attributes array and return the overrides to merge.
+     * Only \Closure instances are invoked — a plain array is always treated
+     * as attributes, even when it happens to satisfy is_callable() (e.g.
+     * ['Foo', 'method']).
      *
-     * @param array<string, mixed>|callable(array<string, mixed>): array<string, mixed> $state
+     * @param array<string, mixed>|Closure(array<string, mixed>): array<string, mixed> $state
      */
-    public function state(array|callable $state): static
+    public function state(array|Closure $state): static
     {
         $clone = clone $this;
         $clone->states[] = $state;
@@ -189,7 +192,7 @@ abstract class Factory
         $attributes = $this->definition();
 
         foreach ($this->states as $state) {
-            $patch = is_callable($state) ? $state($attributes) : $state;
+            $patch = $state instanceof Closure ? $state($attributes) : $state;
             $attributes = array_merge($attributes, $patch);
         }
 

@@ -44,7 +44,12 @@ class WidgetFactory extends Factory
 
 Generate one with `php bin/ions make:factory WidgetFactory` (writes to
 `{src|app}/Factories/`, inferring the model `App\Widget` from the name —
-override with `--model=App\Models\Widget`).
+override with `--model=App\Models\Widget`). **Caveat:** the generated class
+always lives in `App\Factories\`, but `HasIonsFactory` resolves
+`{ModelNamespace}\Factories\{Model}Factory` — so for a model outside the
+`App\` namespace (e.g. `App\Models\Widget`), either add
+`protected static string $factory = \App\Factories\WidgetFactory::class;` to
+the model or move the factory to `{ModelNamespace}\Factories\`.
 
 Attributes are written with `forceFill()`, so `$fillable`/`$guarded` does not
 restrict factory attributes.
@@ -59,15 +64,23 @@ $widgets = WidgetFactory::new()->count(3)->create();  // 3 persisted rows
 ```
 
 `make()`/`create()` return a single model when count is 1 (the default) and an
-`Illuminate\Database\Eloquent\Collection` otherwise.
+`Illuminate\Database\Eloquent\Collection` otherwise. Note that the return type
+keys off the runtime **value** of the count — `count($n)` with `$n === 1`
+returns a bare model, not a 1-element collection — so callers with a dynamic
+count should normalize the result (e.g. `Collection::wrap(...)`).
 
 ### States and overrides
 
 `state()` layers overrides on top of the definition and is **immutable** —
 each call returns a new factory, so partially-configured factories can be
-shared safely. Array states merge over the current attributes; callable states
-receive the current attributes and return the overrides to merge. States stack
-in order, and attributes passed directly to `make()`/`create()` win over
+shared safely. Array states merge over the current attributes; closure states
+(`\Closure` only — a plain array is always treated as attributes, even one
+that satisfies `is_callable()` like `['Foo', 'method']`) receive the current
+attributes and return the overrides to merge. The attributes a closure state
+receives are pre-evaluation: defaults declared as closures (like `sku` above)
+are still raw `Closure` values at that point, because closure evaluation
+happens only after all states and overrides are merged. States stack in
+order, and attributes passed directly to `make()`/`create()` win over
 everything:
 
 ```php
@@ -141,7 +154,7 @@ Factories work anywhere the database is booted, including seeders:
 ```php
 class WidgetSeeder
 {
-    public function run(): void
+    public function seed(): void
     {
         Widget::factory()->count(50)->create();
         Widget::factory()->state(['featured' => true])->count(5)->create();

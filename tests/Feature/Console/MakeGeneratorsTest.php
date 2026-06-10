@@ -504,6 +504,37 @@ test('make:factory --model overrides the inferred model FQCN', function () {
     expectLintOk($generated);
 });
 
+test('make:factory --model outside App\\ prints a HasIonsFactory resolution note', function () {
+    $app = makeGeneratorsApp();
+
+    $tester = new CommandTester($app->find('make:factory'));
+    $tester->execute(['name' => 'WidgetFactory', '--model' => 'App\\Models\\Widget']);
+
+    $display = $tester->getDisplay();
+
+    expect($tester->getStatusCode())->toBe(0)
+        ->and($display)->toContain('Factory created successfully')
+        ->and($display)->toContain('HasIonsFactory resolves App\\Models\\Factories\\WidgetFactory')
+        ->and($display)->toContain('protected static string $factory = \\App\\Factories\\WidgetFactory::class;')
+        ->and($display)->toContain('move the factory to App\\Models\\Factories\\');
+});
+
+test('make:factory prints no resolution note for App\\ models', function () {
+    $app = makeGeneratorsApp();
+
+    $inferred = new CommandTester($app->find('make:factory'));
+    $inferred->execute(['name' => 'UserFactory']);
+
+    expect($inferred->getStatusCode())->toBe(0)
+        ->and($inferred->getDisplay())->not->toContain('HasIonsFactory resolves');
+
+    $explicit = new CommandTester($app->find('make:factory'));
+    $explicit->execute(['name' => 'GizmoFactory', '--model' => 'App\\Gizmo']);
+
+    expect($explicit->getStatusCode())->toBe(0)
+        ->and($explicit->getDisplay())->not->toContain('HasIonsFactory resolves');
+});
+
 test('make:factory rejects an invalid --model value', function () {
     $app = makeGeneratorsApp();
 

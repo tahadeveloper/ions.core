@@ -50,4 +50,53 @@ class MakeFactoryCommand extends GeneratorCommand
             '{{ model }}' => ltrim($model, '\\'),
         ];
     }
+
+    public function handle(): int
+    {
+        $result = $this->generate();
+
+        if ($result === self::SUCCESS) {
+            $this->noteFactoryNamespaceMismatch();
+        }
+
+        return $result;
+    }
+
+    /**
+     * The factory is always generated in App\Factories, but HasIonsFactory
+     * resolves {ModelNamespace}\Factories\{Model}Factory by convention — for
+     * a --model outside the App\ namespace the pair will not resolve, so tell
+     * the user how to wire it.
+     */
+    private function noteFactoryNamespaceMismatch(): void
+    {
+        $model = $this->option('model');
+
+        if (!is_string($model) || $model === '') {
+            return; // inferred App\{Name}: the convention resolves App\Factories\{Name}Factory.
+        }
+
+        $model = ltrim($model, '\\');
+        $separator = strrpos($model, '\\');
+        $namespace = $separator === false ? '' : substr($model, 0, $separator);
+
+        if ($namespace === 'App') {
+            return;
+        }
+
+        $name = $this->argument('name');
+        $name = is_string($name) ? $name : '';
+        $shortModel = $separator === false ? $model : substr($model, $separator + 1);
+        $factoryNamespace = ($namespace === '' ? '' : $namespace . '\\') . 'Factories';
+
+        $this->info(sprintf(
+            'Note: HasIonsFactory resolves %s\\%sFactory for this model, not the generated App\\Factories\\%s. ' .
+            'Either add `protected static string $factory = \\App\\Factories\\%s::class;` to the model, or move the factory to %s\\.',
+            $factoryNamespace,
+            $shortModel,
+            $name,
+            $name,
+            $factoryNamespace
+        ));
+    }
 }
