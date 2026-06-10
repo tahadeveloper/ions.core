@@ -6,7 +6,7 @@ use Ions\Console\GeneratorCommand;
 class MakeFactoryCommand extends GeneratorCommand
 {
     protected $signature = 'make:factory {name} {--model= : Fully-qualified model class (default: App\{Name} with the Factory suffix stripped)} {--force : Overwrite the file if it already exists}';
-    protected $description = 'Create a new model factory in {src|app}/Factories (resolved by HasIonsFactory for App\\ models).';
+    protected $description = 'Create a new model factory in {app|src}/Factories (resolved by HasIonsFactory for App\\ models).';
 
     protected function type(): string
     {

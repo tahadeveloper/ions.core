@@ -10,7 +10,7 @@ use Ions\Foundation\Discovery;
 
 /**
  * discover:cache — run the live provider discovery (framework defaults +
- * composer extra.ions.providers + host {src|app}/Providers scan) once and
+ * composer extra.ions.providers + host {app|src}/Providers scan) once and
  * freeze the merged list into var/cache/providers.php. When APP_DEBUG is off
  * and the file exists, boot loads it with a single require and skips every
  * scan (the Laravel packages.php pattern).

@@ -21,7 +21,7 @@ use Throwable;
  *   2. Installed composer packages declaring `extra.ions.providers` (an array
  *      of ServiceProvider FQCNs) in their composer.json — read once per
  *      process from vendor/composer/installed.json and memoized.
- *   3. The host application's `{src|app}/Providers/*.php` classes — a single
+ *   3. The host application's `{app|src}/Providers/*.php` classes — a single
  *      is_dir()+glob() per boot (cheap, intentionally not cached so dev edits
  *      apply immediately), mirroring the Console Kernel's command discovery.
  *
@@ -170,7 +170,7 @@ final class Discovery extends Singleton
     }
 
     /**
-     * Scan the host application's {src|app}/Providers directory (preserving
+     * Scan the host application's {app|src}/Providers directory (preserving
      * the src/ → app/ fallback via Path::src()) for concrete ServiceProvider
      * subclasses. Classes are matched by namespace declaration — the same
      * approach as the Console Kernel's host-command discovery — and files

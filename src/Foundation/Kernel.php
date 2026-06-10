@@ -349,7 +349,7 @@ class Kernel extends Singleton
      *                                 otherwise live Discovery::providers():
      *                                 framework defaults + composer
      *                                 extra.ions.providers + host
-     *                                 {src|app}/Providers scan.
+     *                                 {app|src}/Providers scan.
      *   - 'app.discovery' => false → pure defaultProviders().
      *
      * Debug bypasses the providers cache exactly like the route/config caches.

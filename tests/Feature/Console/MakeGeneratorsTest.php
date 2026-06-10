@@ -558,3 +558,48 @@ test('make:test refuses to overwrite an existing file without --force', function
     expect($refused->getStatusCode())->toBe(1)
         ->and($refused->getDisplay())->toContain('already exists');
 });
+
+// ---------------------------------------------------------------------------
+// app/ layout (4.2 convention) — generators follow Path::src() automatically
+// ---------------------------------------------------------------------------
+
+test('make:job emits into app/ on an app/-only host layout', function () {
+    // Minimal throwaway host: the fixture's config + .env, but an app/ dir
+    // instead of src/. Generators resolve through Path::src(), which since
+    // 4.2 checks app/ first — no generator-side changes needed.
+    // Setup/teardown use native filesystem calls: the File facade has no root
+    // until Kernel::boot() runs inside the try block.
+    $fixture = realpath(__DIR__ . '/../../fixtures/app');
+    $host = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'ions-make-applayout-' . bin2hex(random_bytes(4));
+
+    foreach (['app', 'routes', 'var/cache', 'var/logs', 'var/templates', 'config'] as $dir) {
+        mkdir($host . '/' . $dir, 0777, true);
+    }
+    foreach (glob($fixture . '/config/*.php') ?: [] as $file) {
+        copy($file, $host . '/config/' . basename($file));
+    }
+    copy($fixture . '/.env', $host . '/.env');
+
+    $rm = static function (string $dir) use (&$rm): void {
+        foreach (new FilesystemIterator($dir, FilesystemIterator::SKIP_DOTS) as $item) {
+            $item->isDir() && !$item->isLink() ? $rm($item->getPathname()) : unlink($item->getPathname());
+        }
+        rmdir($dir);
+    };
+
+    try {
+        \Ions\Foundation\Kernel::resetForTesting();
+        $app = Kernel::boot($host)->getApplication();
+
+        $tester = new CommandTester($app->find('make:job'));
+        $tester->execute(['name' => 'PingJob']);
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and(is_file($host . '/app/Jobs/PingJob.php'))->toBeTrue()
+            ->and(is_file($host . '/src/Jobs/PingJob.php'))->toBeFalse();
+
+        expectLintOk($host . '/app/Jobs/PingJob.php');
+    } finally {
+        $rm($host);
+    }
+});

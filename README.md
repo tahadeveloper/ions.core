@@ -91,7 +91,7 @@ your-app/
 ├── routes/
 │   ├── web.php            # Web routes
 │   └── api.php            # API routes
-├── src/                   # Application source (or app/)
+├── app/                   # Application source (or legacy src/)
 │   └── Http/              # Controllers (web)
 ├── views/
 │   └── default/           # Twig templates
@@ -102,7 +102,7 @@ your-app/
 
 The framework resolves application paths relative to the host-app root (five directory levels above `vendor/`). Use
 `Ions\Bundles\Path` helpers (`Path::src()`, `Path::config()`, `Path::views()`, etc.) to reference locations portably.
-Both `src/` and `app/` directory names are supported.
+Both directory names are supported: `app/` is checked first (the convention since 4.2), with `src/` as the preserved legacy fallback.
 
 ---
 
@@ -110,7 +110,7 @@ Both `src/` and `app/` directory names are supported.
 
 - **PSR-11 container** (`Ions\Container\Container`) with `bind`, `singleton`, `make`
 - **Service providers** (`Ions\Container\ServiceProvider`) with two-pass bootstrap
-- **Provider auto-discovery** — zero-config registration from `{src|app}/Providers/` and composer packages declaring
+- **Provider auto-discovery** — zero-config registration from `{app|src}/Providers/` and composer packages declaring
   `extra.ions.providers`; escape hatches `app.providers` / `app.discovery` / `app.dont_discover`
 - **Production caches** — `ions optimize` (`route:cache` + `config:cache` + `discover:cache`), `optimize:clear`,
   `preload:generate`; all bypassed while `APP_DEBUG` is on

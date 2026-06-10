@@ -40,7 +40,7 @@ skeleton/
 ├── routes/
 │   ├── web.php            # '/' -> App\Http\Controllers\HomeController::index
 │   └── api.php            # '/api/ping' sample + commented JWT auth surface
-├── src/                   # App\ (PSR-4)
+├── app/                   # App\ (PSR-4)
 │   ├── Booting.php        # Optional Kernel::boot() hook
 │   ├── Http/Controllers/  # Web controllers (extend Ions\Foundation\BaseController)
 │   └── Commands/          # Auto-discovered console commands

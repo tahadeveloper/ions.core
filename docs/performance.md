@@ -16,7 +16,7 @@ Per **process** (since 4.1; previously per *request*):
 - Every `config/*.php` file is included at boot.
 - **Provider discovery** (when `app.providers` is not set and discovery is
   on): boot parses `vendor/composer/installed.json` for
-  `extra.ions.providers`, globs the host `{src|app}/Providers/` directory and
+  `extra.ions.providers`, globs the host `{app|src}/Providers/` directory and
   regex-reads each file for its class name — a few milliseconds per boot,
   which in classic FPM means per request. `ions discover:cache` freezes the
   merged list into `var/cache/providers.php`; boot then loads it with one

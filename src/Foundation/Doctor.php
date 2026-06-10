@@ -127,6 +127,7 @@ final class Doctor extends Singleton
             static fn (): array => [self::checkEnvLoaded()],
             static fn (): array => [self::checkAppKey()],
             static fn (): array => [self::checkAppUrl()],
+            static fn (): array => self::checkDualAppDirs(),
             static fn (): array => self::checkVarWritable(),
             static fn (): array => [self::checkRouteCache()],
             static fn (): array => [self::checkConfigCache()],
@@ -222,6 +223,29 @@ final class Doctor extends Singleton
         }
 
         return self::result('app_url', 'app.app_url', self::OK, sprintf('app.app_url set (%s).', $url));
+    }
+
+    // ---------------------------------------------------------- host layout
+
+    /**
+     * Since 4.2, Path resolves {root}/app before {root}/src — a host carrying
+     * BOTH directories silently ignores src/. Conditional check: yields no
+     * row on single-layout hosts (nothing to say there).
+     *
+     * @return list<array{id: string, label: string, status: string, message: string}>
+     */
+    private static function checkDualAppDirs(): array
+    {
+        if (!is_dir(Path::root('app')) || !is_dir(Path::root('src'))) {
+            return [];
+        }
+
+        return [self::result(
+            'dual_app_dirs',
+            'App layout',
+            self::WARN,
+            'Both app/ and src/ exist at the host root — app/ wins since 4.2, so src/ is ignored by Path resolution; consolidate your application code into app/ and remove the unused directory.'
+        )];
     }
 
     // ---------------------------------------------------------- var/ layout

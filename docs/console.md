@@ -115,17 +115,17 @@ trailing `Command` stripped from the class name).
 ## Class generators — `make:*`
 
 Six additional generators scaffold host application classes. Each one writes
-into the host `{src|app}/` tree (honouring the `src/` → `app/` layout fallback),
+into the host `{app|src}/` tree (`app/` first since 4.2, `src/` layout fallback),
 refuses to overwrite an existing file (exit code 1) unless `--force` is passed,
 and fills a stub from `src/commands/stubs/`:
 
 ```bash
-php bin/ions make:resource UserResource                # {src|app}/Http/Resources — extends Ions\Http\Resource
+php bin/ions make:resource UserResource                # {app|src}/Http/Resources — extends Ions\Http\Resource
 php bin/ions make:resource UserCollection --collection #   … extends Ions\Http\ResourceCollection (wired to UserResource)
-php bin/ions make:request StoreUserRequest             # {src|app}/Http/Requests — extends Ions\Http\FormRequest
-php bin/ions make:job SendWelcomeJob                   # {src|app}/Jobs — extends Ions\Queue\Job
-php bin/ions make:event UserRegistered                 # {src|app}/Events — plain payload class
-php bin/ions make:listener SendWelcomeEmail            # {src|app}/Listeners — handle(object $event)
+php bin/ions make:request StoreUserRequest             # {app|src}/Http/Requests — extends Ions\Http\FormRequest
+php bin/ions make:job SendWelcomeJob                   # {app|src}/Jobs — extends Ions\Queue\Job
+php bin/ions make:event UserRegistered                 # {app|src}/Events — plain payload class
+php bin/ions make:listener SendWelcomeEmail            # {app|src}/Listeners — handle(object $event)
 php bin/ions make:listener SendWelcomeEmail --event=UserRegistered   # type-hints App\Events\UserRegistered
 php bin/ions make:test PingTest                        # host tests/ — extends Ions\Testing\TestCase ($basePath wired)
 php bin/ions make:test MathTest --unit                 # host tests/ — plain PHPUnit\Framework\TestCase
@@ -156,7 +156,7 @@ The Kernel registers host commands two ways (both can be combined):
    ```
 
 2. **Auto-discovery of `app/Commands`.** Every `*.php` class found in the host
-   `{src|app}/Commands` directory is registered automatically (resolved by its
+   `{app|src}/Commands` directory is registered automatically (resolved by its
    declared namespace, so it works under either the `src/` or `app/` layout).
    New classes scaffolded by `make:command` are therefore picked up without any
    further wiring.
@@ -182,6 +182,7 @@ php vendor/ionzile/core/bin/ions doctor --json   # structured JSON for CI
 | `env_loaded` | A `.env` file exists at the host root. | WARN (real env vars are fine) |
 | `app_key` | `APP_KEY` is present and ≥ 32 bytes (the `Kernel::buildJwt()` minimum). | **FAIL** |
 | `app_url` | `config('app.app_url')` is set — `signedRoute()`/`url()` links and the `appUrl` view global break without it. | WARN |
+| `dual_app_dirs` | The host does not carry BOTH `app/` and `src/` — `app/` wins since 4.2, so a lingering `src/` is silently ignored; consolidate into `app/`. Row only appears on dual-layout hosts. | WARN |
 | `writable_var` / `writable_cache` / `writable_logs` / `writable_templates` | `var/`, `var/cache`, `var/logs`, `var/templates` exist and are writable. | **FAIL** (unwritable), WARN (missing but creatable) |
 | `route_cache` / `config_cache` / `providers_cache` | The production caches (`var/cache/routes/`, `config.php`, `providers.php`) are built. | INFO — run `ions optimize` |
 | `db` | When the `db` engine is configured, a trivial `select 1` succeeds. | **FAIL**; SKIP when no engine is configured |

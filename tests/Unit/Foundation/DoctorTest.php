@@ -344,6 +344,37 @@ test('an explicit empty app.providers array is a warning (zero providers would r
         ->and($check['message'])->toContain('ZERO providers');
 });
 
+// ----------------------------------------------------------- dual app dirs
+
+test('both app/ and src/ at the host root is a warning (app/ wins since 4.2)', function () {
+    bootFixtureKernel();
+
+    $base = sys_get_temp_dir() . '/ions-doctor-dual-' . bin2hex(random_bytes(4));
+    mkdir($base . '/app', 0777, true);
+    mkdir($base . '/src', 0777, true);
+
+    try {
+        \Ions\Bundles\Path::setBasePath($base);
+
+        $check = doctorCheck(Doctor::run(), 'dual_app_dirs');
+
+        expect($check['status'])->toBe(Doctor::WARN)
+            ->and($check['message'])->toContain('app/')
+            ->and($check['message'])->toContain('consolidate');
+    } finally {
+        \Ions\Bundles\Path::resetBasePath();
+        @rmdir($base . '/app');
+        @rmdir($base . '/src');
+        @rmdir($base);
+    }
+});
+
+test('dual_app_dirs is absent when the host has a single layout dir', function () {
+    bootFixtureKernel(); // the fixture host is src/-only
+
+    expect(array_column(Doctor::run(), 'id'))->not->toContain('dual_app_dirs');
+});
+
 // ----------------------------------------------------------------- summary
 
 test('summary() tallies results by status', function () {

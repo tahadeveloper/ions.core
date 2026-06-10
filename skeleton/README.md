@@ -46,12 +46,12 @@ Open <http://localhost:8000> — you should see the welcome page. `curl localhos
 | `bin/ions` | Console (`php bin/ions list`, `make:*`, `migrate`, `queue:work`, `optimize`, `doctor`) |
 | `config/` | One PHP file per namespace: `app.php` → `config('app.*')`, … |
 | `routes/web.php`, `routes/api.php` | Route definitions (`Ions\Bundles\Route`) |
-| `src/` | Application code (`App\` PSR-4): controllers in `src/Http/Controllers`, API controllers in `src/Http/Api`, commands in `src/Commands`, service providers in `src/Providers` (auto-discovered — no `app.providers` entry needed; see `docs/config.md` in `ionzile/core`) |
+| `app/` | Application code (`App\` PSR-4): controllers in `app/Http/Controllers`, API controllers in `app/Http/Api`, commands in `app/Commands`, service providers in `app/Providers` (auto-discovered — no `app.providers` entry needed; see `docs/config.md` in `ionzile/core`) |
 | `views/` | Twig templates |
 | `public/uploads`, `public/lang` | Uploads disk root, translation files |
 | `var/` | Writable: `cache/`, `logs/`, `templates/` (compiled Twig) |
 
-Generators: `php bin/ions make:command|make:middleware|make:service-provider|make:resource|make:request|make:job|make:event|make:listener|make:test <Name>` scaffold the corresponding class into `src/` (or `tests/` for `make:test`) — see `docs/console.md` in `ionzile/core`.
+Generators: `php bin/ions make:command|make:middleware|make:service-provider|make:resource|make:request|make:job|make:event|make:listener|make:test <Name>` scaffold the corresponding class into `app/` (or `tests/` for `make:test`) — see `docs/console.md` in `ionzile/core`.
 
 ## Testing
 

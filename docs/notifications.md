@@ -109,7 +109,7 @@ property. Nothing resolvable → `LogicException`, nothing inserted.
 
 A migration stub ships at
 `src/Notifications/stubs/create_notifications_table.stub` — copy it into the
-host's `{src|app}/Database` directory (dropping `.stub`) and run
+host's `{app|src}/Database` directory (dropping `.stub`) and run
 `ions migrate`, the same mechanism as the [jobs-table stub](cache-queue-events.md).
 To use a different table name, rename it in the migration **and** set
 `config('notifications.table')`.
