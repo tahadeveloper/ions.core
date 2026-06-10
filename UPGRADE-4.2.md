@@ -1,4 +1,19 @@
-# Upgrading to 4.2 (draft — release notes assembled at release)
+# Upgrading to 4.2
+
+4.2.0 is additive for almost every host — the new facilities (the `app/`
+layout convention, `view()` renderable returns and namespaced view roots,
+container-built controllers with method injection and lifecycle hooks, the
+fluent cron scheduler, the `install:vue`/`install:assets` frontend scaffolds,
+and the deploy configs) are catalogued in the
+[CHANGELOG 4.2.0 section](CHANGELOG.md#420---2026-06-11), with full guides in
+[docs/best-practices.md](docs/best-practices.md), [docs/views.md](docs/views.md),
+[docs/controllers.md](docs/controllers.md), [docs/scheduler.md](docs/scheduler.md),
+[docs/assets.md](docs/assets.md) and [docs/deploy.md](docs/deploy.md). This
+document covers only the behavior changes you may need to act on.
+
+One new composer dependency is installed automatically with the upgrade:
+`dragonmantank/cron-expression` `^3` (the scheduler's cron parser — MIT,
+no transitive dependencies). No action needed.
 
 ## Behavior changes
 
@@ -77,7 +92,10 @@ controller defines a public method with one of those names (e.g. an action
 named `boot`), it will now be invoked as a lifecycle hook — rename such
 methods. Protected/private methods with those names are ignored (a host's
 `protected boot()` helper does not break dispatch). The legacy underscore
-hooks keep raw `method_exists` detection, unchanged. See
+hooks keep raw `method_exists` detection, unchanged. One exception: when a
+route's **action** method is itself named `boot` (the legacy
+`App\Schedule::boot` contract), it is dispatched once as the action and the
+`boot()` hook is skipped — it never fires twice. See
 [docs/controllers.md](docs/controllers.md).
 
 ### `/cron/schedule` web-cron: scheduler parity (opt-in via the boot signature)
@@ -101,4 +119,8 @@ inspects your `App\Schedule::boot()` signature at hit time:
 
 `schedule:run` additionally runs the new scheduler's due tasks before the
 legacy `GO\Scheduler` `schedule.php` jobs (which keep working unchanged), and
-now exits non-zero when a task fails. `schedule:list` is new.
+now exits non-zero when a task fails. `schedule:list` is new. When migrating
+legacy jobs to `App\Schedule::boot(Scheduler)`, remove each one from
+`schedule.php` as you go — both registries run on every `schedule:run`, so a
+job defined in both executes twice per tick. See
+[docs/scheduler.md](docs/scheduler.md#legacy-compatibility).

@@ -46,35 +46,67 @@ is a thin BC shim around `run()`.
 
 ```php
 <?php
+use App\Http\Controllers\UsersController;
 use Ions\Bundles\Route;
 
-Route::get('/hello', 'HelloController@index');
+Route::get('/users', UsersController::class . '::index');
 
 Route::prefix('/api/v1')->group(function () {
     Route::post('/users', 'UserController@store')->middleware(['throttle']);
 });
 ```
 
-### Controller
+### Controller (`app/Http/Controllers/UsersController.php`)
 
 ```php
 <?php
-use Ions\Foundation\ApiController;
-use Ions\Http\Json;
+use App\Services\UserService;
+use Ions\Foundation\BaseController;
 use Ions\Support\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Ions\View\View;
 
-class HelloController extends ApiController
+class UsersController extends BaseController
 {
-    public function index(Request $request): Response
+    public function __construct(private readonly UserService $users)  // container-built (4.2)
     {
-        return Json::ok(['message' => 'Hello, World!']);
+        parent::__construct();
+    }
+
+    public function index(Request $request): View
+    {
+        // Controller-relative view: renders views/users/index.twig as a 200 response
+        return $this->view('index', ['users' => $this->users->all()]);
     }
 }
 ```
 
-Controllers may return a `Symfony\Component\HttpFoundation\Response` (including `JsonResponse`) or any object
-implementing `Ions\Http\Responsable`. The framework normalises the return value before sending.
+Actions are method-injected (the request, route placeholders by name, services by type-hint) and may return a
+`View` (`view()` / `$this->view()`), a `Symfony\Component\HttpFoundation\Response`, or any `Ions\Http\Responsable`
+(e.g. an API `Resource`) — the framework normalises the return value before sending. API controllers extend
+`Ions\Foundation\ApiController` and return JSON (`Json::ok([...])`). See [docs/controllers.md](docs/controllers.md).
+
+### Scheduled tasks (`app/Schedule.php`)
+
+```php
+<?php
+namespace App;
+
+use Ions\Schedule\Scheduler;
+
+class Schedule
+{
+    public static function boot(Scheduler $schedule): void
+    {
+        $schedule->command('emails:send')->daily()->withoutOverlapping();
+    }
+}
+```
+
+One crontab line runs everything that is due: `* * * * * cd /path/to/app && php bin/ions schedule:run` — see
+[docs/scheduler.md](docs/scheduler.md).
+
+Starting a new app? Copy the [host-app skeleton](docs/skeleton.md) (`skeleton/`) and read
+[docs/best-practices.md](docs/best-practices.md) — the opinionated guide to structuring an Ions application.
 
 ---
 
@@ -172,6 +204,7 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 
 | Document                                                 | Contents                                                                                                                                                           |
 |----------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [docs/best-practices.md](docs/best-practices.md)         | The opinionated guide: `app/` structure, thin controllers, providers/DI, events vs jobs vs notifications, testing, security & performance checklists               |
 | [docs/skeleton.md](docs/skeleton.md)                     | Host-app skeleton (`skeleton/`): layout, quick-start, secure defaults                                                                                              |
 | [docs/testing.md](docs/testing.md)                       | Host-app test kit: `Ions\Testing\TestCase`, verb helpers, `actingAs()` (real JWT), `TestResponse` assertions                                                       |
 | [docs/factories.md](docs/factories.md)                   | Minimal model factories: `Ions\Database\Factory`, `make()`/`create()`/`count()`/`state()`, `HasIonsFactory`, `make:factory`                                        |
@@ -199,6 +232,7 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 | [docs/worker-mode.md](docs/worker-mode.md)               | Experimental worker mode: `Kernel::resetForRequest()`, `WorkerRunner`, state table, FrankenPHP example                                                             |
 | [docs/deploy.md](docs/deploy.md)                         | Deployment: nginx/Apache configs, `public/.htaccess`, PHP-FPM pool notes, TLS-proxy caveat, deploy checklist                                                       |
 | [CHANGELOG.md](CHANGELOG.md)                             | What changed in each release                                                                                                                                       |
+| [UPGRADE-4.2.md](UPGRADE-4.2.md)                         | Behavior changes and migration guide for 4.1 → 4.2.0                                                                                                               |
 | [UPGRADE-4.1.md](UPGRADE-4.1.md)                         | Behavior changes and migration guide for 4.0 → 4.1.0                                                                                                               |
 | [UPGRADE-4.0.md](UPGRADE-4.0.md)                         | Breaking changes and migration guide for 3.x → 4.0.0                                                                                                               |
 | [UPGRADE-3.0.md](UPGRADE-3.0.md)                         | Breaking changes and migration guide for 2.1.x → 3.0.0                                                                                                             |
