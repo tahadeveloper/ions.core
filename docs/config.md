@@ -235,6 +235,25 @@ Window length for rate limiting. After `max` hits within `decay` seconds, subseq
 
 ---
 
+## `app.auth.forgot_throttle`
+
+**Type:** `array{max?: int, decay?: int}`  **Default:** `['max' => 3, 'decay' => 600]`
+
+Per-(email+IP) throttle applied inside `AuthController::forgotPassword()` on
+top of any route-level `throttle` middleware. After `max` requests for the
+same email from the same IP within `decay` seconds, further requests receive
+HTTP 429 with a generic message and a `Retry-After` header (enumeration-safe:
+the limit applies whether or not the account exists). Backed by the shared
+cache; skipped gracefully when no cache is bound.
+
+```php
+'auth' => [
+    'forgot_throttle' => ['max' => 3, 'decay' => 600],
+],
+```
+
+---
+
 ## `app.preloads`
 
 **Type:** `string[]`  **Default:** `[]`

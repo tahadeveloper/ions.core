@@ -146,6 +146,12 @@ class AuthController
      *
      * Always responds 200 with a generic message (no user enumeration) when the
      * provider supports reset; 501 when it does not.
+     *
+     * A tight per-(email+IP) throttle runs on top of any route-level throttle
+     * (config app.auth.forgot_throttle = ['max' => 3, 'decay' => 600]).
+     * Throttled requests get a 429 with a generic message — consistent with
+     * the route 'throttle' middleware and still enumeration-safe (the limit
+     * applies whether or not the account exists).
      */
     public function forgotPassword(Request $request): JsonResponse
     {
@@ -156,6 +162,11 @@ class AuthController
 
         /** @var array<string,mixed> $input */
         $input = (array) RequestInput::parse($request);
+
+        $throttled = $this->forgotThrottleResponse($request, (string) ($input['email'] ?? ''));
+        if ($throttled !== null) {
+            return $throttled;
+        }
 
         // The issued code is delivered out-of-band (e.g. e-mail); it is never
         // returned in the response to avoid leaking it to unauthenticated callers.
@@ -188,6 +199,54 @@ class AuthController
         }
 
         return Json::ok(['message' => 'password reset']);
+    }
+
+    /**
+     * Per-(email+IP) throttle for the forgot-password endpoint, backed by the
+     * shared cache. Returns the 429 response when throttled, null otherwise.
+     *
+     * Best-effort: when the cache binding is unavailable the throttle is
+     * skipped rather than blocking password resets.
+     */
+    private function forgotThrottleResponse(Request $request, string $email): ?JsonResponse
+    {
+        try {
+            $app = app();
+            if (!$app->has('cache')) {
+                return null;
+            }
+
+            /** @var array<string,mixed> $config */
+            $config = (array) config('app.auth.forgot_throttle', []);
+            $max = (int) ($config['max'] ?? 3);
+            $decay = (int) ($config['decay'] ?? 600);
+
+            /** @var \Illuminate\Cache\CacheManager $manager */
+            $manager = $app->get('cache');
+            $cache = $manager->store();
+
+            $key = 'forgot:' . sha1(strtolower($email) . '|' . (string) $request->getClientIp());
+            $count = (int) $cache->get($key, 0);
+
+            if ($count >= $max) {
+                $response = Json::error('Too many requests', 429, ['retry_after' => $decay]);
+                $response->headers->set('Retry-After', (string) $decay);
+
+                return $response;
+            }
+
+            // First hit sets the key with the TTL (window starts now); later
+            // hits increment without resetting the TTL.
+            if ($count === 0) {
+                $cache->add($key, 1, $decay);
+            } else {
+                $cache->increment($key);
+            }
+        } catch (\Throwable) {
+            // Never let throttling internals break the reset flow.
+        }
+
+        return null;
     }
 
     /**

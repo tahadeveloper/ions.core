@@ -78,6 +78,14 @@ configurable at `app.uploads.mime_map` (merged over the built-in defaults);
 extensions absent from the map are accepted on the extension gate alone. See
 `docs/config.md`.
 
+### Forgot-password requests are throttled per email
+
+`AuthController::forgotPassword` now applies a per-(email+IP) limit of
+3 requests / 10 minutes via the shared cache (configure with
+`app.auth.forgot_throttle = ['max' => 3, 'decay' => 600]`). Throttled requests
+receive **429** with a generic message and a `Retry-After` header — the same
+shape as the route-level `throttle` middleware, and still enumeration-safe.
+
 ## Behavior changes
 
 ### Query logging is no longer implied by APP_DEBUG
