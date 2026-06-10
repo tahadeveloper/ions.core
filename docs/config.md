@@ -376,9 +376,9 @@ return [
     'driver' => 'native',          // 'native' | 'array' | 'mock'
     'name' => 'ion_session',       // session cookie name (native driver)
     'lifetime' => 0,               // cookie lifetime in seconds (0 = until browser close)
-    'cookie_secure' => false,
-    'cookie_httponly' => true,
-    'cookie_samesite' => 'lax',
+    'cookie_secure' => 'auto',     // default true; 'auto' = follow request scheme
+    'cookie_httponly' => true,     // default true
+    'cookie_samesite' => 'lax',    // default 'lax'
 ];
 ```
 
@@ -395,6 +395,14 @@ return [
 
 Cookie options passed to `NativeSessionStorage` (ignored by the array/mock
 driver). `cookie_samesite` accepts `'lax'`, `'strict'`, or `'none'`.
+
+**Secure by default (4.1):** when the `cookie_*` keys are omitted the native
+driver applies `cookie_httponly => true`, `cookie_samesite => 'lax'`, and
+`cookie_secure => true`. Each can be overridden explicitly. `cookie_secure`
+additionally accepts `'auto'` — secure when the current request is HTTPS;
+fails secure (`true`) when no request is available at session construction
+(CLI, pre-request worker boot). Plain-HTTP dev hosts must set
+`'cookie_secure' => false` (or `'auto'`) explicitly.
 
 ### The `session()` helper
 

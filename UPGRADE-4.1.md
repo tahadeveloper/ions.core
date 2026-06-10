@@ -1,5 +1,36 @@
 # Upgrading to 4.1 (draft — release notes assembled in Phase 8.7)
 
+## Security default flips (read these first)
+
+### Session cookies are secure by default (D8-1)
+
+Before 4.1, omitting the `cookie_*` keys from `config/session.php` left the
+native session cookie with raw PHP defaults (no `Secure`, no `SameSite`,
+httponly per php.ini). In 4.1 the native driver defaults to:
+
+| Option | 4.1 default |
+|---|---|
+| `cookie_httponly` | `true` |
+| `cookie_samesite` | `'lax'` |
+| `cookie_secure` | `true` |
+
+Every default can still be overridden by setting the key explicitly in
+`config/session.php`. `cookie_secure` also accepts `'auto'`: the flag follows
+the scheme of the current request (HTTPS → secure). When no request is
+available at session construction (CLI, pre-request worker boot) `'auto'`
+fails secure (`true`).
+
+**Action:** if your app is served over plain HTTP (local dev), set
+`'cookie_secure' => false` (or `'auto'`) explicitly — otherwise browsers will
+not send the session cookie and logins/CSRF will fail.
+
+### Login regenerates the session id (fixation hardening)
+
+`Ions\Auth\Http\AuthController::login` now calls `SessionManager::regenerate()`
+after a successful credential check **when a framework session is bound and
+started** (web-originated logins). Session data is preserved; only the id
+rotates. Stateless API logins without a started session are unaffected.
+
 ## Behavior changes
 
 ### Query logging is no longer implied by APP_DEBUG

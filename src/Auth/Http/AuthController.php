@@ -58,11 +58,38 @@ class AuthController
 
         $userId = (string) $user->getAuthIdentifier();
 
+        // Session fixation hardening: a web-originated login (session exists
+        // and is started) gets a fresh session id; data is preserved.
+        // Stateless API logins (no started session) are unaffected.
+        $this->regenerateSession();
+
         return Json::ok([
             'access_token'  => $this->jwt->issue($userId),
             'refresh_token' => $this->jwt->issueRefresh($userId),
             'token_type'    => 'Bearer',
         ]);
+    }
+
+    /**
+     * Rotate the framework session id after a successful credential check.
+     *
+     * Best-effort: a missing session binding or a not-yet-started session is a
+     * no-op, and failures never break the login response.
+     */
+    private function regenerateSession(): void
+    {
+        try {
+            $app = app();
+            if (!$app->has('session')) {
+                return;
+            }
+            $session = $app->get('session');
+            if ($session instanceof \Ions\Session\SessionManager && $session->isStarted()) {
+                $session->regenerate();
+            }
+        } catch (\Throwable) {
+            // Never let session handling break a successful login.
+        }
     }
 
     /**
