@@ -25,9 +25,13 @@ use Symfony\Contracts\HttpClient\ResponseStreamInterface;
  * Faked responses (constructor argument):
  *  - null                  — every request gets 200 with an empty body.
  *  - assoc array           — URL pattern => response; patterns support '*'
- *                            wildcards and match the resolved URL. Values may
- *                            be a MockResponse or a plain string body (200).
- *                            Unmatched requests get 200 with an empty body.
+ *                            wildcards and match the resolved URL with a
+ *                            leading '*' implied (Laravel-style), so
+ *                            'api.example.test/*' matches any scheme. Matching
+ *                            is case-sensitive; append '*' when requests carry
+ *                            query parameters. Values may be a MockResponse or
+ *                            a plain string body (200). Unmatched requests get
+ *                            200 with an empty body.
  *  - list                  — responses consumed in order (MockResponse or
  *                            string body); per MockHttpClient semantics the
  *                            queue must cover every request made.
@@ -78,9 +82,12 @@ final class HttpFake implements HttpClientInterface
     public function withOptions(array $options): static
     {
         // The derived client shares the recording factory, so its traffic
-        // still lands in this fake's recorded requests.
+        // still lands in THIS fake's recorded requests — assert on the fake
+        // returned by Http::fake(). The clone starts with a clean slate
+        // instead of a frozen snapshot of the traffic recorded so far.
         $clone = clone $this;
         $clone->mock = $this->mock->withOptions($options);
+        $clone->requests = [];
 
         return $clone;
     }
@@ -99,18 +106,19 @@ final class HttpFake implements HttpClientInterface
 
     /**
      * Assert at least one request matches. A string is a URL pattern matched
-     * against the resolved URL ('*' wildcards supported); a callable receives
-     * (string $method, string $url, array $options) per recorded request and
-     * must return true for at least one.
+     * against the resolved URL ('*' wildcards supported, leading '*' implied
+     * Laravel-style, case-sensitive — append '*' when requests carry query
+     * parameters); a callable receives (string $method, string $url, array
+     * $options) per recorded request and must return true for at least one.
      *
      * @param string|callable(string, string, array<string, mixed>): bool $urlOrFilter
      */
     public function assertSent(string|callable $urlOrFilter): static
     {
         if (is_string($urlOrFilter)) {
-            $pattern = $urlOrFilter;
+            $pattern = Str::start($urlOrFilter, '*');
             $filter = static fn (string $method, string $url): bool => Str::is($pattern, $url);
-            $failure = sprintf('Expected an HTTP request matching url [%s] to be sent, but none matched.', $pattern);
+            $failure = sprintf('Expected an HTTP request matching url [%s] to be sent, but none matched.', $urlOrFilter);
         } else {
             $filter = $urlOrFilter;
             $failure = 'Expected an HTTP request matching the given filter, but none did.';
@@ -195,7 +203,7 @@ final class HttpFake implements HttpClientInterface
 
         return static function (string $method, string $url) use ($map): MockResponse {
             foreach ($map as $pattern => $response) {
-                if (Str::is($pattern, $url)) {
+                if (Str::is(Str::start($pattern, '*'), $url)) {
                     return self::normalizeResponse($response);
                 }
             }

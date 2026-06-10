@@ -13,16 +13,25 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  *
  * Throwing semantics: HTTP error statuses (4xx/5xx) NEVER throw — hosts are
  * expected to branch on ok()/status(). Every accessor reads the underlying
- * response with error-throwing disabled (getContent(false)/getHeaders(false)).
- * Transport failures (DNS, TLS, timeout) are a different story: Symfony only
- * surfaces them when the response is first consumed, so they throw a
+ * response with error-throwing disabled (getContent(false)/getHeaders(false)),
+ * and the constructor force-completes the response so a discarded error
+ * response never throws from Symfony's destructor either — fire-and-forget
+ * (`Http::post($url, $data);` with the return value unused) is safe.
+ * Transport failures (DNS, TLS, timeout) are a different story: because the
+ * response is completed eagerly, they throw a
  * {@see \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface}
- * from status()/body()/json()/headers().
+ * at the request call site (Client::get()/post()/json()).
  */
 final class ClientResponse
 {
     public function __construct(private readonly ResponseInterface $response)
     {
+        // Force-complete the response. This (a) surfaces transport failures
+        // here, at the request call site, and (b) disarms Symfony's lazy
+        // initializer, whose __destruct would otherwise throw a ClientException
+        // for a 4xx/5xx response that was never consumed — violating the
+        // "HTTP error statuses never throw" contract on fire-and-forget calls.
+        $this->response->getStatusCode();
     }
 
     /**

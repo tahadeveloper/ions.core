@@ -78,6 +78,35 @@ test('4xx and 5xx responses do not throw — ok() and status() report them', fun
         ->and($error->body())->toBe('boom');
 });
 
+test('a discarded 4xx response never throws — fire-and-forget is safe', function () {
+    $client = new Client(new MockHttpClient(new MockResponse('unprocessable', ['http_code' => 422])));
+
+    // Return value intentionally discarded: the wrapped Symfony response is
+    // destructed right here. Symfony's lazy initializer would throw a
+    // ClientException from __destruct unless ClientResponse force-completes.
+    $client->post('https://api.example.test/users', ['name' => '']);
+    gc_collect_cycles();
+
+    expect(true)->toBeTrue();
+});
+
+test('transport errors surface at the request call site, not at the first accessor', function () {
+    $client = new Client(new MockHttpClient(new MockResponse('', ['error' => 'simulated network failure'])));
+
+    $thrown = null;
+    $response = null;
+
+    try {
+        $response = $client->get('https://api.example.test/down');
+    } catch (\Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface $e) {
+        $thrown = $e;
+    }
+
+    expect($thrown)->toBeInstanceOf(\Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface::class)
+        ->and($thrown?->getMessage())->toBe('simulated network failure')
+        ->and($response)->toBeNull();
+});
+
 test('json() decodes the body and supports dot-key access', function () {
     $client = new Client(new MockHttpClient(new MockResponse(
         '{"data":{"users":[{"name":"amr"}]},"total":1}'
@@ -129,6 +158,23 @@ test('withHeaders() sends the given headers', function () {
         ->and(httpSentHeaders($captured['options']))->toContain('Accept: application/json');
 });
 
+test('withHeaders() after withToken() overrides Authorization — later call wins, single header line', function () {
+    $captured = null;
+    httpCapturingClient($captured)
+        ->withToken('first-token')
+        ->withHeaders(['Authorization' => 'Bearer second-token'])
+        ->get('https://api.example.test/me');
+
+    /** @var list<string> $headers */
+    $headers = $captured['options']['headers'];
+    $authLines = array_values(array_filter(
+        $headers,
+        static fn (string $line): bool => str_starts_with(strtolower($line), 'authorization:')
+    ));
+
+    expect($authLines)->toBe(['Authorization: Bearer second-token']);
+});
+
 test('post() sends a form-encoded body', function () {
     $captured = null;
     httpCapturingClient($captured)->post('https://api.example.test/users', ['name' => 'ions', 'v' => 4]);
@@ -159,6 +205,22 @@ test('baseUrl() resolves relative request URLs against the base', function () {
     httpCapturingClient($captured)->baseUrl('https://api.example.test/v1/')->get('users');
 
     expect($captured['url'])->toBe('https://api.example.test/v1/users');
+});
+
+test('an absolute request URL wins over baseUrl()', function () {
+    $captured = null;
+    httpCapturingClient($captured)
+        ->baseUrl('https://api.example.test/v1/')
+        ->get('https://other.example.test/health');
+
+    expect($captured['url'])->toBe('https://other.example.test/health');
+});
+
+test('a leading-slash path drops the base URL path segment (RFC 3986 resolution)', function () {
+    $captured = null;
+    httpCapturingClient($captured)->baseUrl('https://api.example.test/v1/')->get('/users');
+
+    expect($captured['url'])->toBe('https://api.example.test/users');
 });
 
 test('retry() retries retryable failures up to the given number of attempts', function () {

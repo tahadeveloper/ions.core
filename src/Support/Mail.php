@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Ions\Support;
 
 use Ions\Foundation\Kernel;
+use Ions\Support\Concerns\ResolvesFake;
 use Ions\Testing\Fakes\MailFake;
-use RuntimeException;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\RawMessage;
@@ -24,6 +24,8 @@ use Symfony\Component\Mime\RawMessage;
  */
 final class Mail
 {
+    use ResolvesFake;
+
     /**
      * The container-bound mailer (the fake, once installed).
      */
@@ -49,11 +51,7 @@ final class Mail
      */
     public static function fake(): MailFake
     {
-        $fake = new MailFake();
-
-        Kernel::app()->instance('mailer', $fake);
-
-        return $fake;
+        return self::installFake('mailer', new MailFake());
     }
 
     /**
@@ -84,22 +82,10 @@ final class Mail
 
     /**
      * The fake currently bound as 'mailer', or a hard failure pointing at the
-     * missing Mail::fake() call.
+     * missing Mail::fake() call (without lazily building the SMTP transport).
      */
     private static function installedFake(): MailFake
     {
-        $app = Kernel::app();
-
-        // resolved() is checked first so a missing fake fails with the message
-        // below instead of lazily building the real SMTP transport.
-        $mailer = $app->resolved('mailer') ? $app->get('mailer') : null;
-
-        if (!$mailer instanceof MailFake) {
-            throw new RuntimeException(
-                'Mail assertions require the fake: call Mail::fake() in your test before sending mail.'
-            );
-        }
-
-        return $mailer;
+        return self::resolveInstalledFake('mailer', MailFake::class, 'Mail');
     }
 }

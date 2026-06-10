@@ -73,6 +73,10 @@ $response->header('Content-Type');  // first value, case-insensitive, ?string
 $response->toSymfony();        // underlying Symfony ResponseInterface
 ```
 
+> **Note for Laravel users:** `ok()` here is true for **any 2xx** (Laravel's
+> `ok()` is exactly 200; its `successful()` is the 2xx check), and `json()`
+> **throws** a `\JsonException` on a non-JSON body (Laravel returns `null`).
+
 ## Throwing semantics (deliberate)
 
 **HTTP error statuses never throw.** A 404 or a 500 comes back as a normal
@@ -88,14 +92,18 @@ if (!$response->ok()) {
 ```
 
 Internally the wrapper always reads the Symfony response with error-throwing
-disabled (`getContent(false)` / `getHeaders(false)`).
+disabled (`getContent(false)` / `getHeaders(false)`), and force-completes the
+response as soon as the request method returns. That makes fire-and-forget
+safe: `Http::post($url, $data);` with the return value unused never throws for
+a 4xx/5xx — not even from Symfony's destructor at garbage collection.
 
 Two things **do** throw:
 
-- **Transport failures** — DNS, TLS, connection refused, timeout. Symfony
-  surfaces these lazily when the response is first consumed, so a
+- **Transport failures** — DNS, TLS, connection refused, timeout. Because the
+  response is completed eagerly, a
   `Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface` is
-  thrown from `status()` / `body()` / `json()` / `headers()`.
+  thrown **at the request call site** (`Http::get()` / `post()` / `json()`),
+  not later at the first accessor.
 - **`json()` on a non-JSON body** — throws `\JsonException`. An empty body
   returns `null` instead.
 
@@ -115,9 +123,13 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 $fake = Http::fake();
 
 // Or fake responses per URL pattern ('*' wildcards, matched against the
-// resolved URL). Values: MockResponse, or a plain string body (200).
+// resolved URL). A leading '*' is implied, Laravel-style, so scheme-less
+// patterns like 'api.example.test/*' work. Matching is case-sensitive;
+// append '*' when requests carry query parameters (the resolved URL
+// includes the query string). Values: MockResponse, or a plain string
+// body (200).
 Http::fake([
-    'https://api.example.test/users*' => new MockResponse('{"id":7}', ['http_code' => 201]),
+    'api.example.test/users*'         => new MockResponse('{"id":7}', ['http_code' => 201]),
     'https://api.example.test/ping'   => 'pong',
 ]);
 
@@ -138,7 +150,7 @@ they chain:
 
 | Assertion | Verifies |
 |---|---|
-| `assertSent(string\|callable $urlOrFilter)` | At least one request matches; a string is a URL pattern (`*` wildcards), a callable receives `(string $method, string $url, array $options)` |
+| `assertSent(string\|callable $urlOrFilter)` | At least one request matches; a string is a URL pattern (`*` wildcards, leading `*` implied, case-sensitive), a callable receives `(string $method, string $url, array $options)` |
 | `assertSentCount(int $count)` | Exact number of requests sent |
 | `assertNothingSent()` | No requests were sent at all |
 

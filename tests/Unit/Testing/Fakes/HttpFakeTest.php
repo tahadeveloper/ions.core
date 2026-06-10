@@ -39,6 +39,33 @@ test('an associative map fakes responses per url pattern (wildcards supported)',
         ->and($unmatched->body())->toBe('');
 });
 
+test('a scheme-less pattern matches — a leading * is implied, Laravel-style', function () {
+    $fake = new HttpFake([
+        'api.example.test/*' => new MockResponse('matched', ['http_code' => 203]),
+    ]);
+    $client = new Client($fake);
+
+    $response = $client->get('https://api.example.test/users');
+
+    expect($response->status())->toBe(203)
+        ->and($response->body())->toBe('matched');
+
+    $fake->assertSent('api.example.test/*');
+});
+
+test('a trailing * matches the resolved URL when the request carries a query string', function () {
+    $fake = new HttpFake([
+        'https://api.example.test/users*' => 'with-query',
+    ]);
+    $client = new Client($fake);
+
+    $response = $client->get('https://api.example.test/users', ['page' => 2]);
+
+    expect($response->body())->toBe('with-query');
+
+    $fake->assertSent('https://api.example.test/users*');
+});
+
 test('a sequential list of responses is consumed in order', function () {
     $fake = new HttpFake([
         new MockResponse('first', ['http_code' => 500]),
@@ -117,6 +144,23 @@ test('assertNothingSent() passes when idle and fails after a request', function 
 
     expect(fn () => $fake->assertNothingSent())
         ->toThrow(AssertionFailedError::class, 'Expected no HTTP requests to be sent, but 1 were.');
+});
+
+test('withOptions() derives a client with an empty recorded-requests list; traffic still records on the origin fake', function () {
+    $fake = new HttpFake();
+    (new Client($fake))->get('https://api.example.test/before');
+
+    $derived = $fake->withOptions(['headers' => ['X-Derived' => 'yes']]);
+
+    // The clone does not inherit the origin's recorded traffic...
+    expect($derived->sent())->toBe([]);
+
+    $derived->request('GET', 'https://api.example.test/after');
+
+    // ...and its own traffic is recorded on the originating fake — assert there.
+    $fake->assertSent('https://api.example.test/after');
+    expect($fake->sent())->toHaveCount(2)
+        ->and($derived->sent())->toBe([]);
 });
 
 test('assertions are chainable', function () {

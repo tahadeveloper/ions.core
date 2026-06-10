@@ -6,8 +6,8 @@ namespace Ions\Support;
 
 use Illuminate\Queue\QueueManager;
 use Ions\Foundation\Kernel;
+use Ions\Support\Concerns\ResolvesFake;
 use Ions\Testing\Fakes\QueueFake;
-use RuntimeException;
 
 /**
  * Thin static facade over the container-bound queue manager ('queue', bound
@@ -21,6 +21,8 @@ use RuntimeException;
  */
 final class Queue
 {
+    use ResolvesFake;
+
     /**
      * The container-bound queue manager (the fake, once installed).
      */
@@ -46,9 +48,7 @@ final class Queue
         /** @phpstan-ignore argument.type */
         $fake = new QueueFake(Kernel::app(), $jobsToFake, self::manager());
 
-        Kernel::app()->instance('queue', $fake);
-
-        return $fake;
+        return self::installFake('queue', $fake);
     }
 
     /**
@@ -91,18 +91,10 @@ final class Queue
 
     /**
      * The fake currently bound as 'queue', or a hard failure pointing at the
-     * missing Queue::fake() call.
+     * missing Queue::fake() call (without lazily building the real manager).
      */
     private static function installedFake(): QueueFake
     {
-        $queue = Kernel::app()->get('queue');
-
-        if (!$queue instanceof QueueFake) {
-            throw new RuntimeException(
-                'Queue assertions require the fake: call Queue::fake() in your test before dispatching.'
-            );
-        }
-
-        return $queue;
+        return self::resolveInstalledFake('queue', QueueFake::class, 'Queue');
     }
 }

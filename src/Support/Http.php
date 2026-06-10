@@ -7,8 +7,8 @@ namespace Ions\Support;
 use Ions\Foundation\Kernel;
 use Ions\Http\Client;
 use Ions\Http\ClientResponse;
+use Ions\Support\Concerns\ResolvesFake;
 use Ions\Testing\Fakes\HttpFake;
-use RuntimeException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -30,6 +30,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 final class Http
 {
+    use ResolvesFake;
+
     /**
      * The container-bound Symfony client (the fake, once installed).
      */
@@ -122,11 +124,7 @@ final class Http
      */
     public static function fake(callable|array|null $responses = null): HttpFake
     {
-        $fake = new HttpFake($responses);
-
-        Kernel::app()->instance('http', $fake);
-
-        return $fake;
+        return self::installFake('http', new HttpFake($responses));
     }
 
     /**
@@ -162,22 +160,10 @@ final class Http
 
     /**
      * The fake currently bound as 'http', or a hard failure pointing at the
-     * missing Http::fake() call.
+     * missing Http::fake() call (without lazily building the Symfony client).
      */
     private static function installedFake(): HttpFake
     {
-        $app = Kernel::app();
-
-        // resolved() is checked first so a missing fake fails with the message
-        // below instead of lazily building the real Symfony client.
-        $client = $app->resolved('http') ? $app->get('http') : null;
-
-        if (!$client instanceof HttpFake) {
-            throw new RuntimeException(
-                'Http assertions require the fake: call Http::fake() in your test before sending requests.'
-            );
-        }
-
-        return $client;
+        return self::resolveInstalledFake('http', HttpFake::class, 'Http');
     }
 }
