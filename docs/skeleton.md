@@ -44,7 +44,7 @@ skeleton/
 │   ├── Booting.php        # Optional Kernel::boot() hook
 │   ├── Http/Controllers/  # Web controllers (extend Ions\Foundation\BaseController)
 │   └── Commands/          # Auto-discovered console commands
-├── views/home.twig        # Twig templates (app.twig.source)
+├── views/home/index.twig  # Twig templates (app.twig.source; HomeController -> views/home/)
 ├── var/                   # Writable: cache/, logs/, templates/ (compiled Twig)
 └── .env.example
 ```

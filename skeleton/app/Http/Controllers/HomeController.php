@@ -6,14 +6,17 @@ namespace App\Http\Controllers;
 
 use Ions\Foundation\BaseController;
 use Ions\Support\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Ions\View\View;
 
 class HomeController extends BaseController
 {
-    public function index(Request $request): Response
+    public function index(Request $request): View
     {
-        return new Response($this->twig->render('home.twig', [
+        // Controller-relative view (4.2): HomeController -> views/home/, so
+        // this resolves views/home/index.twig. The dispatcher renders the
+        // returned View into a 200 HTML response.
+        return $this->view('index', [
             'app_name' => config('app.name', 'Ions'),
-        ]));
+        ]);
     }
 }

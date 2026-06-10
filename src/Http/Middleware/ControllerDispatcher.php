@@ -8,6 +8,7 @@ use Ions\Container\Container;
 use Ions\Foundation\Kernel;
 use Ions\Http\Responsable;
 use Ions\Support\Request;
+use Ions\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
 final class ControllerDispatcher
@@ -56,6 +57,24 @@ final class ControllerDispatcher
         if ($result instanceof Responsable) {
             return $result->toResponse($request);
         }
+        if ($result instanceof View) {
+            return self::viewResponse($result);
+        }
         return Kernel::response();
+    }
+
+    /**
+     * Convert an Ions\View\View action return into a 200 HTML Response.
+     *
+     * The Content-Type is set explicitly (rather than relying on Symfony's
+     * prepare()-time default) so tests and middleware see it immediately.
+     * Shared with Kernel::normalizeToResponse() for closure routes.
+     */
+    public static function viewResponse(View $view): Response
+    {
+        $response = new Response($view->render(), Response::HTTP_OK);
+        $response->headers->set('Content-Type', 'text/html; charset=UTF-8');
+
+        return $response;
     }
 }

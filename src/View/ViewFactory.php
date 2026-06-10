@@ -27,9 +27,9 @@ final class ViewFactory
      * work. Explicit overrides, or the container being absent, always build
      * a fresh instance.
      *
-     * @param string|null            $source  Template source directory (defaults to app.twig.source).
-     * @param array<int,string>      $paths   Additional named namespace paths.
-     * @param string|null            $cache   Cache directory (defaults to app.twig.cache).
+     * @param string|null              $source  Template source directory (defaults to app.twig.source).
+     * @param array<int|string,string> $paths   Named namespace paths (see build()).
+     * @param string|null              $cache   Cache directory (defaults to app.twig.cache).
      */
     public function make(?string $source = null, array $paths = [], ?string $cache = null): Environment
     {
@@ -67,9 +67,19 @@ final class ViewFactory
     /**
      * Always build a fresh, fully configured Twig Environment.
      *
-     * @param string|null            $source  Template source directory (defaults to app.twig.source).
-     * @param array<int,string>      $paths   Additional named namespace paths.
-     * @param string|null            $cache   Cache directory (defaults to app.twig.cache).
+     * $paths registers named loader namespaces (templates address them as
+     * '@name/...'). Two entry shapes are accepted:
+     *  - 'name' => 'dir' (4.2): relative dirs resolve from the HOST ROOT,
+     *    absolute dirs (vendor packages) are kept as-is;
+     *  - legacy list entry (pre-4.2 BC): the value is both the namespace
+     *    name and a folder under views/.
+     * A missing namespace dir is skipped — recorded in $loaderErrors and
+     * logged — because the env is built once per process and an optional
+     * namespace must never kill boot.
+     *
+     * @param string|null              $source  Template source directory (defaults to app.twig.source).
+     * @param array<int|string,string> $paths   Named namespace paths (defaults to app.twig.paths).
+     * @param string|null              $cache   Cache directory (defaults to app.twig.cache).
      */
     public function build(?string $source = null, array $paths = [], ?string $cache = null): Environment
     {
@@ -80,11 +90,17 @@ final class ViewFactory
         $paths    = $paths ?: (array) config('app.twig.paths', []);
 
         $loader = new FilesystemLoader($source);
-        foreach ($paths as $path) {
+        foreach ($paths as $name => $path) {
             try {
-                $loader->addPath(Path::views($path), $path);
+                if (is_string($name)) {
+                    $loader->addPath(self::isAbsolutePath($path) ? $path : Path::root($path), $name);
+                } else {
+                    // Legacy list entry: namespace == value, dir under views/.
+                    $loader->addPath(Path::views($path), $path);
+                }
             } catch (LoaderError $e) {
                 $this->loaderErrors[] = $e->getMessage();
+                Logs::create('view.log')->warning('Twig namespace skipped: ' . $e->getMessage());
             }
         }
 
@@ -98,6 +114,16 @@ final class ViewFactory
         $this->addCoreFunctions($env);
 
         return $env;
+    }
+
+    /**
+     * Whether $path is absolute (unix, windows drive, or UNC).
+     */
+    private static function isAbsolutePath(string $path): bool
+    {
+        return str_starts_with($path, '/')
+            || str_starts_with($path, '\\\\')
+            || preg_match('#^[A-Za-z]:[\\\\/]#', $path) === 1;
     }
 
     private function addCoreFunctions(Environment $env): void
