@@ -19,6 +19,7 @@ class Request extends \Illuminate\Http\Request
      *
      * @param bool $skipIfUninitialized
      */
+    #[\Override]
     public function hasSession(bool $skipIfUninitialized = false): bool
     {
         return $this->session !== null
@@ -30,6 +31,7 @@ class Request extends \Illuminate\Http\Request
      *
      * @throws SessionNotFoundException when no session is attached.
      */
+    #[\Override]
     public function getSession(): SessionInterface
     {
         $session = $this->session;
