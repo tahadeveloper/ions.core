@@ -75,6 +75,9 @@ class LegacyController extends BaseController
 }
 ```
 
+> Acronym-heavy controller names kebab-case oddly (`API2\V1Controller` ->
+> `a-p-i2/`) — set `$viewPath` explicitly for those controllers.
+
 Namespaced names (`$this->view('@admin.users.index')`) bypass the controller
 folder entirely.
 

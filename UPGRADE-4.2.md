@@ -31,3 +31,12 @@ is silently ignored by path resolution. `ions doctor` flags this state with a
 
 The skeleton host application now ships its code in `app/` (`App\` PSR-4 maps
 to `app/`).
+
+### `app.twig.paths` string keys now mean namespaces
+
+Before 4.2, array keys in `app.twig.paths` were ignored (every entry resolved
+via `Path::views($value)`). In 4.2 a **string key** declares a view namespace
+and its value resolves from the **host root** (absolute paths kept). Plain
+numeric-key lists keep the old behavior verbatim. A host that accidentally
+used string keys before 4.2 should switch those entries to a plain list or
+update the values to host-root-relative paths.
