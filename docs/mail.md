@@ -72,6 +72,12 @@ reject at send time, with clearer messages — when the built mailable has:
 
 The subject is optional.
 
+One exception to the recipient rule: `routeTo()` (public) injects **fallback**
+To recipients from outside `build()` — applied only when `build()` declares no
+to/cc/bcc of its own. The [notifications mail channel](notifications.md) uses
+it to route recipient-less mailables to a notifiable; an explicit recipient in
+`build()` always wins.
+
 ## Queueing & serialization
 
 `queue()` does **not** build or render anything. The `SendMailableJob` carries

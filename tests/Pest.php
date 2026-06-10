@@ -69,6 +69,30 @@ function runConsoleCommand(\Illuminate\Console\Command $command, array $input = 
 }
 
 /**
+ * Creates the notifications table on the in-memory SQLite connection,
+ * mirroring src/Notifications/stubs/create_notifications_table.stub.
+ * $table allows the config('notifications.table') override tests to
+ * create their custom-named copy.
+ */
+function createNotificationsTable(string $table = 'notifications'): void
+{
+    $schema = \Ions\Foundation\Kernel::app()->get('db')->connection()->getSchemaBuilder();
+
+    $schema->dropIfExists($table);
+
+    $schema->create($table, function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->uuid('id')->primary();
+        $t->string('notifiable_type');
+        $t->string('notifiable_id');
+        $t->string('type');
+        $t->text('data');
+        $t->timestamp('read_at')->nullable();
+        $t->timestamp('created_at')->nullable();
+        $t->index(['notifiable_type', 'notifiable_id']);
+    });
+}
+
+/**
  * Creates all Sentinel tables on the in-memory SQLite connection.
  * Shared by SentinelUserProviderTest and GuardTest to avoid duplication.
  * InnoDB engine declarations in the original migration are ignored by SQLite.

@@ -531,6 +531,24 @@ if (!function_exists('dispatch')) {
     }
 }
 
+if (!function_exists('notify')) {
+    /**
+     * Send a notification to a notifiable (usually a user) on every channel
+     * its via() names — synchronously, through the container-bound
+     * 'notifications' dispatcher, so Notifications::fake() intercepts it.
+     *
+     * Deferred delivery rides the Mailable (toMail() + Mailable::queue())
+     * or a host job wrapping notify(); see docs/notifications.md.
+     */
+    function notify(object $notifiable, \Ions\Notifications\Notification $notification): void
+    {
+        /** @var \Ions\Notifications\Contracts\Dispatcher $dispatcher */
+        $dispatcher = Kernel::app()->get('notifications');
+
+        $dispatcher->send($notifiable, $notification);
+    }
+}
+
 if (!function_exists('trans')) {
     /**
      * @param string|null $key

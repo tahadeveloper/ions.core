@@ -327,6 +327,7 @@ class Kernel extends Singleton
             \Ions\Providers\QueueProvider::class,
             \Ions\Providers\AuthProvider::class,
             \Ions\Providers\MailProvider::class,
+            \Ions\Providers\NotificationProvider::class,
             \Ions\Providers\HttpClientProvider::class,
             \Ions\Providers\SecurityProvider::class,
             \Ions\Providers\ViewProvider::class,

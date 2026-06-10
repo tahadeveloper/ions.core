@@ -14,6 +14,7 @@ parameters:
         - src/Console
         - src/Events
         - src/Mail
+        - src/Notifications
         - src/Queue
         - src/Media
         - src/Support

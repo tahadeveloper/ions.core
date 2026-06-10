@@ -180,12 +180,12 @@ Accessors: `status()`, `content()`, `headers()`,
 when absent or not JSON), and the public `baseResponse` property — the
 underlying Symfony response, as an escape hatch.
 
-## Fakes: Queue, Event, Storage, Mail, Http
+## Fakes: Queue, Event, Storage, Mail, Notifications, Http
 
 Each framework service can be swapped for a recording fake with a single
 static call. `::fake()` rebinds the service in the container and returns the
 fake; assertions work on the returned instance **and** (for
-Queue/Event/Mail/Http) as static passthroughs on the same facade. Because every test boots a fresh
+Queue/Event/Mail/Notifications/Http) as static passthroughs on the same facade. Because every test boots a fresh
 container, an installed fake never leaks into the next test — there is
 nothing to tear down.
 
@@ -329,6 +329,45 @@ $mailer->assertSentCount(1);
 `$mailer->sent()` returns every recorded message in send order;
 `$mailer->sentEnvelopes()` returns the index-aligned list of envelopes
 (`null` entries where no explicit envelope was passed).
+
+### `Ions\Support\Notifications::fake()`
+
+Replaces the `notifications` binding (the
+[notification dispatcher](notifications.md)) with a recorder implementing the
+same `Ions\Notifications\Contracts\Dispatcher` contract, so `notify()` and
+`Notifications::send()` record instead of running any channel — no mail is
+materialized and no database row is inserted (note the channel side: with only
+`Mail::fake()` installed, a mail notification still runs the channel and is
+asserted via `Mail::assertSent(TheMailable::class)`; with
+`Notifications::fake()` the channel never runs).
+
+Class-string matching is inheritance-aware, like `instanceof`. Notifiable
+matching accepts a different instance than the one notified: two notifiables
+match when they are the same object, or the same class and the same identity —
+compared via `Authenticatable::getAuthIdentifier()`, a duck-typed `getKey()`
+(Eloquent/Sentinel models), or a readable `->id`, in that order.
+
+```php
+use Ions\Support\Notifications;
+
+$fake = Notifications::fake();
+
+notify($user, new OrderShipped(1001));
+
+Notifications::assertSentTo($user, OrderShipped::class);
+Notifications::assertSentTo($user, OrderShipped::class,
+    fn (OrderShipped $n, object $notifiable) => $notifiable === $user);
+$fake->assertSentToTimes($user, OrderShipped::class, 1);
+```
+
+| Assertion | Verifies |
+|---|---|
+| `assertSentTo(object $notifiable, string $class, ?callable $filter = null)` | At least one `$class` notification sent to `$notifiable`; the filter receives `(Notification, object $notifiable)` and must match at least one |
+| `assertSentToTimes(object $notifiable, string $class, int $times)` | Exact per-notifiable, per-class send count |
+| `assertNothingSent()` | No notifications were sent at all |
+
+`$fake->sent()` returns every recorded
+`['notifiable' => object, 'notification' => Notification]` pair in send order.
 
 ### `Ions\Support\Http::fake(callable|array|null $responses = null)`
 

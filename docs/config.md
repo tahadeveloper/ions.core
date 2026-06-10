@@ -636,3 +636,22 @@ ions queue:work database --stop-when-empty --tries=3
 The `database` connection needs the `jobs`/`failed_jobs` tables. A migration
 stub is shipped at `src/Queue/stubs/create_jobs_table.stub` — copy it into the
 host's `{src|app}/Database` directory (dropping `.stub`) and run `ions migrate`.
+
+## Notifications config (`config/notifications.php`)
+
+Optional — both keys have working defaults, so the file is only needed to
+override them. See [notifications.md](notifications.md).
+
+```php
+return [
+    // Table the 'database' channel inserts into (default: 'notifications';
+    // DDL stub: src/Notifications/stubs/create_notifications_table.stub).
+    'table' => 'notifications',
+
+    // Custom channel map, merged OVER the built-ins ('mail', 'database') —
+    // name => class implementing Ions\Notifications\Contracts\Channel.
+    'channels' => [
+        // 'slack' => \App\Notifications\SlackChannel::class,
+    ],
+];
+```

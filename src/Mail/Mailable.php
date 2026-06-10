@@ -86,6 +86,17 @@ abstract class Mailable
     private array $attachments = [];
 
     /**
+     * Fallback To recipients injected from OUTSIDE build() (the notifications
+     * mail channel routes recipient-less mailables this way). Applied only
+     * when build() declares no recipient at all, so an explicit to()/cc()/
+     * bcc() always wins. Like constructor state — and unlike build() state —
+     * this survives resetState().
+     *
+     * @var list<array{string, string}>
+     */
+    private array $routedToAddresses = [];
+
+    /**
      * Configure the message using the protected fluent helpers. Runs at send
      * time (in the worker, for queued mailables) — never at construct or
      * dispatch time.
@@ -157,6 +168,12 @@ abstract class Mailable
         $this->build();
 
         if ($this->toAddresses === [] && $this->ccAddresses === [] && $this->bccAddresses === []) {
+            // build() declared no recipient — fall back to externally routed
+            // addresses ({@see routeTo()}), if any.
+            $this->toAddresses = $this->routedToAddresses;
+        }
+
+        if ($this->toAddresses === [] && $this->ccAddresses === [] && $this->bccAddresses === []) {
             throw new InvalidMailableException(sprintf(
                 'Mailable [%s] has no recipient: call to(), cc() or bcc() in build().',
                 static::class
@@ -211,6 +228,35 @@ abstract class Mailable
         $email->getHeaders()->addTextHeader(self::CLASS_HEADER, static::class);
 
         return $email;
+    }
+
+    /**
+     * Inject fallback To recipient(s) from outside build() — same accepted
+     * shapes as to(). Used by the notifications mail channel to route a
+     * recipient-less Mailable to its notifiable; ignored entirely when
+     * build() declares any to/cc/bcc (the explicit recipient wins).
+     *
+     * @param string|array<int|string, string> $addresses
+     */
+    public function routeTo(string|array $addresses): static
+    {
+        $this->routedToAddresses = $this->normalizeAddresses($addresses);
+
+        return $this;
+    }
+
+    /**
+     * Whether build() declares any recipient (to/cc/bcc) of its own —
+     * i.e. whether the mailable needs {@see routeTo()} routing before send().
+     * Runs build() against clean state; cheap because view templates only
+     * render in toSymfonyEmail().
+     */
+    public function hasRecipients(): bool
+    {
+        $this->resetState();
+        $this->build();
+
+        return $this->toAddresses !== [] || $this->ccAddresses !== [] || $this->bccAddresses !== [];
     }
 
     // ------------------------------------------------------------------
