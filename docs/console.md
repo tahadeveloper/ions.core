@@ -69,7 +69,8 @@ These ship with the framework and are always registered:
 | `migrate` / `migrate:rollback` | `MigrateCommand` / `RollBackCommand` | Run / roll back migrations. |
 | `schema:dump` | `DumpCommand` | Dump a database schema. |
 | `install:super` | `SuperCommand` | Install the bundled super-admin. |
-| `schedule:run` | `ScheduleRunCommand` | Run the due scheduled tasks. |
+| `schedule:run` | `ScheduleRunCommand` | Run the due scheduled tasks (see [scheduler.md](scheduler.md)). |
+| `schedule:list` | `ScheduleListCommand` | List the scheduled tasks with expression + next run time. |
 | `queue:work` | `QueueWorkCommand` | Process jobs from the queue. |
 | `openapi:generate` | `OpenApiCommand` | Export the routes as an OpenAPI 3.0 spec (see [resources.md](resources.md)). |
 | `doctor` | `Ions\commands\DoctorCommand` | Diagnose the host app (env, APP_KEY, writable `var/`, caches, DB, extensions, security posture) — see [Diagnostics](#diagnostics--doctor). |
@@ -214,22 +215,17 @@ The JSON payload is `{"checks": [{id, label, status, message}, …],
 
 ## Task scheduling
 
-`Ions\Console\Schedule` builds a `GO\Scheduler`
-(`peppeocchi/php-cron-scheduler`) from a host `schedule.php` definition. The host
-declares its jobs in a `schedule.php` at the project root (or `routes/schedule.php`)
-that returns a closure receiving the scheduler:
-
-```php
-<?php
-
-return function (\GO\Scheduler $schedule): void {
-    $schedule->raw('php vendor/ionzile/core/bin/ions cache:clear')->daily();
-};
-```
-
-Run the due jobs with the `schedule:run` command, wired to a single system cron
-entry:
+Tasks are defined fluently in `App\Schedule::boot(Scheduler $schedule)` and
+run by `schedule:run` from a single system cron entry — see
+**[scheduler.md](scheduler.md)** for the full reference (frequencies,
+`withoutOverlapping()`, `schedule:list`, the `/cron/schedule` web-cron route
+and logging):
 
 ```cron
 * * * * * cd /path/to/app && php vendor/ionzile/core/bin/ions schedule:run >> /dev/null 2>&1
 ```
+
+Legacy `GO\Scheduler` jobs declared in a host `schedule.php` (project root or
+`routes/`) returning a closure that receives the `\GO\Scheduler` keep running
+on every `schedule:run` — migrating them to `App\Schedule::boot(Scheduler)` is
+recommended.

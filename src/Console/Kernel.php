@@ -57,6 +57,7 @@ class Kernel
         \DumpCommand::class,
         \SuperCommand::class,
         \ScheduleRunCommand::class,
+        \ScheduleListCommand::class,
         \QueueWorkCommand::class,
         \OpenApiCommand::class,
         \Ions\commands\RouteCacheCommand::class,
@@ -87,6 +88,17 @@ class Kernel
     {
         FoundationKernel::boot($basePath);
 
+        return self::forBootedKernel();
+    }
+
+    /**
+     * Build a fully-wired console kernel against the ALREADY-booted framework
+     * container — without re-booting it. Used by in-request callers (e.g. the
+     * /cron/schedule web cron running a command task) where a re-boot would
+     * reset live request state.
+     */
+    public static function forBootedKernel(): self
+    {
         $container = new ConsoleContainerProxy(FoundationKernel::app());
 
         $application = new ConsoleApplication($container, new Dispatcher($container), '1.0.0');

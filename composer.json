@@ -26,6 +26,7 @@
     "ext-sodium": "*",
     "ext-zip": "*",
     "cartalyst/sentinel": "^9.0",
+    "dragonmantank/cron-expression": "^3",
     "illuminate/cache": "^12.0",
     "illuminate/console": "^12.0",
     "illuminate/container": "^12.0",

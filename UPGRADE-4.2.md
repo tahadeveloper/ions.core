@@ -79,3 +79,22 @@ methods. Protected/private methods with those names are ignored (a host's
 `protected boot()` helper does not break dispatch). The legacy underscore
 hooks keep raw `method_exists` detection, unchanged. See
 [docs/controllers.md](docs/controllers.md).
+
+### `/cron/schedule` web-cron: scheduler parity (opt-in via the boot signature)
+
+The built-in `/cron/schedule` route now targets a framework controller that
+inspects your `App\Schedule::boot()` signature at hit time:
+
+- **Legacy zero-parameter `boot()` — nothing changes.** The class keeps the
+  exact controller-string dispatch it always had (`boot()` IS the cron job).
+- **New signature `boot(\Ions\Schedule\Scheduler $schedule)` — opt-in.** The
+  route runs the due tasks of the new fluent scheduler (the same tasks
+  `schedule:run` executes) and answers with a JSON summary
+  `{"ran": n, "failed": n, "skipped": n}`. See
+  [docs/scheduler.md](docs/scheduler.md).
+- **No `App\Schedule` class:** the route now answers **404** (previously a
+  500 from the failed controller resolution).
+
+`schedule:run` additionally runs the new scheduler's due tasks before the
+legacy `GO\Scheduler` `schedule.php` jobs (which keep working unchanged), and
+now exits non-zero when a task fails. `schedule:list` is new.

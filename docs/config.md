@@ -333,6 +333,14 @@ Paths relative to the host code directory (`app/`, or `src/` on the legacy layou
 
 ---
 
+## `app.schedule_class`
+
+**Type:** `class-string`  **Default:** `'App\Schedule'`
+
+The host's schedule definition class for the cron scheduler (see [scheduler.md](scheduler.md)). When its `boot()` accepts an `Ions\Schedule\Scheduler`, the provider invokes it on the first resolve of the `'schedule'` binding; a legacy zero-parameter `boot()` stays wired to the `/cron/schedule` controller dispatch instead.
+
+---
+
 ## Auth config (`config/auth.php`)
 
 ### `auth.provider`
