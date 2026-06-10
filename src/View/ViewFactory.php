@@ -116,12 +116,44 @@ final class ViewFactory
             fn (string $form_name, string $input_name = '_ion_token') => new Markup(ionToken($form_name, $input_name), 'UTF-8')
         ));
 
-        $env->addGlobal('appUrl', config('app.app_url'));
+        foreach ($this->requestGlobals() as $name => $value) {
+            $env->addGlobal($name, $value);
+        }
+    }
 
+    /**
+     * Re-evaluate the per-request Twig globals on an already-built Environment.
+     *
+     * Twig globals are plain values frozen at registration time; on a shared
+     * per-process Environment (worker mode) `_csrf_token` would otherwise be
+     * the FIRST request's token — stale and cross-user. Kernel::resetForRequest()
+     * calls this so every request renders with fresh values. Twig allows
+     * updating an EXISTING global after the runtime is initialised, which is
+     * why the same names registered in addCoreFunctions() are re-set here.
+     *
+     * Design note: lazy (per-access) globals were considered, but Twig globals
+     * cannot be closures and wrapping them in stringable proxies changes their
+     * type in templates (`{% if _trans %}`, comparisons), so explicit
+     * re-registration on reset was chosen instead.
+     */
+    public function refreshRequestGlobals(Environment $env): void
+    {
+        foreach ($this->requestGlobals() as $name => $value) {
+            $env->addGlobal($name, $value);
+        }
+    }
+
+    /**
+     * Compute the current values of the per-request globals.
+     *
+     * @return array<string, mixed>
+     */
+    private function requestGlobals(): array
+    {
         // _trans: only call trans() when Localization has been initialised (Localization::init()
         // must have been called first in _loadInit()). The explicit isset() guard avoids swallowing
         // unrelated errors that a broad catch would hide.
-        $env->addGlobal('_trans', isset(Localization::$localization) ? trans() : '');
+        $trans = isset(Localization::$localization) ? trans() : '';
 
         // _csrf_token: csrfToken() uses NativeSessionTokenStorage which can fail in CLI/test SAPI.
         // A narrow try/catch is required here; unlike _trans there is no cheap precondition we can
@@ -135,6 +167,11 @@ final class ViewFactory
             Logs::create('view.log')->warning('csrfToken() failed building _csrf_token global: ' . $e->getMessage());
             $csrf = '';
         }
-        $env->addGlobal('_csrf_token', $csrf);
+
+        return [
+            'appUrl' => config('app.app_url'),
+            '_trans' => $trans,
+            '_csrf_token' => $csrf,
+        ];
     }
 }

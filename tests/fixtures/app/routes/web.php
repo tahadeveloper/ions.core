@@ -16,3 +16,28 @@ Route::get('/forbidden', function () {
 });
 
 Route::post('/csrf-protected', fn () => new \Symfony\Component\HttpFoundation\Response('posted'));
+
+// --- Worker-mode isolation fixtures (Phase 8.2) ---
+
+// Mutates the SHARED kernel response and returns null, so the pipeline falls
+// back to Kernel::response() — the leak vector resetForRequest() must close.
+Route::get('/leak-header', function () {
+    \Ions\Foundation\Kernel::response()->headers->set('X-Leak', 'r1');
+    \Ions\Foundation\Kernel::response()->setContent('leaked');
+});
+
+// Also returns null -> shared response; must NOT see /leak-header's header
+// after a resetForRequest().
+Route::get('/shared-response', function () {
+    \Ions\Foundation\Kernel::response()->setContent('shared');
+});
+
+// Session write/read pair used by the WorkerRunner isolation test.
+Route::get('/session-write', function () {
+    session(['leak' => 'r1']);
+    return new Response('written');
+});
+
+Route::get('/session-read', function () {
+    return new Response((string) (session('leak') ?? 'clean'));
+});

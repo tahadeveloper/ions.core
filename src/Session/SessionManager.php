@@ -177,6 +177,24 @@ final class SessionManager
     }
 
     /**
+     * Replace the inner Symfony session with a brand-new one (fresh storage,
+     * fresh attribute/flash bags) built from the same config-driven driver.
+     *
+     * Used by Kernel::resetForRequest() between sequential requests in one
+     * process (worker mode): the manager binding survives, but no session
+     * data can bleed into the next request. A started session is saved first
+     * so the native driver persists request N's data before being released.
+     */
+    public function renew(): void
+    {
+        if ($this->session->isStarted()) {
+            $this->session->save();
+        }
+
+        $this->session = new Session($this->makeStorage());
+    }
+
+    /**
      * Expose the underlying Symfony session (e.g. to attach to a Request or
      * back a CSRF token storage).
      */
