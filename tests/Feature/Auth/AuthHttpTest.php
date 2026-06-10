@@ -187,4 +187,49 @@ test('password reset round-trip with Sentinel: forgot issues a code, reset appli
 
     $payload = json_decode((string) $login->getContent(), true);
     expect($payload['data']['access_token'])->toBeString()->not->toBeEmpty();
+
+    // (1) Login with the OLD password must now fail — the reset invalidated it.
+    $oldLogin = Kernel::handle(jsonPost('/api/auth/login', [
+        'email'    => 'reset@example.com',
+        'password' => 'old-password',
+    ]));
+    expect($oldLogin->getStatusCode())->toBe(401);
+
+    // (2) A reset attempt with a missing/empty code is rejected at the HTTP layer.
+    $noCode = Kernel::handle(jsonPost('/api/auth/password/reset', [
+        'email'    => 'reset@example.com',
+        'code'     => '',
+        'password' => 'another-password',
+    ]));
+    expect($noCode->getStatusCode())->toBe(422);
+
+    // (2b) Same assertion when 'code' key is absent entirely.
+    $missingCode = Kernel::handle(jsonPost('/api/auth/password/reset', [
+        'email'    => 'reset@example.com',
+        'password' => 'another-password',
+    ]));
+    expect($missingCode->getStatusCode())->toBe(422);
+});
+
+test('a protected route that merely shares a string prefix with a public path is NOT bypassed', function () {
+    // public_paths includes '/api/auth/login'; the route '/api/auth/login-history' must
+    // still require auth — its path starts with the same characters but is a different
+    // path segment, so the old str_starts_with logic would wrongly bypass it.
+    // With the segment-boundary fix, it must return 401 when no token is present.
+    $response = Kernel::handle(Request::create('/api/auth/login-history'));
+    expect($response->getStatusCode())->toBe(401);
+});
+
+test('exact public path and segment-beneath subtree are still bypassed correctly', function () {
+    // '/api/auth/login' (exact) → public, no token needed → 401 from logic inside
+    // the controller itself (bad credentials), NOT from AuthMiddleware (which returns
+    // a 401 with "Not authorized!" detail). We confirm the response is NOT the
+    // middleware-level 401 by checking the body does not contain "Not authorized!".
+    $response = Kernel::handle(jsonPost('/api/auth/login', [
+        'email'    => 'known@example.com',
+        'password' => 'wrong',
+    ]));
+    $body = (string) $response->getContent();
+    expect($response->getStatusCode())->toBe(401)
+        ->and($body)->not->toContain('Not authorized!');
 });

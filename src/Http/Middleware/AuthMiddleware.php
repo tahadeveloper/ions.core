@@ -14,11 +14,15 @@ use Symfony\Component\HttpFoundation\Response;
 final class AuthMiddleware implements MiddlewareInterface
 {
     /**
-     * @param list<string> $publicPaths Path prefixes that bypass authentication
-     *                                  (e.g. the login/refresh/forgot/reset
-     *                                  endpoints, which authenticate rather than
-     *                                  require a prior token). Matched as a prefix
-     *                                  against the request path.
+     * @param list<string> $publicPaths Paths that bypass authentication (e.g. the
+     *                                  login/refresh/forgot/reset endpoints, which
+     *                                  authenticate rather than require a prior
+     *                                  token). Each entry matches either the exact
+     *                                  path or a full path-segment subtree beneath
+     *                                  it (i.e. the entry must be followed by '/'
+     *                                  or be an exact match). A bare string prefix
+     *                                  that shares only a character prefix with a
+     *                                  protected route does NOT match.
      */
     public function __construct(
         private ?Jwt $jwt,
@@ -72,7 +76,11 @@ final class AuthMiddleware implements MiddlewareInterface
     private function isPublic(string $path): bool
     {
         foreach ($this->publicPaths as $prefix) {
-            if ($prefix !== '' && str_starts_with($path, $prefix)) {
+            if ($prefix === '') {
+                continue;
+            }
+            $prefix = rtrim($prefix, '/');
+            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
                 return true;
             }
         }

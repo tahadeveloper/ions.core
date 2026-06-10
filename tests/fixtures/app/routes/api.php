@@ -25,3 +25,14 @@ Route::post('/api/auth/refresh', fn (Request $r) => (new AuthController())->refr
 Route::post('/api/auth/logout', fn (Request $r) => (new AuthController())->logout($r));
 Route::post('/api/auth/password/forgot', fn (Request $r) => (new AuthController())->forgotPassword($r));
 Route::post('/api/auth/password/reset', fn (Request $r) => (new AuthController())->resetPassword($r));
+
+/*
+|--------------------------------------------------------------------------
+| Protected test route that shares a string prefix with the public login path
+|--------------------------------------------------------------------------
+| Used by the segment-boundary regression test to confirm that the public
+| entry '/api/auth/login' does NOT grant access to '/api/auth/login-history'.
+*/
+Route::get('/api/auth/login-history', function (Request $request) {
+    return new Response('history for ' . $request->attributes->get('auth_user_id'));
+});
