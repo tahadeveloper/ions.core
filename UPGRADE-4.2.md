@@ -48,13 +48,34 @@ Controller actions and closure routes now share one return normalizer
 `Ions\Http\Responsable` (previously only controller actions could — a closure
 returning one fell through to the shared kernel response). `Response`, `View`
 and null/void returns behave exactly as before. Closure routes also receive
-method injection (route placeholders by name, services by type-hint); closures
-taking the request — typed or as an untyped first parameter — are unchanged.
+method injection (route placeholders by name, services by type-hint). A
+`Request`-typed closure parameter still receives the request anywhere in the
+signature; an **untyped** first parameter also still does — **unless it is
+named after a route placeholder**, in which case it now receives that
+placeholder's value instead of the request (rename the parameter or type-hint
+`Request` explicitly to keep the old behavior).
 
-### Controller lifecycle hooks are duck-typed by name
+### Action method injection — argument BC
+
+Controller actions were previously always invoked with exactly `[$request]`.
+In 4.2 they are method-injected (`Ions\Http\ActionArgumentResolver`), and the
+**placeholder-name match beats the untyped-first-param legacy rule**: on a
+route like `/users/{id}`, `public function show($id)` received the `Request`
+pre-9.3 but now receives the scalar placeholder value (`'42'`, or `42` when
+the parameter is hinted `int`). If your action relied on the old positional
+contract, type-hint the request (`show(Request $request)`) or rename the
+parameter so it no longer collides with a placeholder. One further edge: an
+action whose **first parameter is variadic** (`show(...$args)`) previously
+received `[$request]` and now receives **nothing** — variadics stop argument
+resolution.
+
+### Controller lifecycle hooks are duck-typed by name (public methods only)
 
 New optional controller hooks (`boot()`, `beforeAction()`, `afterAction()`,
-`middleware()`) are detected via `method_exists`, like the legacy underscore
-hooks. If an existing controller defines a plain method with one of those
-names (e.g. an action named `boot`), it will now be invoked as a lifecycle
-hook — rename such methods. See [docs/controllers.md](docs/controllers.md).
+`middleware()`) are detected by name on **public** methods. If an existing
+controller defines a public method with one of those names (e.g. an action
+named `boot`), it will now be invoked as a lifecycle hook — rename such
+methods. Protected/private methods with those names are ignored (a host's
+`protected boot()` helper does not break dispatch). The legacy underscore
+hooks keep raw `method_exists` detection, unchanged. See
+[docs/controllers.md](docs/controllers.md).

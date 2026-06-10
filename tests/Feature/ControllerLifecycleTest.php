@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use IonsFixture\Http\Controllers\Lifecycle\AfterActionController;
 use IonsFixture\Http\Controllers\Lifecycle\BadMiddlewareController;
+use IonsFixture\Http\Controllers\Lifecycle\BareInstanceMiddlewareController;
 use IonsFixture\Http\Controllers\Lifecycle\ConstructorController;
 use IonsFixture\Http\Controllers\Lifecycle\HookOrderController;
 use IonsFixture\Http\Controllers\Lifecycle\InjectionController;
 use IonsFixture\Http\Controllers\Lifecycle\LegacyOnlyController;
+use IonsFixture\Http\Controllers\Lifecycle\ProtectedHooksController;
 use IonsFixture\Http\Controllers\Lifecycle\ShortCircuitController;
 use IonsFixture\Lifecycle\Recorder;
 use Ions\Bundles\Route;
@@ -40,6 +42,8 @@ beforeEach(function () {
     Route::get('/lifecycle/ctor', ConstructorController::class . '::show');
     Route::get('/lifecycle/legacy', LegacyOnlyController::class . '::show');
     Route::get('/lifecycle/bad-mw', BadMiddlewareController::class . '::show');
+    Route::get('/lifecycle/bare-mw', BareInstanceMiddlewareController::class . '::show');
+    Route::get('/lifecycle/protected-hooks', ProtectedHooksController::class . '::show');
     Route::get('/lifecycle/inject/{id}/{slug}', InjectionController::class . '::show');
     Route::get('/lifecycle/inject-default/{id}', InjectionController::class . '::show');
 
@@ -156,6 +160,53 @@ test('an unresolvable middleware() entry fails closed with a 500 and never serve
 
     expect($response->getStatusCode())->toBe(500)
         ->and($response->getContent())->not->toContain('must-not-run');
+});
+
+test('middleware() returning a bare MiddlewareInterface instance genuinely runs (not silently dropped)', function () {
+    $response = Kernel::handle(Request::create('/lifecycle/bare-mw'));
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and($response->getContent())->toBe('bare-instance')
+        ->and($response->headers->get('X-Controller-Mw'))->toBe('ran')
+        ->and(Recorder::$events)->toBe(['middleware:before', 'middleware:after']);
+});
+
+// ---------------------------------------------------------------------------
+// Hook detection is PUBLIC-only — non-public name collisions are not hooks
+// ---------------------------------------------------------------------------
+
+test('a protected boot() helper is not treated as a hook: dispatch succeeds, hook skipped, private middleware() skipped', function () {
+    $response = Kernel::handle(Request::create('/lifecycle/protected-hooks'));
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and($response->getContent())->toBe('protected-hooks:helper')
+        // Recorded once — by the action calling its own helper, never by the
+        // dispatcher invoking it as the boot() lifecycle hook.
+        ->and(Recorder::$events)->toBe(['protected-boot-helper']);
+});
+
+// ---------------------------------------------------------------------------
+// Short-circuit × middleware() sub-pipeline ordering (deny path)
+// ---------------------------------------------------------------------------
+
+test('a beforeAction short-circuit unwinds through the controller middleware() wrap before _endState', function () {
+    $response = Kernel::handle(Request::create('/lifecycle/order?deny=1'));
+
+    expect($response->getStatusCode())->toBe(403)
+        ->and($response->getContent())->toBe('denied')
+        ->and(Recorder::$events)->toBe([
+            '__construct',
+            '_initState',
+            '_loadInit',
+            '_loadedState',
+            'boot:stamped',
+            'middleware:before',
+            'beforeAction',
+            'middleware:after',
+            '_endState',
+        ])
+        // The early 403 still passes back through the middleware unwind.
+        ->and($response->headers->get('X-Controller-Mw'))->toBe('ran');
 });
 
 // ---------------------------------------------------------------------------

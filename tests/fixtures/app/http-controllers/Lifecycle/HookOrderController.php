@@ -57,6 +57,12 @@ class HookOrderController
     {
         Recorder::add('beforeAction');
 
+        if ($request->query->get('deny') === '1') {
+            // Short-circuit INSIDE the middleware() wrap: the sub-pipeline
+            // still unwinds (middleware:after) around the early response.
+            return new Response('denied', 403);
+        }
+
         return null;
     }
 

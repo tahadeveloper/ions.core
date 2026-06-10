@@ -8,8 +8,11 @@ pipeline around the controller in [lifecycle.md](lifecycle.md) and
 
 Controllers are dispatched by `Ions\Http\Middleware\ControllerDispatcher`
 (the pipeline terminal for string-controller routes). **Every hook below is
-duck-typed via `method_exists`** — exactly like the legacy underscore hooks —
-so plain classes work as controllers; no base class or interface is required.
+duck-typed by name** — so plain classes work as controllers; no base class or
+interface is required. The legacy underscore hooks are detected via raw
+`method_exists`; the four new hooks (`boot`, `middleware`, `beforeAction`,
+`afterAction`) additionally require **public** visibility, so a protected or
+private helper with one of those names is simply ignored.
 
 ## Lifecycle
 
@@ -81,6 +84,13 @@ Notes:
   parameter default, then `null` when nullable, otherwise the container error
   surfaces.
 - Variadic parameters stop resolution.
+- **Union/intersection-typed parameters are treated as unhinted** for rule
+  purposes — placeholder-by-name (rule 2) can hit them, so type-hint `Request`
+  explicitly if that's what you want; enum hints are not implicitly resolvable
+  (the container cannot build an enum — supply a default or a nullable hint).
+- Heads-up: **non-placeholder route defaults** (e.g. YAML `defaults:` entries
+  whose keys don't start with `_`) are merged into the matched parameters and
+  are therefore also injectable by name, exactly like placeholders.
 - `boot()` is injected with services and the request but **not** route
   placeholders — those belong to the action.
 - Closure routes get the same injection (placeholders + services +
@@ -150,7 +160,9 @@ public function middleware(): array
 }
 ```
 
-Entries are resolved **fail-closed** through the same policy as per-route
+Returning a single bare entry (e.g. one `MiddlewareInterface` instance, not
+wrapped in an array) also works. Entries are resolved **fail-closed** through
+the same policy as per-route
 middleware (see [middleware.md](middleware.md)): an unresolvable entry throws
 (rendered as a 500) — a guarded action is never served unprotected. The
 resolved middleware run as a sub-pipeline **inside** the dispatcher, wrapping
@@ -190,9 +202,10 @@ the new hooks — add them per controller as needed.
 - The legacy underscore hooks are untouched in name, order, and signature.
 - Controllers not defining `boot` / `beforeAction` / `afterAction` /
   `middleware` are dispatched byte-identically to pre-9.3.
-- Because the new hooks are duck-typed, an existing controller method that
-  happens to be named `boot()`, `middleware()`, `beforeAction()`, or
-  `afterAction()` will now be treated as a lifecycle hook — rename such
-  methods if they were plain actions.
+- Because the new hooks are duck-typed, an existing **public** controller
+  method that happens to be named `boot()`, `middleware()`, `beforeAction()`,
+  or `afterAction()` will now be treated as a lifecycle hook — rename such
+  methods if they were plain actions. Protected/private methods with those
+  names are not treated as hooks.
 - Untyped first action parameters still receive the `Request` (positional
   legacy contract), unless their name matches a route placeholder.

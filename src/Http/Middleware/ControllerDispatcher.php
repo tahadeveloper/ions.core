@@ -14,8 +14,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Pipeline terminal for string-controller routes. Full lifecycle (9.3) —
- * every hook is duck-typed via method_exists, exactly like the legacy
- * underscore hooks, so plain controllers need no base class:
+ * every hook is duck-typed by name, so plain controllers need no base class.
+ * Legacy underscore hooks use raw method_exists (unchanged); the four new
+ * hooks additionally require PUBLIC visibility (see hasPublicHook()):
  *
  *   __construct (container-built: constructor DI)
  *   → _initState → _loadInit → _loadedState            (legacy, unchanged)
@@ -69,7 +70,8 @@ final class ControllerDispatcher
 
         // boot(): the "easy boot" hook — method-injected (Request + container
         // services; deliberately NO route params, those belong to the action).
-        if (method_exists($instance, 'boot')) {
+        // (method_exists is repeated inline for phpstan's type narrowing.)
+        if (method_exists($instance, 'boot') && $this->hasPublicHook($instance, 'boot')) {
             $instance->boot(...$this->resolver->resolve(new ReflectionMethod($instance, 'boot'), $request, []));
         }
 
@@ -94,7 +96,7 @@ final class ControllerDispatcher
      */
     private function actionPhase(object $instance, Request $request): Response
     {
-        if (method_exists($instance, 'beforeAction')) {
+        if (method_exists($instance, 'beforeAction') && $this->hasPublicHook($instance, 'beforeAction')) {
             $early = $instance->beforeAction($request);
             if ($early instanceof Response) {
                 return $early; // Short-circuit: action + afterAction skipped.
@@ -112,7 +114,7 @@ final class ControllerDispatcher
 
         // afterAction receives the NORMALIZED response (after View/Responsable
         // conversion); a non-null Response return replaces it.
-        if (method_exists($instance, 'afterAction')) {
+        if (method_exists($instance, 'afterAction') && $this->hasPublicHook($instance, 'afterAction')) {
             $replacement = $instance->afterAction($request, $response);
             if ($replacement instanceof Response) {
                 $response = $replacement;
@@ -145,17 +147,33 @@ final class ControllerDispatcher
      */
     private function controllerMiddleware(object $instance): array
     {
-        if (!method_exists($instance, 'middleware')) {
+        if (!method_exists($instance, 'middleware') || !$this->hasPublicHook($instance, 'middleware')) {
             return [];
         }
 
+        // No (array) cast: it would turn a bare MiddlewareInterface return
+        // into its property map (often []) and silently DROP it — fail-open.
+        $entries = $instance->middleware();
+
         $resolved = [];
-        foreach ((array) $instance->middleware() as $entry) {
+        foreach (is_array($entries) ? $entries : [$entries] as $entry) {
             $resolved[] = $entry instanceof MiddlewareInterface
                 ? $entry
                 : Kernel::resolveMiddleware((string) $entry);
         }
 
         return $resolved;
+    }
+
+    /**
+     * The four 9.3 hooks (boot, middleware, beforeAction, afterAction) are
+     * detected on PUBLIC methods only — method_exists alone also matches
+     * protected/private helpers (e.g. a host's protected boot()), which the
+     * dispatcher cannot call. Legacy underscore hooks keep raw method_exists.
+     */
+    private function hasPublicHook(object $instance, string $name): bool
+    {
+        return method_exists($instance, $name)
+            && (new ReflectionMethod($instance, $name))->isPublic();
     }
 }
