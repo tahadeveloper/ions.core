@@ -5,22 +5,26 @@ declare(strict_types=1);
 namespace Ions\Foundation;
 
 use ArrayAccess;
+use InvalidArgumentException;
 use Ions\Support\Arr;
 use ReturnTypeWillChange;
 
+/**
+ * @implements ArrayAccess<string, mixed>
+ */
 class Config implements ArrayAccess
 {
     /**
      * All the configuration items.
      *
-     * @var array
+     * @var array<array-key, mixed>
      */
     protected array $items = [];
 
     /**
      * Create a new configuration repository.
      *
-     * @param array $items
+     * @param array<array-key, mixed> $items
      * @return void
      */
     public function __construct(array $items = [])
@@ -42,7 +46,7 @@ class Config implements ArrayAccess
     /**
      * Get the specified configuration value.
      *
-     * @param array|string $key
+     * @param array<array-key, mixed>|string $key
      * @param mixed|null $default
      * @return mixed
      */
@@ -59,8 +63,8 @@ class Config implements ArrayAccess
     /**
      * Get many configuration values.
      *
-     * @param array $keys
-     * @return array
+     * @param array<array-key, mixed> $keys
+     * @return array<string, mixed>
      */
     public function getMany(array $keys): array
     {
@@ -78,9 +82,157 @@ class Config implements ArrayAccess
     }
 
     /**
+     * Get the specified configuration value as a string, or throw.
+     *
+     * Assertion-style accessor (mirrors Laravel's typed Config getters):
+     * no coercion — a non-string value (including null for a missing key
+     * without a default) throws InvalidArgumentException.
+     *
+     * @param string $key
+     * @param string|null $default
+     * @return string
+     *
+     * @throws InvalidArgumentException
+     */
+    public function string(string $key, ?string $default = null): string
+    {
+        $value = $this->get($key, $default);
+
+        if (! is_string($value)) {
+            throw new InvalidArgumentException(
+                sprintf('Configuration value for key [%s] must be a string, %s given.', $key, get_debug_type($value))
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Get the specified configuration value as an integer, or throw.
+     *
+     * No coercion — the string '1' is not an int.
+     *
+     * @param string $key
+     * @param int|null $default
+     * @return int
+     *
+     * @throws InvalidArgumentException
+     */
+    public function integer(string $key, ?int $default = null): int
+    {
+        $value = $this->get($key, $default);
+
+        if (! is_int($value)) {
+            throw new InvalidArgumentException(
+                sprintf('Configuration value for key [%s] must be an integer, %s given.', $key, get_debug_type($value))
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Alias of integer().
+     *
+     * @param string $key
+     * @param int|null $default
+     * @return int
+     *
+     * @throws InvalidArgumentException
+     */
+    public function int(string $key, ?int $default = null): int
+    {
+        return $this->integer($key, $default);
+    }
+
+    /**
+     * Get the specified configuration value as a boolean, or throw.
+     *
+     * No coercion — the ints 0/1 are not bools.
+     *
+     * @param string $key
+     * @param bool|null $default
+     * @return bool
+     *
+     * @throws InvalidArgumentException
+     */
+    public function boolean(string $key, ?bool $default = null): bool
+    {
+        $value = $this->get($key, $default);
+
+        if (! is_bool($value)) {
+            throw new InvalidArgumentException(
+                sprintf('Configuration value for key [%s] must be a boolean, %s given.', $key, get_debug_type($value))
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Alias of boolean().
+     *
+     * @param string $key
+     * @param bool|null $default
+     * @return bool
+     *
+     * @throws InvalidArgumentException
+     */
+    public function bool(string $key, ?bool $default = null): bool
+    {
+        return $this->boolean($key, $default);
+    }
+
+    /**
+     * Get the specified configuration value as an array, or throw.
+     *
+     * @param string $key
+     * @param array<array-key, mixed>|null $default
+     * @return array<array-key, mixed>
+     *
+     * @throws InvalidArgumentException
+     */
+    public function array(string $key, ?array $default = null): array
+    {
+        $value = $this->get($key, $default);
+
+        if (! is_array($value)) {
+            throw new InvalidArgumentException(
+                sprintf('Configuration value for key [%s] must be an array, %s given.', $key, get_debug_type($value))
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Get the specified configuration value as a float, or throw.
+     *
+     * No coercion — an int is not a float.
+     *
+     * @param string $key
+     * @param float|null $default
+     * @return float
+     *
+     * @throws InvalidArgumentException
+     */
+    public function float(string $key, ?float $default = null): float
+    {
+        $value = $this->get($key, $default);
+
+        if (! is_float($value)) {
+            throw new InvalidArgumentException(
+                sprintf('Configuration value for key [%s] must be a float, %s given.', $key, get_debug_type($value))
+            );
+        }
+
+        return $value;
+    }
+
+    /**
      * Set a given configuration value.
      *
-     * @param array|string $key
+     * @param array<string, mixed>|string $key
      * @param mixed $value
      * @return void
      */
@@ -128,7 +280,7 @@ class Config implements ArrayAccess
     /**
      * Get all the configuration items for the application.
      *
-     * @return array
+     * @return array<array-key, mixed>
      */
     public function all(): array
     {

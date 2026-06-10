@@ -115,6 +115,7 @@ The framework resolves application paths relative to the host-app root (five dir
 - **Cache / Queue / Events** — `cache()` / `dispatch()` / `event()`+`listen()` helpers; Illuminate-backed providers
 - **API resources** — `Ions\Http\Resource` / `ResourceCollection` (single `data` envelope, pagination meta/links); `FormRequest`; `openapi:generate`
 - **Image processing** — `Ions\Media\Image` over `intervention/image` v3 (resize / crop / cover / watermark / encode)
+- **Typed config accessors** — `config()->string('app.name')` / `integer()` (`int()`) / `boolean()` (`bool()`) / `array()` / `float()`; throw `InvalidArgumentException` on type mismatch (no coercion)
 - **JSON helpers** — `Json::ok()` / `Json::error()`
 - **Twig views** — `Ions\View\ViewFactory`; bound as `view` in the container
 - **Security headers** on every response; configurable CSP

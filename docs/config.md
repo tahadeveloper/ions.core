@@ -6,6 +6,36 @@ This is the canonical reference for all framework config keys. Keys live in PHP 
 
 ---
 
+## Typed accessors
+
+The `config()` helper returns the `Ions\Foundation\Config` instance when called with no arguments. Alongside the untyped `get()`/`config('key', $default)` overloads, `Config` exposes **assertion-style typed getters** (mirroring Laravel 11's `Config::string()` family):
+
+```php
+config()->string('app.name');            // string — or throws
+config()->integer('app.ratelimit.max');  // int    — int() alias also available
+config()->boolean('app.csrf.enabled');   // bool   — bool() alias also available
+config()->array('app.providers');        // array
+config()->float('app.jwt.leeway');       // float
+```
+
+Each accessor fetches the value via `get($key, $default)` and **throws `InvalidArgumentException`** when the resolved value is not of the expected type:
+
+```php
+// config/app.php: 'workers' => '4'   (oops — a string)
+config()->integer('app.workers');
+// InvalidArgumentException: Configuration value for key [app.workers]
+// must be an integer, string given.
+```
+
+Rules:
+
+- **No coercion.** `'1'` is not an int, `0`/`1` are not bools, and an int is not a float. A wrongly-typed `.env`-sourced value fails loudly at the read site instead of silently mis-behaving downstream — this kills a whole class of config bugs.
+- **Missing key + typed default** → the default is returned: `config()->string('app.name', 'Ions')`.
+- **Missing key without a default** resolves to `null`, which is a type mismatch → throws. This is deliberate: either pass an explicit default or guarantee the key exists.
+- A stored `null` value likewise throws.
+
+---
+
 ## `app.providers`
 
 **Type:** `array` of FQCN strings implementing `Ions\Container\ServiceProvider`
