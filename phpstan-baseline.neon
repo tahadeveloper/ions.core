@@ -43,6 +43,12 @@ parameters:
 			path: src/Auth/Guard/Guard.php
 
 		-
+			message: '#^Parameter \#1 \$config of class Cartalyst\\Sentinel\\Native\\SentinelBootstrapper constructor expects array\|null, Cartalyst\\Sentinel\\Native\\ConfigRepository given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Auth/Guard/Guard.php
+
+		-
 			message: '#^Call to an undefined static method Cartalyst\\Sentinel\\Native\\Facades\\Sentinel\:\:findRoleById\(\)\.$#'
 			identifier: staticMethod.notFound
 			count: 1
@@ -51,6 +57,12 @@ parameters:
 		-
 			message: '#^Call to an undefined static method Cartalyst\\Sentinel\\Native\\Facades\\Sentinel\:\:getRoleRepository\(\)\.$#'
 			identifier: staticMethod.notFound
+			count: 1
+			path: src/Auth/Guard/GuardRole.php
+
+		-
+			message: '#^Parameter \#1 \$config of class Cartalyst\\Sentinel\\Native\\SentinelBootstrapper constructor expects array\|null, Cartalyst\\Sentinel\\Native\\ConfigRepository given\.$#'
+			identifier: argument.type
 			count: 1
 			path: src/Auth/Guard/GuardRole.php
 
@@ -91,82 +103,10 @@ parameters:
 			path: src/Auth/Guard/GuardUser.php
 
 		-
-			message: '#^PHPDoc tag @param references unknown parameter\: \$limit$#'
-			identifier: parameter.notFound
+			message: '#^Parameter \#1 \$config of class Cartalyst\\Sentinel\\Native\\SentinelBootstrapper constructor expects array\|null, Cartalyst\\Sentinel\\Native\\ConfigRepository given\.$#'
+			identifier: argument.type
 			count: 1
 			path: src/Auth/Guard/GuardUser.php
-
-		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\ArrayShape does not exist\.$#'
-			identifier: attribute.notFound
-			count: 1
-			path: src/Builders/DatatableBuilder.php
-
-		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\Pure does not exist\.$#'
-			identifier: attribute.notFound
-			count: 1
-			path: src/Builders/DatatableBuilder.php
-
-		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\ArrayShape does not exist\.$#'
-			identifier: attribute.notFound
-			count: 1
-			path: src/Builders/DatatableQuery.php
-
-		-
-			message: '#^Expression on left side of \?\? is not nullable\.$#'
-			identifier: nullCoalesce.expr
-			count: 1
-			path: src/Builders/DatatableQuery.php
-
-		-
-			message: '#^Method Ions\\Builders\\QueryBuilder\:\:allowFilters\(\) has invalid return type Ions\\Traits\\BuilderFilters\.$#'
-			identifier: return.trait
-			count: 1
-			path: src/Builders/QueryBuilder.php
-
-		-
-			message: '#^PHPDoc tag @return with type Ions\\Builders\\QueryBuilder\|Ions\\Traits\\BuilderFilters is not subtype of native type Ions\\Builders\\QueryBuilder\.$#'
-			identifier: return.phpDocType
-			count: 1
-			path: src/Builders/QueryBuilder.php
-
-		-
-			message: '#^Unsafe usage of new static\(\)\.$#'
-			identifier: new.static
-			count: 1
-			path: src/Builders/QueryBuilder.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Builders\\QueryBuilderRequest\:\:\$appendsArrayValueDelimiter through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 3
-			path: src/Builders/QueryBuilderRequest.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Builders\\QueryBuilderRequest\:\:\$fieldsArrayValueDelimiter through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 3
-			path: src/Builders/QueryBuilderRequest.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Builders\\QueryBuilderRequest\:\:\$filterArrayValueDelimiter through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 3
-			path: src/Builders/QueryBuilderRequest.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Builders\\QueryBuilderRequest\:\:\$includesArrayValueDelimiter through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 3
-			path: src/Builders/QueryBuilderRequest.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Builders\\QueryBuilderRequest\:\:\$sortsArrayValueDelimiter through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 3
-			path: src/Builders/QueryBuilderRequest.php
 
 		-
 			message: '#^Call to an undefined method Illuminate\\Contracts\\Cache\\Repository\:\:flush\(\)\.$#'
@@ -181,220 +121,16 @@ parameters:
 			path: src/Bundles/Cache.php
 
 		-
-			message: '#^Call to method getMessage\(\) on an unknown class Ions\\Bundles\\AwsException\.$#'
-			identifier: class.notFound
+			message: '#^Parameter \#1 \$app of class Illuminate\\Cache\\CacheManager constructor expects Illuminate\\Contracts\\Foundation\\Application, Illuminate\\Container\\Container given\.$#'
+			identifier: argument.type
 			count: 1
-			path: src/Bundles/IonDisk.php
+			path: src/Bundles/Cache.php
 
 		-
-			message: '#^Caught class Ions\\Bundles\\AwsException not found\.$#'
-			identifier: class.notFound
-			count: 1
-			path: src/Bundles/IonDisk.php
-
-		-
-			message: '#^Method Ions\\Bundles\\IonDisk\:\:disk\(\) should return static\(Ions\\Bundles\\IonDisk\) but returns Ions\\Bundles\\IonDisk\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/IonDisk.php
-
-		-
-			message: '#^Unreachable statement \- code above always terminates\.$#'
-			identifier: deadCode.unreachable
-			count: 3
-			path: src/Bundles/IonDisk.php
-
-		-
-			message: '#^Expression on left side of \?\? is not nullable\.$#'
-			identifier: nullCoalesce.expr
-			count: 1
-			path: src/Bundles/IonUpload.php
-
-		-
-			message: '#^Method Ions\\Bundles\\IonUpload\:\:moveLocal\(\) should return static\(Ions\\Bundles\\IonUpload\) but returns Ions\\Bundles\\IonUpload\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/IonUpload.php
-
-		-
-			message: '#^Method Ions\\Bundles\\IonUpload\:\:moveUrl\(\) should return static\(Ions\\Bundles\\IonUpload\) but returns Ions\\Bundles\\IonUpload\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/IonUpload.php
-
-		-
-			message: '#^Method Ions\\Bundles\\IonUpload\:\:remove\(\) should return static\(Ions\\Bundles\\IonUpload\) but returns Ions\\Bundles\\IonUpload\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/IonUpload.php
-
-		-
-			message: '#^Method Ions\\Bundles\\IonUpload\:\:store\(\) should return static\(Ions\\Bundles\\IonUpload\) but returns Ions\\Bundles\\IonUpload\.$#'
-			identifier: return.type
-			count: 3
-			path: src/Bundles/IonUpload.php
-
-		-
-			message: '#^Method Ions\\Bundles\\IonUpload\:\:update\(\) should return static\(Ions\\Bundles\\IonUpload\) but returns Ions\\Bundles\\IonUpload\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Bundles/IonUpload.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Bundles\\IonUpload\:\:\$output through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 10
-			path: src/Bundles/IonUpload.php
-
-		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\Pure does not exist\.$#'
-			identifier: attribute.notFound
-			count: 1
-			path: src/Bundles/QueryBuilder.php
-
-		-
-			message: '#^Property Ions\\Bundles\\Route\:\:\$lastRoute is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Bundles/Route.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Bundles\\Route\:\:\$controls through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 5
-			path: src/Bundles/Route.php
-
-		-
-			message: '#^Unsafe access to private property Ions\\Bundles\\Route\:\:\$prefix through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 5
-			path: src/Bundles/Route.php
-
-		-
-			message: '#^Unsafe usage of new static\(\)\.$#'
-			identifier: new.static
-			count: 1
-			path: src/Exceptions/InvalidFieldQuery.php
-
-		-
-			message: '#^Unsafe usage of new static\(\)\.$#'
-			identifier: new.static
-			count: 1
-			path: src/Exceptions/InvalidFilterQuery.php
-
-		-
-			message: '#^Unsafe usage of new static\(\)\.$#'
-			identifier: new.static
-			count: 1
-			path: src/Exceptions/InvalidSortQuery.php
-
-		-
-			message: '#^Unsafe usage of new static\(\)\.$#'
-			identifier: new.static
-			count: 1
-			path: src/Exceptions/InvalidSubject.php
-
-		-
-			message: '#^Access to an undefined property Ions\\Foundation\\BaseController\:\:\$locale_folder\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Foundation/BaseController.php
-
-		-
-			message: '#^Property Ions\\Foundation\\BaseController\:\:\$localeFolder \(string\) on left side of \?\? is not nullable\.$#'
-			identifier: nullCoalesce.property
-			count: 1
-			path: src/Foundation/BaseController.php
-
-		-
-			message: '#^Instanceof between null and Ions\\Support\\Request will always evaluate to false\.$#'
-			identifier: instanceof.alwaysFalse
+			message: '#^Parameter \#1 \$app of static method Illuminate\\Support\\Facades\\Facade\:\:setFacadeApplication\(\) expects Illuminate\\Contracts\\Foundation\\Application\|null, Ions\\Container\\Container given\.$#'
+			identifier: argument.type
 			count: 1
 			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Instanceof between null and Ions\\Support\\Response will always evaluate to false\.$#'
-			identifier: instanceof.alwaysFalse
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Instanceof between null and Ions\\Support\\Session will always evaluate to false\.$#'
-			identifier: instanceof.alwaysFalse
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:Container\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:capture\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:captureConfig\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:captureRoute\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:failBoot\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:preloads\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\Kernel\:\:structureBone\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 1
-			path: src/Foundation/Kernel.php
-
-		-
-			message: '#^Unsafe call to private method Ions\\Foundation\\ProviderController\:\:returnStructure\(\) through static\:\:\.$#'
-			identifier: staticClassAccess.privateMethod
-			count: 17
-			path: src/Foundation/ProviderController.php
-
-		-
-			message: '#^Unsafe usage of new static\(\)\.$#'
-			identifier: new.static
-			count: 2
-			path: src/Foundation/ProviderController.php
-
-		-
-			message: '#^Unsafe usage of new static\(\)\.$#'
-			identifier: new.static
-			count: 1
-			path: src/Foundation/Singleton.php
-
-		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\Pure does not exist\.$#'
-			identifier: attribute.notFound
-			count: 1
-			path: src/commands/ModelCommand.php
-
-		-
-			message: '#^Attribute class JetBrains\\PhpStorm\\ArrayShape does not exist\.$#'
-			identifier: attribute.notFound
-			count: 1
-			path: src/commands/RouteListCommand.php
 
 		-
 			message: '#^Left side of && is always true\.$#'
@@ -409,37 +145,7 @@ parameters:
 			path: src/commands/RouteListCommand.php
 
 		-
-			message: '#^Unsafe access to private property Ions\\commands\\RouteListCommand\:\:\$terminalWidthResolver through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 3
-			path: src/commands/RouteListCommand.php
-
-		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Connection\:\:getSchemaState\(\)\.$#'
 			identifier: method.notFound
 			count: 1
 			path: src/commands/migrate/DumpCommand.php
-
-		-
-			message: '#^Function toJson\(\) never returns null so it can be removed from the return type\.$#'
-			identifier: return.unusedType
-			count: 1
-			path: src/helpers.php
-
-		-
-			message: '#^Function trans\(\) never returns bool so it can be removed from the return type\.$#'
-			identifier: return.unusedType
-			count: 1
-			path: src/helpers.php
-
-		-
-			message: '#^PHPDoc tag @return with type object\|null is not subtype of native type string\|null\.$#'
-			identifier: return.phpDocType
-			count: 1
-			path: src/helpers.php
-
-		-
-			message: '#^Strict comparison using \=\=\= between Symfony\\Component\\Translation\\Translator and null will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: src/helpers.php

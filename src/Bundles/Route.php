@@ -30,7 +30,6 @@ class Route extends Singleton
     private static array $prefix = [];
     private static array $controls = [];
     private array $route_details;
-    private ?SRoute $lastRoute = null;
     /** @var SRoute[] */
     private array $lastRoutes = [];
 
@@ -94,8 +93,8 @@ class Route extends Singleton
     {
         $this->route_details = [
             'method' => $method,
-            'path' => !empty(static::$prefix) ? implode("", static::$prefix) . $path : $path,
-            'controller' => !empty(static::$controls) ? implode("", static::$controls) . $controller : $controller,
+            'path' => !empty(self::$prefix) ? implode("", self::$prefix) . $path : $path,
+            'controller' => !empty(self::$controls) ? implode("", self::$controls) . $controller : $controller,
             'defaults' => $defaults,
             'name' => $name,
             'wheres' => $wheres
@@ -104,21 +103,21 @@ class Route extends Singleton
 
     private function _prefix(string $prefix, $controls = null, ?Closure $closure = null)
     {
-        static::$prefix[] = $prefix;
-        static::$controls[] = $controls;
+        self::$prefix[] = $prefix;
+        self::$controls[] = $controls;
 
         if ($closure instanceof Closure) {
             $closure();
-            array_pop(static::$prefix);
-            array_pop(static::$controls);
+            array_pop(self::$prefix);
+            array_pop(self::$controls);
         }
     }
 
     private function _group(Closure $closure): void
     {
         $closure();
-        array_pop(static::$prefix);
-        array_pop(static::$controls);
+        array_pop(self::$prefix);
+        array_pop(self::$controls);
     }
 
     private function newRoute($name, $path, $controller, $defaults, $method, $wheres): void
@@ -139,7 +138,6 @@ class Route extends Singleton
 
         Kernel::RouteCollection()->add($name, $sroute);
 
-        $this->lastRoute = $sroute;
         $this->lastRoutes[] = $sroute;
     }
 

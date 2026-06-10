@@ -6,6 +6,9 @@ namespace Ions\Foundation;
 
 use InvalidArgumentException;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 abstract class Singleton
 {
     private static array $instances = [];

@@ -50,7 +50,7 @@ class QueryBuilder extends Singleton
     /**
      * @throws Throwable
      */
-    public function __construct($subject, $request)
+    public function __construct(string|Builder $subject = '', ?Request $request = null)
     {
         parent::__construct();
         $this->initializeSubject($subject)
@@ -267,12 +267,9 @@ class QueryBuilder extends Singleton
      */
     protected function getColumns(mixed $item, bool $preAppend = true): mixed
     {
-        $allowedFields = $this->allowedFields->filter(function ($field) use ($item) {
-            if (Str::startsWith($field, $item['table'] . '.')) {
-                return $field;
-            }
-            return null;
-        })->toArray();
+        $allowedFields = $this->allowedFields->filter(
+            static fn ($field): bool => Str::startsWith($field, $item['table'] . '.')
+        )->toArray();
         $fields = $this->request->fields()->get($item['table']);
 
         if ($fields) {

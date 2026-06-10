@@ -64,6 +64,7 @@
   "require-dev": {
     "driftingly/rector-laravel": "^2.5",
     "friendsofphp/php-cs-fixer": "^3.64",
+    "jetbrains/phpstorm-attributes": "^1.0",
     "pestphp/pest": "^3.0",
     "phpstan/phpstan": "^2.0",
     "rector/rector": "^2.0"

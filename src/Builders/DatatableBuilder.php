@@ -99,7 +99,7 @@ class DatatableBuilder
     protected function countAndOffsetQuery(Builder $query): Builder
     {
         $query = clone $query;
-        $offset_result = max(0, $this->request->post('start', 0));
+        $offset_result = max(0, $this->request->post('start', '0'));
         $maxCount = $this->count;
         $count_result = $this->request->post('length', $maxCount);
         $count_result = max(min($maxCount, $count_result), 1);

@@ -27,6 +27,6 @@ class InvalidFilterQuery extends InvalidQuery
 
     public static function filtersNotAllowed(Collection $unknownFilters, Collection $allowedFilters)
     {
-        return new static(...func_get_args());
+        return new self(...func_get_args());
     }
 }

@@ -27,6 +27,6 @@ class InvalidFieldQuery extends InvalidQuery
 
     public static function fieldsNotAllowed(Collection $unknownFields, Collection $allowedFields)
     {
-        return new static(...func_get_args());
+        return new self(...func_get_args());
     }
 }

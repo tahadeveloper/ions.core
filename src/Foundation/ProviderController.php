@@ -79,86 +79,86 @@ abstract class ProviderController extends Singleton
 
     protected static function badRequest($response): void
     {
-        static::returnStructure([], false, $response, ResponseAlias::HTTP_BAD_REQUEST);
+        self::returnStructure([], false, $response, ResponseAlias::HTTP_BAD_REQUEST);
     }
 
     protected static function serverError($response): void
     {
         if (config('app.app_debug', false)) {
-            static::returnStructure([], false, $response, ResponseAlias::HTTP_INTERNAL_SERVER_ERROR);
+            self::returnStructure([], false, $response, ResponseAlias::HTTP_INTERNAL_SERVER_ERROR);
         } else {
-            static::returnStructure([], false, 'server error', ResponseAlias::HTTP_INTERNAL_SERVER_ERROR);
+            self::returnStructure([], false, 'server error', ResponseAlias::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     protected static function notFound($response): void
     {
-        static::returnStructure([], false, $response, ResponseAlias::HTTP_NOT_FOUND);
+        self::returnStructure([], false, $response, ResponseAlias::HTTP_NOT_FOUND);
     }
 
     protected static function unauthorized($response): void
     {
-        static::returnStructure([], false, $response, ResponseAlias::HTTP_UNAUTHORIZED);
+        self::returnStructure([], false, $response, ResponseAlias::HTTP_UNAUTHORIZED);
     }
 
     protected static function forbidden($response): void
     {
-        static::returnStructure([], false, $response, ResponseAlias::HTTP_FORBIDDEN);
+        self::returnStructure([], false, $response, ResponseAlias::HTTP_FORBIDDEN);
     }
 
     protected static function conflict($response): void
     {
-        static::returnStructure([], false, $response, ResponseAlias::HTTP_CONFLICT);
+        self::returnStructure([], false, $response, ResponseAlias::HTTP_CONFLICT);
     }
 
     protected static function unprocessableEntity($response): void
     {
-        static::returnStructure([], false, $response, ResponseAlias::HTTP_UNPROCESSABLE_ENTITY);
+        self::returnStructure([], false, $response, ResponseAlias::HTTP_UNPROCESSABLE_ENTITY);
     }
 
     protected static function noContent($response): void
     {
-        static::returnStructure([], true, [], ResponseAlias::HTTP_NO_CONTENT);
+        self::returnStructure([], true, [], ResponseAlias::HTTP_NO_CONTENT);
     }
 
     protected static function created($response): void
     {
-        static::returnStructure($response, true, [], ResponseAlias::HTTP_CREATED);
+        self::returnStructure($response, true, [], ResponseAlias::HTTP_CREATED);
     }
 
     protected static function success($response): void
     {
-        static::returnStructure($response, true);
+        self::returnStructure($response, true);
     }
 
     protected static function updated($response): void
     {
-        static::returnStructure($response, true, [], ResponseAlias::HTTP_ACCEPTED);
+        self::returnStructure($response, true, [], ResponseAlias::HTTP_ACCEPTED);
     }
 
     protected static function deleted($response): void
     {
-        static::returnStructure($response, true, [], ResponseAlias::HTTP_ACCEPTED);
+        self::returnStructure($response, true, [], ResponseAlias::HTTP_ACCEPTED);
     }
 
     protected static function createdResponse($response): void
     {
-        static::returnStructure($response, true, [], ResponseAlias::HTTP_CREATED);
+        self::returnStructure($response, true, [], ResponseAlias::HTTP_CREATED);
     }
 
     protected static function successResponse($response): void
     {
-        static::returnStructure($response, true);
+        self::returnStructure($response, true);
     }
 
     protected static function updatedResponse($response): void
     {
-        static::returnStructure($response, true, [], ResponseAlias::HTTP_ACCEPTED);
+        self::returnStructure($response, true, [], ResponseAlias::HTTP_ACCEPTED);
     }
 
     protected static function deletedResponse($response): void
     {
-        static::returnStructure($response, true, [], ResponseAlias::HTTP_ACCEPTED);
+        self::returnStructure($response, true, [], ResponseAlias::HTTP_ACCEPTED);
     }
 
     private static function returnStructure(array|object $data, bool $success, $error = [], $status = ResponseAlias::HTTP_OK): void

@@ -39,8 +39,7 @@ abstract class BaseController implements BluePrint
         }
 
         $configLocale = config('app.localization.locale', $this->locale);
-        /** @noinspection PhpUndefinedFieldInspection */
-        Localization::init(($this->localeFolder ?? $this->locale_folder), $configLocale);
+        Localization::init($this->localeFolder, $configLocale);
         $transJson = Localization::localeJson($configLocale);
 
         $allowTemplates = config('app.templates', ['twig']);

@@ -27,6 +27,6 @@ class InvalidSortQuery extends InvalidQuery
 
     public static function sortsNotAllowed(Collection $unknownSorts, Collection $allowedSorts)
     {
-        return new static(...func_get_args());
+        return new self(...func_get_args());
     }
 }

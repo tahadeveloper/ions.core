@@ -41,7 +41,7 @@ class DatatableQuery
         return [
             'limit' => $this->query['paging']['limit'] ,
             'offset' => $this->query['paging']['offset'] ,
-            'sort' => $this->query['sort']['dir'] . $this->query['sort']['column'] ?? '',
+            'sort' => $this->query['sort']['dir'] . $this->query['sort']['column'],
             'filter' => $this->query['filter'] ?? ''
         ];
     }
@@ -52,7 +52,7 @@ class DatatableQuery
      */
     protected function paging(): void
     {
-        $offset_result = max(0, $this->request->post('start', 0));
+        $offset_result = max(0, $this->request->post('start', '0'));
         $maxCount = $this->count;
         $count_result = $this->request->post('length', $maxCount);
         $count_result = max(min($maxCount, $count_result), 1);
