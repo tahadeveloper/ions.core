@@ -134,6 +134,10 @@ no functional difference (one process = one request); code that mutated
 `Kernel::RouteCollection()` *between* `handle()` calls in the same process
 must re-boot the kernel to have the change picked up.
 
+### Richer debug error page (debug mode only)
+
+With `APP_DEBUG=true`, HTML errors now render a full debug page (`Ions\Http\DebugPage`: source excerpt, stack trace, `getPrevious()` chain, redacted request summary) instead of the bare `<h1>/<pre>` block. Production output (`APP_DEBUG` off) is byte-for-byte unchanged, and JSON/api error responses are unaffected. See `docs/lifecycle.md` → "Error rendering".
+
 ## New (optional) production caches
 
 ```bash

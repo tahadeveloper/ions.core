@@ -21,6 +21,16 @@ final class RedactionProcessor implements ProcessorInterface
 
     public const MASK = '[REDACTED]';
 
+    /**
+     * Whether a key looks secret-bearing (password/token/secret/authorization/
+     * api key, case-insensitive substring). Shared with {@see \Ions\Http\DebugPage}
+     * so the debug error page and log redaction stay in sync.
+     */
+    public static function isSensitiveKey(string $key): bool
+    {
+        return preg_match(self::KEY_PATTERN, $key) === 1;
+    }
+
     public function __invoke(LogRecord $record): LogRecord
     {
         if ($record->context === []) {
@@ -37,7 +47,7 @@ final class RedactionProcessor implements ProcessorInterface
     private function redact(array $data): array
     {
         foreach ($data as $key => $value) {
-            if (is_string($key) && preg_match(self::KEY_PATTERN, $key) === 1) {
+            if (is_string($key) && self::isSensitiveKey($key)) {
                 $data[$key] = self::MASK;
                 continue;
             }

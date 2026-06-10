@@ -15,6 +15,11 @@ Route::get('/forbidden', function () {
     abort(403, 'no access');
 });
 
+// Chained exception fixture: DebugPage must render the getPrevious() chain.
+Route::get('/boom-chained', function () {
+    throw new \RuntimeException('outer failure', 0, new \LogicException('root cause detail'));
+});
+
 Route::post('/csrf-protected', fn () => new \Symfony\Component\HttpFoundation\Response('posted'));
 
 // --- Worker-mode isolation fixtures (Phase 8.2) ---
