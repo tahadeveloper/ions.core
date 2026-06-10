@@ -36,6 +36,7 @@
     "illuminate/queue": "^12",
     "illuminate/support": "^12.0",
     "illuminate/validation": "^12.0",
+    "intervention/image": "^3",
     "lcobucci/clock": "^3.3",
     "lcobucci/jwt": "^5.0",
     "league/flysystem": "^3.29.1",

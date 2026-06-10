@@ -30,3 +30,27 @@ test('accepts a .jpg upload and stores it with a random safe name', function () 
         ->and($out['store_name'])->toEndWith('.jpg');
     expect(file_exists($dest . '/' . $out['store_name']))->toBeTrue();
 });
+
+test('optional image hook post-processes a stored upload', function () {
+    if (!extension_loaded('gd')) {
+        $this->markTestSkipped('GD extension is not loaded.');
+    }
+    bootFixtureKernel();
+    $dest = sys_get_temp_dir() . '/ion_upl_' . bin2hex(random_bytes(4));
+    mkdir($dest);
+
+    // a real 100x80 jpeg payload so Image::read can decode it
+    $im = imagecreatetruecolor(100, 80);
+    ob_start();
+    imagejpeg($im);
+    $jpeg = (string) ob_get_clean();
+    imagedestroy($im);
+
+    $out = IonUpload::store(makeUploaded('photo.jpg', $jpeg), $dest, [
+        'image' => fn (\Ions\Media\Image $img, string $stored) => $img->cover(40, 40)->save($stored),
+    ])->response();
+
+    expect($out['error'])->toBe(0);
+    $info = getimagesize($dest . '/' . $out['store_name']);
+    expect($info[0])->toBe(40)->and($info[1])->toBe(40);
+});

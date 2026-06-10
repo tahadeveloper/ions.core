@@ -4,6 +4,8 @@ namespace Ions\Bundles;
 
 use Ions\Foundation\Kernel;
 use Ions\Foundation\Singleton;
+use Ions\Media\Image;
+use Ions\Media\ImageException;
 use Ions\Security\UploadValidator;
 use Ions\Support\Storage;
 use Ions\Support\Str;
@@ -31,19 +33,28 @@ class IonUpload extends Singleton
             return new self();
         }
 
+        // Optional image post-processing. When an `image` option is supplied,
+        // the stored file is run through Ions\Media\Image after the move. This
+        // is entirely opt-in — non-image uploads never touch the media stack.
+        $image = $options['image'] ?? null;
+        unset($options['image']);
+
         $ext = $validator->safeExtension($originalName);
         $randomName = Str::random(15);
         $storeName = $randomName . '.' . $ext;
 
         try {
             $file->move($path, $storeName);
+            if (is_callable($image)) {
+                $image(Image::read($path . '/' . $storeName), $path . '/' . $storeName);
+            }
             static::$output = [
                 'error' => 0,
                 'message' => 'file uploaded',
                 'original_name' => $originalName,
                 'store_name' => $storeName,
             ];
-        } catch (FileException $e) {
+        } catch (FileException | ImageException $e) {
             static::$output = ['error' => 1, 'message' => $e->getMessage()];
         }
 
