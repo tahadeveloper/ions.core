@@ -80,8 +80,11 @@ final class ViewFactory
         // _csrf_token: csrfToken() uses NativeSessionTokenStorage which can fail in CLI/test SAPI.
         // A narrow try/catch is required here; unlike _trans there is no cheap precondition we can
         // check, so we log any failure (making it visible in production) before falling back to ''.
+        // Use the CsrfMiddleware web token id ('web') as the default so the rendered
+        // _csrf_token matches the pipeline; never pass null (csrfToken() expects a string).
+        $tokenId = (string) (config('app.app_name') ?: 'web');
         try {
-            $csrf = csrfToken(config('app.app_name'));
+            $csrf = csrfToken($tokenId);
         } catch (\Throwable $e) {
             Logs::create('view.log')->warning('csrfToken() failed building _csrf_token global: ' . $e->getMessage());
             $csrf = '';
