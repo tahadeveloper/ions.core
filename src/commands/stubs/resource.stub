@@ -1,0 +1,21 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Ions\Http\Resource;
+use Ions\Support\Request;
+
+final class {{ class }} extends Resource
+{
+    /**
+     * Transform the underlying resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->get('id'),
+        ];
+    }
+}

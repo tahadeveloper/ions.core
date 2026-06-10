@@ -1,0 +1,11 @@
+<?php
+
+namespace App\Events;
+
+final class {{ class }}
+{
+    public function __construct(
+        // public readonly string $example,
+    ) {
+    }
+}

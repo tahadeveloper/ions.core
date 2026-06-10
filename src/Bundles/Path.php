@@ -286,6 +286,18 @@ class Path extends Singleton
     }
 
     /**
+     * tests folder at the host-app root (layout independent — host tests live
+     * beside config/ and routes/, not under src/ or app/).
+     *
+     * @param string $file
+     * @return string
+     */
+    public static function tests(string $file = ''): string
+    {
+        return self::base() . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . $file;
+    }
+
+    /**
      * bin folder
      *
      * @param string $file

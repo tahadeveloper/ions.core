@@ -46,6 +46,8 @@ Open <http://localhost:8000> — you should see the welcome page. `curl localhos
 | `public/uploads`, `public/lang` | Uploads disk root, translation files |
 | `var/` | Writable: `cache/`, `logs/`, `templates/` (compiled Twig) |
 
+Generators: `php bin/ions make:command|make:middleware|make:service-provider|make:resource|make:request|make:job|make:event|make:listener|make:test <Name>` scaffold the corresponding class into `src/` (or `tests/` for `make:test`) — see `docs/console.md` in `ionzile/core`.
+
 ## Testing
 
 The framework ships a host-app test kit: subclass `Ions\Testing\TestCase`,

@@ -1,0 +1,16 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Ions\Http\ResourceCollection;
+
+final class {{ class }} extends ResourceCollection
+{
+    /**
+     * @param iterable<mixed>|\Illuminate\Contracts\Pagination\LengthAwarePaginator<int, mixed> $items
+     */
+    public function __construct(mixed $items)
+    {
+        parent::__construct($items, {{ resource }}::class);
+    }
+}

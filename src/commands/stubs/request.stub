@@ -1,0 +1,28 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Ions\Http\FormRequest;
+
+final class {{ class }} extends FormRequest
+{
+    /**
+     * Determine whether the current request is authorized.
+     */
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * The validation rules for the request.
+     *
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            //
+        ];
+    }
+}

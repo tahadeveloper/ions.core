@@ -1,0 +1,21 @@
+<?php
+
+namespace App\Jobs;
+
+use Ions\Queue\Job;
+
+final class {{ class }} extends Job
+{
+    public function __construct()
+    {
+        //
+    }
+
+    /**
+     * Execute the job.
+     */
+    public function handle(): void
+    {
+        //
+    }
+}
