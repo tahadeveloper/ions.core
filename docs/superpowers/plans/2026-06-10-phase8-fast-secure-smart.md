@@ -12,10 +12,10 @@
 
 ---
 
-## Decisions to confirm (D8-x)
-- **D8-1 Hardened defaults in a minor?** CORS → deny-by-default; session cookies → secure/httponly/samesite-lax by default. Recommended: ship in 4.1.0 (security-by-default) with UPGRADE notes + one-line opt-outs. Alternative: defer to 5.0.
+## Decisions (RESOLVED 2026-06-10)
+- **D8-1 = SHIP IN 4.1.0.** CORS deny-by-default + secure-by-default session cookies land in 4.1 with UPGRADE-4.1 notes + one-line opt-outs.
 - **D8-2 Worker mode:** state-reset + leak fixes ship normally; the FrankenPHP/RoadRunner runner ships EXPERIMENTAL.
-- **D8-3 "Smart":** auto-discovery + `ions doctor` + N+1 detector ship; an optional `Ions\AI` LLM module (scaffolding assist / log summarization) only if the user confirms — suggest-only dependency.
+- **D8-3 = CONVENTION-SMART ONLY.** Auto-discovery + `ions doctor` + N+1 detector + typed config ship; the `Ions\AI` module stays on the backlog (not in 8.6).
 
 ## Sequencing
 1. **8.1 Performance** (biggest measurable win) → 2. **8.2 Worker-mode safety** → 3. **8.3 Security hardening II** → 4. **8.4 DX: skeleton + testing kit** → 5. **8.5 Features** → 6. **8.6 Smart** → 7. **8.7 Release 4.1.0**
