@@ -22,7 +22,7 @@ If any step in the `try` block throws, `Kernel::failBoot()` logs the error (best
 ## Handling a Request (`Kernel::handle(Request, string $namespace): SymfonyResponse`)
 
 1. **Group detection** — if the first path segment is `api`, the `api` middleware stack and `Api\` controller namespace are used; otherwise `web`.
-2. **Route matching** — `captureRoute()` loads `routes/web.php` or `routes/api.php` (PHP or YAML), then scans `src/Http/` (web) or `app/Api/` (api) for `#[Route]` attribute routes. A built-in `/cron/schedule` route is also added.
+2. **Route matching** — `captureRoute()` loads `routes/web.php` or `routes/api.php` (PHP or YAML), then scans `{app|src}/Http/` (web) or `{app|src}/Http/Api` (api) for `#[Route]` attribute routes. A built-in `/cron/schedule` route is also added.
 3. **Terminal resolution** — for closure routes the closure is wrapped; for string controller routes a `ControllerDispatcher` instance is created.
 4. **Middleware stack** — `config('app.middleware')[$group]` is used when present; otherwise `Kernel::defaultMiddleware()` builds the stack. Per-route middleware (from `->middleware([...])`) is appended last (runs closest to the controller).
 5. **Pipeline** — `Pipeline::handle(Request)` reduces the middleware chain and calls the terminal.
