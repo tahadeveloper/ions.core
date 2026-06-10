@@ -63,6 +63,13 @@ see [UPGRADE-4.1.md](../UPGRADE-4.1.md):
 - HSTS, Permissions-Policy and upload magic-byte validation stay at the
   framework defaults.
 
+## IDE support
+
+PhpStorm completion and type inference for container lookups (`app('queue')`,
+`Kernel::app()->get('cache')`, `->make(...)`) come from the `.phpstorm.meta.php`
+that ships at the root of `ionzile/core` — PhpStorm reads it from `vendor/`
+automatically, so the skeleton needs no IDE configuration of its own.
+
 ## Testing the skeleton (in this repo)
 
 `tests/Feature/SkeletonTest.php` boots the kernel against `skeleton/`

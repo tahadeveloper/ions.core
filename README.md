@@ -123,6 +123,7 @@ The framework resolves application paths relative to the host-app root (five dir
 - **Rate limiting** — `RateLimitMiddleware` / `throttle` alias, 429 + `Retry-After`
 - **Exception handler** — `Ions\Http\ExceptionHandler`; JSON for API (incl. 422 validation), HTML for web; safe in production
 - **Generators** — `make:middleware`, `make:service-provider`, `make:command`
+- **IDE support** — `.phpstorm.meta.php` ships with the package, so PhpStorm infers concrete types for `app('id')` and container `get()`/`make()` lookups automatically
 - **CI** — PHPStan (level 5 full / level 8 core), PHP-CS-Fixer, Rector (Laravel 12), Pest 3 (PHP 8.3 + 8.4 × SQLite + MySQL 8)
 
 ---
