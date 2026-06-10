@@ -25,10 +25,12 @@ function clearRouteCacheFiles(): void
 {
     $dir = cacheFixturePath() . '/var/cache/routes';
     foreach (glob($dir . '/*.php') ?: [] as $file) {
-        @unlink($file);
+        if (is_file($file)) {
+            unlink($file);
+        }
     }
-    if (is_dir($dir)) {
-        @rmdir($dir);
+    if (is_dir($dir) && (scandir($dir) === false || count((array) scandir($dir)) === 2)) {
+        rmdir($dir);
     }
 }
 

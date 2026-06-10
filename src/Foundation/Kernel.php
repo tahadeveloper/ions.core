@@ -264,6 +264,18 @@ class Kernel extends Singleton
     private static function captureConfig(): void
     {
         if (empty(static::$config) && !static::$config instanceof Config) {
+            // Cached config (config:cache) — one require instead of reading
+            // and including every config/*.php file. Debug always reads live.
+            $cacheFile = Path::cache('config.php');
+            if (!env('APP_DEBUG', false) && is_file($cacheFile)) {
+                $cached = require $cacheFile;
+                if (is_array($cached)) {
+                    static::$config = new Config($cached);
+
+                    return;
+                }
+            }
+
             $configFiles = Storage::files(Path::config());
             $configs = [];
             foreach ($configFiles as $config_file) {
