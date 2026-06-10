@@ -94,6 +94,7 @@ test('every advertised check id is present in the results', function () {
     foreach ([
         'env_loaded',
         'app_key',
+        'app_url',
         'writable_var',
         'writable_cache',
         'writable_logs',
@@ -155,6 +156,24 @@ test('a missing APP_KEY is a critical failure', function () {
     } finally {
         $restore();
     }
+});
+
+// ------------------------------------------------------------------ app_url
+
+test('a set app.app_url passes', function () {
+    bootFixtureKernel();
+
+    expect(doctorCheck(Doctor::run(), 'app_url')['status'])->toBe(Doctor::OK);
+});
+
+test('an empty app.app_url is a warning (broken generated URLs)', function () {
+    bootFixtureKernel();
+    config(['app.app_url' => '']);
+
+    $check = doctorCheck(Doctor::run(), 'app_url');
+
+    expect($check['status'])->toBe(Doctor::WARN)
+        ->and($check['message'])->toContain('signedRoute');
 });
 
 // ------------------------------------------------------------ var/ writable

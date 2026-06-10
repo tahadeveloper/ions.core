@@ -10,7 +10,8 @@ use Throwable;
 /**
  * `ions doctor` — host-application diagnostics.
  *
- * Runs a fixed, extensible list of health checks against the booted host app
+ * Runs a fixed list of health checks against the booted host app (new
+ * diagnostics are added by editing checks() below)
  * and returns structured results that the DoctorCommand renders as a console
  * table or JSON. Pure logic lives here so it is testable without console
  * plumbing.
@@ -60,8 +61,19 @@ final class Doctor extends Singleton
         $results = [];
 
         foreach (self::checks() as $check) {
-            foreach ($check() as $result) {
-                $results[] = $result;
+            // Structural guard: a single throwing check must degrade to a FAIL
+            // row, never kill the whole diagnosis.
+            try {
+                foreach ($check() as $result) {
+                    $results[] = $result;
+                }
+            } catch (\Throwable $e) {
+                $results[] = self::result(
+                    'check_error',
+                    'Doctor check',
+                    self::FAIL,
+                    sprintf('A diagnostic check threw %s: %s', $e::class, $e->getMessage())
+                );
             }
         }
 
@@ -114,6 +126,7 @@ final class Doctor extends Singleton
         return [
             static fn (): array => [self::checkEnvLoaded()],
             static fn (): array => [self::checkAppKey()],
+            static fn (): array => [self::checkAppUrl()],
             static fn (): array => self::checkVarWritable(),
             static fn (): array => [self::checkRouteCache()],
             static fn (): array => [self::checkConfigCache()],
@@ -186,6 +199,29 @@ final class Doctor extends Singleton
         }
 
         return self::result('app_key', 'APP_KEY', self::OK, sprintf('APP_KEY present (%d bytes).', strlen($key)));
+    }
+
+    /**
+     * config('app.app_url') is the canonical absolute base for generated URLs:
+     * signedRoute()/url() links and the appUrl Twig global all come out
+     * scheme-less or empty without it.
+     *
+     * @return array{id: string, label: string, status: string, message: string}
+     */
+    private static function checkAppUrl(): array
+    {
+        $url = trim((string) config('app.app_url', ''));
+
+        if ($url === '') {
+            return self::result(
+                'app_url',
+                'app.app_url',
+                self::WARN,
+                'app.app_url is empty — signedRoute()/url() links and the appUrl view global will be broken. Set APP_URL in .env (the skeleton config reads it) or app_url in config/app.php.'
+            );
+        }
+
+        return self::result('app_url', 'app.app_url', self::OK, sprintf('app.app_url set (%s).', $url));
     }
 
     // ---------------------------------------------------------- var/ layout

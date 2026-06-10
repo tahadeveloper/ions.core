@@ -181,6 +181,7 @@ php vendor/ionzile/core/bin/ions doctor --json   # structured JSON for CI
 | -------- | ---------------- | ---------- |
 | `env_loaded` | A `.env` file exists at the host root. | WARN (real env vars are fine) |
 | `app_key` | `APP_KEY` is present and ≥ 32 bytes (the `Kernel::buildJwt()` minimum). | **FAIL** |
+| `app_url` | `config('app.app_url')` is set — `signedRoute()`/`url()` links and the `appUrl` view global break without it. | WARN |
 | `writable_var` / `writable_cache` / `writable_logs` / `writable_templates` | `var/`, `var/cache`, `var/logs`, `var/templates` exist and are writable. | **FAIL** (unwritable), WARN (missing but creatable) |
 | `route_cache` / `config_cache` / `providers_cache` | The production caches (`var/cache/routes/`, `config.php`, `providers.php`) are built. | INFO — run `ions optimize` |
 | `db` | When the `db` engine is configured, a trivial `select 1` succeeds. | **FAIL**; SKIP when no engine is configured |

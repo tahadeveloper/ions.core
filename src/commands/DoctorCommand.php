@@ -34,7 +34,7 @@ class DoctorCommand extends Command
                 'checks' => $results,
                 'summary' => $summary,
                 'ok' => !$failed,
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
             return $failed ? self::FAILURE : self::SUCCESS;
         }
