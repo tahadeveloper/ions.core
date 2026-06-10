@@ -1,0 +1,10 @@
+/*
+ * Ions starter script — installed by `php bin/ions install:assets`.
+ * Link it from a Twig layout (asset() adds a filemtime cache-buster):
+ *
+ *   <script src="{{ asset('assets/js/app.js') }}" defer></script>
+ */
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Your code here.
+});

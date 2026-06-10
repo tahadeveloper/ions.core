@@ -1,0 +1,81 @@
+import fs from 'node:fs';
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+
+const hotFile = 'public/hot';
+
+// Dev mode: write the dev-server origin to public/hot so the Ions vite()
+// Twig function emits dev-server + HMR client URLs (a Laravel-style hot
+// file, without needing laravel-vite-plugin). Removed again on shutdown.
+function ionsHot() {
+    return {
+        name: 'ions-hot',
+        apply: 'serve',
+        configureServer(server) {
+            server.httpServer?.once('listening', () => {
+                const address = server.httpServer.address();
+                if (address === null || typeof address === 'string') {
+                    return;
+                }
+                const protocol = server.config.server.https ? 'https' : 'http';
+                const host = ['::', '0.0.0.0', '::1'].includes(address.address)
+                    ? 'localhost'
+                    : address.address;
+                fs.writeFileSync(hotFile, `${protocol}://${host}:${address.port}`);
+            });
+
+            const removeHotFile = () => {
+                if (fs.existsSync(hotFile)) {
+                    fs.rmSync(hotFile);
+                }
+            };
+            process.once('exit', removeHotFile);
+            process.once('SIGINT', () => process.exit());
+            process.once('SIGTERM', () => process.exit());
+        },
+    };
+}
+
+// Build mode: a stale hot file would make vite() keep emitting dev URLs
+// in production, so every build removes it up front.
+function ionsHotClean() {
+    return {
+        name: 'ions-hot-clean',
+        apply: 'build',
+        buildStart() {
+            if (fs.existsSync(hotFile)) {
+                fs.rmSync(hotFile);
+            }
+        },
+    };
+}
+
+export default defineConfig(({ command }) => ({
+    // Production assets are served from /build/, so code-split chunks,
+    // preloads and css url() references must resolve under it. Dev keeps
+    // '/' — the dev server serves entries from its own origin root.
+    base: command === 'build' ? '/build/' : '/',
+    plugins: [vue(), ionsHot(), ionsHotClean()],
+    // The default publicDir ('public') would copy the WHOLE public/ tree
+    // into public/build on every build — and emptyOutDir would then wipe
+    // that copy again. This project serves public/ directly; disable it.
+    publicDir: false,
+    server: {
+        // Vite >=6.0.9 only allows localhost page origins by default; allow
+        // *.test dev domains too. Hosting the app on another local domain?
+        // Add its origin here.
+        cors: {
+            origin: [/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/, /\.test(:\d+)?$/],
+        },
+    },
+    build: {
+        outDir: 'public/build',
+        // A plain string pins the manifest to public/build/manifest.json —
+        // `manifest: true` would bury it in public/build/.vite/ (Vite >=5).
+        manifest: 'manifest.json',
+        emptyOutDir: true,
+        rollupOptions: {
+            input: 'resources/js/app.js',
+        },
+    },
+}));

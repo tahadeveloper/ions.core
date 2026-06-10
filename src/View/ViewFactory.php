@@ -112,6 +112,7 @@ final class ViewFactory
         ]);
 
         $this->addCoreFunctions($env);
+        $env->addExtension(new AssetExtension());
 
         return $env;
     }

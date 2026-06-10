@@ -53,6 +53,17 @@ Open <http://localhost:8000> — you should see the welcome page. `curl localhos
 
 Generators: `php bin/ions make:command|make:middleware|make:service-provider|make:resource|make:request|make:job|make:event|make:listener|make:test <Name>` scaffold the corresponding class into `app/` (or `tests/` for `make:test`) — see `docs/console.md` in `ionzile/core`.
 
+## Frontend assets
+
+The skeleton ships no frontend tooling — pick a scaffold when you need one:
+
+- `php bin/ions install:vue` — Vue 3 + Vite (dev server with HMR, hashed
+  builds in `public/build/`, loaded via the `vite()` Twig function).
+- `php bin/ions install:assets` — plain CSS/JS starters in `public/assets/`,
+  linked via `asset()` with filemtime cache-busting. No node required.
+
+See `docs/assets.md` in `ionzile/core`.
+
 ## Testing
 
 The skeleton ships runnable test scaffolding: `pestphp/pest` in `require-dev`,

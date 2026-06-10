@@ -69,6 +69,8 @@ These ship with the framework and are always registered:
 | `migrate` / `migrate:rollback` | `MigrateCommand` / `RollBackCommand` | Run / roll back migrations. |
 | `schema:dump` | `DumpCommand` | Dump a database schema. |
 | `install:super` | `SuperCommand` | Install the bundled super-admin. |
+| `install:vue` | `InstallVueCommand` | Scaffold a Vue 3 + Vite frontend into the host (see [assets.md](assets.md)). |
+| `install:assets` | `InstallAssetsCommand` | Scaffold plain CSS/JS starters into `public/assets/` — no build step (see [assets.md](assets.md)). |
 | `schedule:run` | `ScheduleRunCommand` | Run the due scheduled tasks (see [scheduler.md](scheduler.md)). |
 | `schedule:list` | `ScheduleListCommand` | List the scheduled tasks with expression + next run time. |
 | `queue:work` | `QueueWorkCommand` | Process jobs from the queue. |

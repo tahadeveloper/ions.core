@@ -56,6 +56,8 @@ class Kernel
         \SchemaCommand::class,
         \DumpCommand::class,
         \SuperCommand::class,
+        \InstallVueCommand::class,
+        \InstallAssetsCommand::class,
         \ScheduleRunCommand::class,
         \ScheduleListCommand::class,
         \QueueWorkCommand::class,
