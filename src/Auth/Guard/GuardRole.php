@@ -156,7 +156,7 @@ class GuardRole extends Singleton
      * @param string|null $language
      * @return object|null
      */
-    public static function single(int $id, string $language = null): object|null
+    public static function single(int $id, ?string $language = null): object|null
     {
         $role = DB::connection(self::$connection_name)
             ->table(self::$tables_names['roles'])

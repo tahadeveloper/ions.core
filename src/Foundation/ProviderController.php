@@ -19,7 +19,7 @@ abstract class ProviderController extends Singleton
      * @param Closure|null $callback
      * @return static
      */
-    public static function run(Closure $callback = null): self
+    public static function run(?Closure $callback = null): self
     {
         if ($callback !== null) {
             $callback();
