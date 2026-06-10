@@ -152,6 +152,7 @@ The framework resolves application paths relative to the host-app root (five dir
 | [docs/http-client.md](docs/http-client.md) | Outbound HTTP: `Http` facade over `symfony/http-client`, response wrapper, `Http::fake()` |
 | [docs/security.md](docs/security.md) | `Encrypter` (sodium AEAD), `UrlSigner`, `signedRoute()`/`signedUrl()`, `signed` middleware |
 | [docs/config.md](docs/config.md) | All `app.*`, `auth.*`, `filesystem.*`, `session.*`, `cache.*`, `queue.*`, `events.*`, `media.*`, `notifications.*` config keys |
+| [docs/packages.md](docs/packages.md) | Building Ions packages: `extra.ions.providers` zero-config discovery, provider conventions, package commands |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 | [UPGRADE-4.0.md](UPGRADE-4.0.md) | Breaking changes and migration guide for 3.x → 4.0.0 |
 | [UPGRADE-3.0.md](UPGRADE-3.0.md) | Breaking changes and migration guide for 2.1.x → 3.0.0 |

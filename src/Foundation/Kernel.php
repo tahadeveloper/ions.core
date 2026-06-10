@@ -156,6 +156,7 @@ class Kernel extends Singleton
         // process inherits the previous app's host allowlist.
         Request::setTrustedHosts([]);
         \Ions\Bundles\Path::resetBasePath();
+        Discovery::reset();
     }
 
     /**
@@ -310,12 +311,13 @@ class Kernel extends Singleton
     }
 
     /**
-     * Returns the default list of service providers registered when no
-     * 'app.providers' config key is present.
+     * Returns the default list of framework service providers — the base of
+     * every provider list (explicit 'app.providers', Discovery::providers()
+     * or the pure-defaults fallback when 'app.discovery' is false).
      *
      * @return class-string<\Ions\Container\ServiceProvider>[]
      */
-    private static function defaultProviders(): array
+    public static function defaultProviders(): array
     {
         return [
             \Ions\Providers\ConfigProvider::class,
@@ -336,15 +338,28 @@ class Kernel extends Singleton
 
     /**
      * Two-pass provider bootstrap: all register() first, then all boot().
-     * Reads 'app.providers' from config (falls back to defaultProviders()).
+     *
+     * Provider list resolution:
+     *   - 'app.providers' set      → used verbatim (full explicit control, BC);
+     *                                 no discovery scan runs at all.
+     *   - unset + discovery on     → Discovery::providers(): framework defaults
+     *                                 + composer extra.ions.providers + host
+     *                                 {src|app}/Providers scan.
+     *   - 'app.discovery' => false → pure defaultProviders().
+     *
      * Runs inside the boot() try block so provider failures route through failBoot().
      *
      * @return void
      */
     private static function bootProviders(): void
     {
-        /** @var class-string<\Ions\Container\ServiceProvider>[] $classes */
-        $classes = config('app.providers', self::defaultProviders());
+        /** @var class-string<\Ions\Container\ServiceProvider>[]|null $classes */
+        $classes = config('app.providers');
+        if (!is_array($classes)) {
+            $classes = config('app.discovery', true)
+                ? Discovery::providers()
+                : self::defaultProviders();
+        }
         $providers = array_map(static fn ($c) => new $c(static::$app), $classes);
         foreach ($providers as $p) {
             $p->register();

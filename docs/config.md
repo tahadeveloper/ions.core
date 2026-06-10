@@ -38,12 +38,19 @@ Rules:
 
 ## `app.providers`
 
-**Type:** `array` of FQCN strings implementing `Ions\Container\ServiceProvider`
+**Type:** `array` of FQCN strings extending `Ions\Container\ServiceProvider`
 
-**Default (when absent):** `Kernel::defaultProviders()`:
-`ConfigProvider`, `FilesystemProvider`, `DatabaseProvider`, `AuthProvider`, `MailProvider`, `ViewProvider`
+**Default (when absent):** **auto-discovery** via `Ions\Foundation\Discovery::providers()`, which merges, in order:
 
-Setting this key **replaces** the default list entirely. Include any framework providers you still need.
+1. **Framework defaults** — `Kernel::defaultProviders()` (the 13 built-in `Ions\Providers\*` providers: Config, Filesystem, Session, Database, Cache, Event, Queue, Auth, Mail, Notification, HttpClient, Security, View).
+2. **Package providers** — every installed composer package declaring `extra.ions.providers` in its composer.json (see [packages.md](packages.md)). Read once per process from `vendor/composer/installed.json` and memoized.
+3. **Host providers** — every concrete `ServiceProvider` subclass in the host's `{src|app}/Providers/` directory (single `glob()` per boot; the `src/` → `app/` fallback applies).
+
+The merged list is de-duplicated (first occurrence wins). Host providers run **last**, so they can override bindings registered by framework or package providers. Abstract classes and non-provider classes in the scanned locations are skipped.
+
+This means a host app normally needs **no `providers` key at all** — drop a provider into `src/Providers/` (or install a package that declares `extra.ions.providers`) and it is registered and booted automatically.
+
+**Setting this key replaces everything** — no discovery scan runs at all, and the list (including any framework providers you still need) is used verbatim. Full explicit control:
 
 ```php
 'providers' => [
@@ -52,6 +59,20 @@ Setting this key **replaces** the default list entirely. Include any framework p
     \Ions\Providers\AuthProvider::class,
     \App\Providers\AppServiceProvider::class,
 ],
+```
+
+---
+
+## `app.discovery`
+
+**Type:** `bool`  **Default:** `true`
+
+Escape hatch for provider auto-discovery. When `false` (and `app.providers` is not set), the kernel registers **only** `Kernel::defaultProviders()` — neither the host `{src|app}/Providers/` scan nor the composer `extra.ions.providers` scan runs.
+
+Ignored when `app.providers` is set (an explicit list already bypasses discovery).
+
+```php
+'discovery' => false, // pure framework defaults, no scans
 ```
 
 ---

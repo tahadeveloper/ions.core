@@ -61,7 +61,8 @@
   "autoload-dev": {
     "psr-4": {
       "IonsFixture\\": "tests/fixtures/app/src/",
-      "IonsFixtureCache\\": "tests/fixtures/app-cache/src/"
+      "IonsFixtureCache\\": "tests/fixtures/app-cache/src/",
+      "Acme\\FakePackage\\": "tests/fixtures/fake-vendor-package/src/"
     }
   },
   "require-dev": {
