@@ -133,8 +133,11 @@ authentication (they establish a session rather than depend on one):
 ],
 ```
 
-`public_paths` entries are matched as path **prefixes**; only the listed prefixes
-bypass token verification — the 401 semantics for every other route are unchanged.
+`public_paths` entries are matched as **segment-anchored** prefixes: a request
+path matches an entry only when it equals the entry or extends it on a `/`
+boundary (`/api/auth/login` matches `/api/auth/login` and `/api/auth/login/...`
+but **not** `/api/auth/loginx`). Only the listed prefixes bypass token
+verification — the 401 semantics for every other route are unchanged.
 
 ### Endpoints
 

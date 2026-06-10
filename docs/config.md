@@ -425,6 +425,13 @@ The store used for data that must survive across requests — JWT revocations
 subsystems now reuse this shared cache instead of building their own file
 stores. Defaults to the `file` store (falling back to `cache.default`).
 
+> **Production warning:** `cache.persistent_store` **must** point at a persistent,
+> cross-request driver (`file`, `redis`, `database`, …) in production. Do **not**
+> use the `array` driver here: it is per-request and in-memory, so JWT revocations
+> would never stick (logged-out/refreshed tokens would remain usable until expiry)
+> and rate-limit counters would reset on every request (effectively disabling
+> throttling). The `array` driver is appropriate only for tests.
+
 ### The `cache()` helper
 
 Mirrors the `config()`/`session()` overloads:

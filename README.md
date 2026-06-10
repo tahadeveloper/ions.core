@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/tahadeveloper/ions.core/actions/workflows/ci.yml/badge.svg)](https://github.com/tahadeveloper/ions.core/actions/workflows/ci.yml)
 
-A lightweight PHP 8.2+ framework built on **Symfony** HTTP and routing components and **Illuminate** database, cache, and container — providing a structured, secure foundation without the full overhead of a monolithic framework.
+A lightweight PHP 8.3+ framework built on **Symfony** HTTP and routing components and **Illuminate** 12 (database, cache, queue, events, console, container) — providing a structured, secure foundation without the full overhead of a monolithic framework.
 
 ---
 
 ## Requirements
 
-- PHP 8.2 or 8.3
+- PHP 8.3 or 8.4
 - Extensions: `openssl`, `zip`
 - Composer
 
@@ -107,16 +107,23 @@ The framework resolves application paths relative to the host-app root (five dir
 - **Default stacks**: web (TrustedHost + SecurityHeaders + CORS + CSRF), api (+ AuthMiddleware)
 - **Routing** — `Route::get/post/put/patch/delete/any/match/resource`, prefix/group nesting, attribute routing (`#[Route]`)
 - **JWT auth** (`Ions\Security\Jwt`) — access + refresh tokens, revocation deny-list, clock leeway
+- **HTTP auth endpoints** — `Ions\Auth\Http\AuthController` (login / refresh / logout / password reset); per-user-bound tokens
 - **Pluggable auth** — `UserProvider` contract; `SentinelUserProvider` (default) or `EloquentUserProvider`
+- **Multi-driver filesystem** — `Ions\Filesystem\Storage` / `FilesystemManager`; `local`, `s3`, `ftp`, `sftp`, `memory` + custom drivers
+- **Session** — `Ions\Session\SessionManager`; `session()` helper; CSRF stored in the session
+- **Console** — `bin/ions` runner + `Ions\Console\Kernel`; command discovery; `make:command`, `queue:work`, `schedule:run`
+- **Cache / Queue / Events** — `cache()` / `dispatch()` / `event()`+`listen()` helpers; Illuminate-backed providers
+- **API resources** — `Ions\Http\Resource` / `ResourceCollection` (single `data` envelope, pagination meta/links); `FormRequest`; `openapi:generate`
+- **Image processing** — `Ions\Media\Image` over `intervention/image` v3 (resize / crop / cover / watermark / encode)
 - **JSON helpers** — `Json::ok()` / `Json::error()`
 - **Twig views** — `Ions\View\ViewFactory`; bound as `view` in the container
 - **Security headers** on every response; configurable CSP
 - **CSRF enforcement** on web routes (opt-out via `app.csrf.enabled = false`)
 - **Upload validation** — extension allow-list + hard-coded executable deny-list
 - **Rate limiting** — `RateLimitMiddleware` / `throttle` alias, 429 + `Retry-After`
-- **Exception handler** — `Ions\Http\ExceptionHandler`; JSON for API, HTML for web; safe in production
-- **Generators** — `make:middleware`, `make:service-provider`
-- **CI** — PHPStan (level 4 full / level 8 core), PHP-CS-Fixer, Rector, Pest 3 (PHP 8.2 + 8.3 × SQLite + MySQL 8)
+- **Exception handler** — `Ions\Http\ExceptionHandler`; JSON for API (incl. 422 validation), HTML for web; safe in production
+- **Generators** — `make:middleware`, `make:service-provider`, `make:command`
+- **CI** — PHPStan (level 5 full / level 8 core), PHP-CS-Fixer, Rector (Laravel 12), Pest 3 (PHP 8.3 + 8.4 × SQLite + MySQL 8)
 
 ---
 
@@ -127,9 +134,16 @@ The framework resolves application paths relative to the host-app root (five dir
 | [docs/lifecycle.md](docs/lifecycle.md) | Boot sequence, request pipeline, response dispatch |
 | [docs/routing.md](docs/routing.md) | Route registration, prefixes, groups, middleware, attributes |
 | [docs/middleware.md](docs/middleware.md) | `MiddlewareInterface`, pipeline, default stacks, writing middleware |
-| [docs/auth.md](docs/auth.md) | UserProvider, JWT, AuthMiddleware, rate limiting, CSRF |
-| [docs/config.md](docs/config.md) | All `app.*` and `auth.*` config keys |
+| [docs/auth.md](docs/auth.md) | UserProvider, JWT, AuthController endpoints, AuthMiddleware, rate limiting, CSRF |
+| [docs/filesystem.md](docs/filesystem.md) | Multi-driver disks, `Storage`, `FilesystemManager`, uploads |
+| [docs/session.md](docs/session.md) | `SessionManager`, `session()`, `StartSessionMiddleware`, CSRF |
+| [docs/cache-queue-events.md](docs/cache-queue-events.md) | `cache()` / `dispatch()` / `event()`+`listen()`, jobs, `queue:work` |
+| [docs/console.md](docs/console.md) | Console Kernel, `bin/ions`, command discovery, `make:command` |
+| [docs/resources.md](docs/resources.md) | API resources, collections, form requests, `openapi:generate` |
+| [docs/media.md](docs/media.md) | Image processing over `intervention/image` v3 |
+| [docs/config.md](docs/config.md) | All `app.*`, `auth.*`, `filesystem.*`, `session.*`, `cache.*`, `queue.*`, `events.*`, `media.*` config keys |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
+| [UPGRADE-4.0.md](UPGRADE-4.0.md) | Breaking changes and migration guide for 3.x → 4.0.0 |
 | [UPGRADE-3.0.md](UPGRADE-3.0.md) | Breaking changes and migration guide for 2.1.x → 3.0.0 |
 
 ---
