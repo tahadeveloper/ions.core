@@ -329,6 +329,21 @@ test('absent caches are informational, not warnings', function () {
     }
 });
 
+// --------------------------------------------------------------- discovery
+
+test('an explicit empty app.providers array is a warning (zero providers would register)', function () {
+    bootFixtureKernel();
+    // Kernel::bootProviders() treats ANY array — including [] — as explicit
+    // mode, so [] boots the app with zero providers. Doctor must say so.
+    config(['app.providers' => []]);
+
+    $check = doctorCheck(Doctor::run(), 'discovery');
+
+    expect($check['status'])->toBe(Doctor::WARN)
+        ->and($check['message'])->toContain('empty array')
+        ->and($check['message'])->toContain('ZERO providers');
+});
+
 // ----------------------------------------------------------------- summary
 
 test('summary() tallies results by status', function () {

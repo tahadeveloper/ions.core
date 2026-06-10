@@ -275,6 +275,28 @@ test('a stale cached provider FQCN is filtered with a logged warning, never a fa
     }
 });
 
+test('a providers cache that filters down to zero entries is rejected — boot falls back to live discovery', function () {
+    $sentinel = 'IonsDiscoverySentinel\\CacheEmptySentinelProvider';
+    $base = discoveryScaffoldHostApp('cacheempty', discoveryPlainAppConfig('DiscoveryCacheEmpty'), $sentinel);
+    // Every cached FQCN is stale: filtering leaves [] — which must mean
+    // "fall back to live discovery", never "register zero providers".
+    discoveryWriteProvidersCache($base, ['Acme\\Vanished\\GoneProvider', 'Acme\\Vanished\\AlsoGoneProvider']);
+
+    try {
+        bootFixtureKernel($base);
+
+        // The degenerate cache yields null (not []) ...
+        expect(Discovery::cachedProviders())->toBeNull();
+
+        $app = Kernel::app();
+        // ... so live discovery ran: framework defaults + the host sentinel.
+        expect($app->has('filesystem'))->toBeTrue()
+            ->and($app->get('discovery.sentinel.marker'))->toBe('CacheEmptySentinelProvider');
+    } finally {
+        discoveryRemoveDir($base);
+    }
+});
+
 test('a host provider file with top-level output never leaks output into the boot', function () {
     $sentinel = 'IonsDiscoverySentinel\\EchoHostSentinelProvider';
     $base = discoveryScaffoldHostApp('echoleak', discoveryPlainAppConfig('DiscoveryEchoLeak'), $sentinel);

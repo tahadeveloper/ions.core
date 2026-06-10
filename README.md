@@ -103,6 +103,9 @@ The framework resolves application paths relative to the host-app root (five dir
 
 - **PSR-11 container** (`Ions\Container\Container`) with `bind`, `singleton`, `make`
 - **Service providers** (`Ions\Container\ServiceProvider`) with two-pass bootstrap
+- **Provider auto-discovery** — zero-config registration from `{src|app}/Providers/` and composer packages declaring `extra.ions.providers`; escape hatches `app.providers` / `app.discovery` / `app.dont_discover`
+- **Production caches** — `ions optimize` (`route:cache` + `config:cache` + `discover:cache`), `optimize:clear`, `preload:generate`; all bypassed while `APP_DEBUG` is on
+- **Worker mode (experimental)** — `Kernel::resetForRequest()` + `Ions\Runtime\WorkerRunner` for boot-once/handle-many runtimes (FrankenPHP/RoadRunner style)
 - **Middleware pipeline** — `MiddlewareInterface`, `Pipeline`, per-route `->middleware([...])`
 - **Default stacks**: web (TrustedHost + SecurityHeaders + CORS + CSRF), api (+ AuthMiddleware)
 - **Routing** — `Route::get/post/put/patch/delete/any/match/resource`, prefix/group nesting, attribute routing (`#[Route]`)
@@ -114,6 +117,12 @@ The framework resolves application paths relative to the host-app root (five dir
 - **Console** — `bin/ions` runner + `Ions\Console\Kernel`; command discovery; `make:command`, `queue:work`, `schedule:run`
 - **Host-app diagnostics** — `ions doctor` (env, APP_KEY, writable `var/`, caches, DB, extensions, security posture); `--json` for CI; exits non-zero on critical misconfig
 - **Cache / Queue / Events** — `cache()` / `dispatch()` / `event()`+`listen()` helpers; Illuminate-backed providers
+- **Outbound HTTP client** — `Ions\Support\Http` facade over `symfony/http-client` (retry/timeout/token builder); `Http::fake()` for tests
+- **Mailables** — `Ions\Mail\Mailable` (build/send/queue with Twig views); `Mail::fake()` FQCN assertions
+- **Notifications** — `Ions\Notifications\Notification` with mail + database channels, custom channels, `notify()`; `Notifications::fake()`
+- **Model factories** — `Ions\Database\Factory` (`make`/`create`/`count`/`state`), `HasIonsFactory`, Faker integration
+- **Testing kit** — `Ions\Testing\TestCase` + `TestResponse` (verb helpers, `actingAs()` real JWT) plus Queue/Event/Storage/Mail/Notifications/Http fakes
+- **N+1 query detector** — debug-only repeated-pattern warnings to `var/logs/performance.log`
 - **API resources** — `Ions\Http\Resource` / `ResourceCollection` (single `data` envelope, pagination meta/links); `FormRequest`; `openapi:generate`
 - **Image processing** — `Ions\Media\Image` over `intervention/image` v3 (resize / crop / cover / watermark / encode)
 - **Typed config accessors** — `config()->string('app.name')` / `integer()` (`int()`) / `boolean()` (`bool()`) / `array()` / `float()`; throw `InvalidArgumentException` on type mismatch (no coercion)
@@ -125,7 +134,9 @@ The framework resolves application paths relative to the host-app root (five dir
 - **Encryption & signed URLs** — `Ions\Security\Encrypter` (XChaCha20-Poly1305 AEAD), `UrlSigner` + `signedRoute()` helper + `signed` middleware alias
 - **Rate limiting** — `RateLimitMiddleware` / `throttle` alias, 429 + `Retry-After`
 - **Exception handler** — `Ions\Http\ExceptionHandler`; JSON for API (incl. 422 validation), HTML for web; safe in production
-- **Generators** — `make:middleware`, `make:service-provider`, `make:command`
+- **Generators** — `make:middleware`, `make:service-provider`, `make:command`, `make:resource`, `make:request`, `make:job`, `make:event`, `make:listener`, `make:test`, `make:factory`
+- **Host-app skeleton** — `skeleton/`: a minimal bootable host layout with the 4.1 secure defaults pre-filled
+- **Debug error page** — source excerpt, stack/previous chain, redacted request summary (`APP_DEBUG=true` only)
 - **IDE support** — `.phpstorm.meta.php` ships with the package, so PhpStorm infers concrete types for `app('id')` and container `get()`/`make()` lookups automatically
 - **CI** — PHPStan (level 5 full / level 8 core), PHP-CS-Fixer, Rector (Laravel 12), Pest 3 (PHP 8.3 + 8.4 × SQLite + MySQL 8)
 
@@ -154,7 +165,10 @@ The framework resolves application paths relative to the host-app root (five dir
 | [docs/security.md](docs/security.md) | `Encrypter` (sodium AEAD), `UrlSigner`, `signedRoute()`/`signedUrl()`, `signed` middleware |
 | [docs/config.md](docs/config.md) | All `app.*`, `auth.*`, `filesystem.*`, `session.*`, `cache.*`, `queue.*`, `events.*`, `media.*`, `notifications.*` config keys |
 | [docs/packages.md](docs/packages.md) | Building Ions packages: `extra.ions.providers` zero-config discovery, provider conventions, package commands |
+| [docs/performance.md](docs/performance.md) | Production caches (`optimize`, route/config/discover), opcache preload, N+1 detector, measured numbers |
+| [docs/worker-mode.md](docs/worker-mode.md) | Experimental worker mode: `Kernel::resetForRequest()`, `WorkerRunner`, state table, FrankenPHP example |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
+| [UPGRADE-4.1.md](UPGRADE-4.1.md) | Behavior changes and migration guide for 4.0 → 4.1.0 |
 | [UPGRADE-4.0.md](UPGRADE-4.0.md) | Breaking changes and migration guide for 3.x → 4.0.0 |
 | [UPGRADE-3.0.md](UPGRADE-3.0.md) | Breaking changes and migration guide for 2.1.x → 3.0.0 |
 
