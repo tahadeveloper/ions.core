@@ -21,4 +21,9 @@ class PageController
         // Kernel::handleRouteRequest() (framework convention).
         return new Response('item ' . Kernel::request()->attributes->get('id'));
     }
+
+    public function post(Request $request): Response
+    {
+        return new Response('posted');
+    }
 }

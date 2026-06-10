@@ -123,3 +123,47 @@ test('config:clear removes the cached config file', function () {
     expect($tester->getStatusCode())->toBe(0)
         ->and(is_file($fx . '/var/cache/config.php'))->toBeFalse();
 });
+
+// ---------------------------------------------------------------------------
+// Finding 4 — config:cache guards
+// ---------------------------------------------------------------------------
+
+test('config:cache fails with a clear error when a config value is an object without __set_state', function () {
+    $fx = configCacheFixture();
+    $objectConfig = $fx . '/config/tmpobject.php';
+
+    // An object that does NOT implement __set_state would fatal at require-time
+    // with no context; the command must refuse to write the cache and name the key.
+    file_put_contents($objectConfig, "<?php\n\nreturn ['svc' => ['handler' => new stdClass()]];\n");
+
+    try {
+        bootFixtureKernel($fx);
+        $tester = runConsoleCommand(new ConfigCacheCommand());
+        expect($tester->getStatusCode())->not->toBe(0)
+            ->and($tester->getDisplay())->toContain('tmpobject.svc.handler')
+            ->and($tester->getDisplay())->toContain('__set_state')
+            ->and(is_file($fx . '/var/cache/config.php'))->toBeFalse();
+    } finally {
+        if (is_file($objectConfig)) {
+            unlink($objectConfig);
+        }
+    }
+});
+
+test('config:cache warns when run with APP_DEBUG=true', function () {
+    $fx = configCacheFixture();
+
+    putenv('APP_DEBUG=true');
+    $_ENV['APP_DEBUG'] = 'true';
+
+    try {
+        bootFixtureKernel($fx);
+        $tester = runConsoleCommand(new ConfigCacheCommand());
+        expect($tester->getStatusCode())->toBe(0)
+            ->and($tester->getDisplay())->toContain('APP_DEBUG=true')
+            ->and($tester->getDisplay())->toContain('production');
+    } finally {
+        putenv('APP_DEBUG');
+        unset($_ENV['APP_DEBUG']);
+    }
+});

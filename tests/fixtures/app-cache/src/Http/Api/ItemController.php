@@ -13,4 +13,14 @@ class ItemController
     {
         return new Response('api cached');
     }
+
+    public function secret(Request $request): Response
+    {
+        return new Response('secret data');
+    }
+
+    public function throttled(Request $request): Response
+    {
+        return new Response('throttled ok');
+    }
 }

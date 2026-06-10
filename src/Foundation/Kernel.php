@@ -672,10 +672,16 @@ class Kernel extends Singleton
      *   1. If $name exists in config('app.middleware_aliases'), use the mapped class-string.
      *   2. Otherwise treat $name itself as a class-string.
      *   3. Instantiate via the container; verify it implements MiddlewareInterface.
-     *   4. Return null (unresolvable) rather than throw, so a bad alias never crashes the request.
+     *
+     * Failure policy:
+     *   - In debug mode (APP_DEBUG=true): throws InvalidArgumentException immediately,
+     *     so a renamed/removed alias is caught during development.
+     *   - In production: logs a warning via the framework logger and returns null so
+     *     a bad alias never crashes a live request — but the issue is surfaced in logs.
      *
      * @param string $name FQCN or alias string.
      * @return \Ions\Http\Middleware\MiddlewareInterface|null
+     * @throws \InvalidArgumentException in debug mode when the middleware cannot be resolved.
      */
     private static function resolveMiddleware(string $name): ?\Ions\Http\Middleware\MiddlewareInterface
     {
@@ -683,18 +689,36 @@ class Kernel extends Singleton
         $aliases = (array) config('app.middleware_aliases', []);
         $class = $aliases[$name] ?? $name;
 
-        if (!class_exists($class)) {
+        $unresolvable = static function (string $reason) use ($name): null {
+            $message = "Middleware '{$name}' could not be resolved: {$reason}. "
+                . "Check 'app.middleware_aliases' or verify the class exists and implements MiddlewareInterface.";
+
+            if (env('APP_DEBUG', false)) {
+                throw new \InvalidArgumentException($message);
+            }
+
+            // Production: log and silently drop so requests are not broken.
+            try {
+                \Ions\Bundles\Logs::create('app.log')->warning($message);
+            } catch (\Throwable) {
+                // Ignore logging failures — never let them mask the original issue.
+            }
+
             return null;
+        };
+
+        if (!class_exists($class)) {
+            return $unresolvable("class '{$class}' does not exist");
         }
 
         try {
             $instance = static::$app->make($class);
-        } catch (\Throwable) {
-            return null;
+        } catch (\Throwable $e) {
+            return $unresolvable("container could not instantiate '{$class}': " . $e->getMessage());
         }
 
         if (!($instance instanceof \Ions\Http\Middleware\MiddlewareInterface)) {
-            return null;
+            return $unresolvable("'{$class}' does not implement MiddlewareInterface");
         }
 
         return $instance;
@@ -722,6 +746,12 @@ class Kernel extends Singleton
      * Public so cache/inspection commands (route:cache) can reuse the exact
      * capture logic the request path dispatches with.
      *
+     * Each group build is fully isolated: the shared collection is snapshot-
+     * and-restored around the routes file include so that web routes loaded by
+     * routes/web.php are never visible in a subsequent api build (and vice
+     * versa). This prevents cross-group contamination when the command builds
+     * both groups in a single process.
+     *
      * @param string $targetFolder 'web' or 'api'
      * @return RouteCollection
      */
@@ -729,11 +759,17 @@ class Kernel extends Singleton
     {
         $routes = new RouteCollection();
 
-        // Routes registered at boot time directly on the shared collection
-        // (via the Route facade outside a routes file) stay matchable.
+        // Snapshot the shared collection BEFORE loading the routes file so
+        // that the delta (only this group's routes) can be extracted and the
+        // shared collection can be restored to its original state afterwards.
+        // This prevents routes loaded for group A from leaking into group B
+        // when both groups are built in the same process (e.g. route:cache).
         $shared = static::RouteCollection();
-        $before = array_keys($shared->all());
-        foreach ($shared->all() as $name => $route) {
+        $snapshot = $shared->all();
+
+        // Copy routes that were registered before any file was included
+        // (e.g. via Route:: calls in App\Booting or provider boot methods).
+        foreach ($snapshot as $name => $route) {
             $routes->add($name, $route);
         }
 
@@ -741,14 +777,22 @@ class Kernel extends Singleton
         $yamlFile = Path::route($targetFolder . '.yaml');
 
         if (file_exists($phpFile)) {
-            // The Route facade appends to the shared collection; copy the
-            // delta this file produced so the group collection stays complete.
+            // The Route facade appends to the shared collection; extract the
+            // delta this file produced into the group collection, then RESTORE
+            // the shared collection to its pre-include snapshot so the next
+            // group build starts from a clean state.
             require $phpFile;
             foreach ($shared->all() as $name => $route) {
-                if (!in_array($name, $before, true)) {
+                if (!array_key_exists($name, $snapshot)) {
                     $routes->add($name, $route);
                 }
             }
+            // Restore shared collection to pre-include state.
+            $freshShared = new RouteCollection();
+            foreach ($snapshot as $name => $route) {
+                $freshShared->add($name, $route);
+            }
+            static::$collection = $freshShared;
         } elseif (file_exists($yamlFile)) {
             $fileLocator = new FileLocator([__DIR__]);
             $loader = new YamlFileLoader($fileLocator);

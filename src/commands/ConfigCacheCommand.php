@@ -30,17 +30,29 @@ class ConfigCacheCommand extends Command
 
     public function handle(): int
     {
+        // Warn when caching under debug mode — production will then read debug
+        // env values frozen into the cache file until config:cache is re-run.
+        if (env('APP_DEBUG', false)) {
+            $this->warn(
+                'Warning: config:cache was run with APP_DEBUG=true. '
+                . 'The cache will contain debug-mode env values; production will read these '
+                . 'until config:cache is re-run in a production environment.'
+            );
+        }
+
         $configs = [];
         foreach (Storage::files(Path::config()) as $configFile) {
             $configs[File::name($configFile)] = include $configFile;
         }
 
-        $closureKey = $this->findClosure($configs, '');
-        if ($closureKey !== null) {
+        $unsafeKey = $this->findUnsafeValue($configs, '');
+        if ($unsafeKey !== null) {
+            [$dotPath, $reason] = $unsafeKey;
             $this->error(sprintf(
-                "Config key '%s' contains a Closure and cannot be cached. " .
+                "Config key '%s' contains a %s and cannot be cached. " .
                 'Replace it with a serializable value (or resolve it in a provider), then re-run config:cache.',
-                $closureKey
+                $dotPath,
+                $reason
             ));
 
             return self::FAILURE;
@@ -66,19 +78,28 @@ class ConfigCacheCommand extends Command
     }
 
     /**
-     * Depth-first search for a Closure anywhere in the merged config tree.
+     * Depth-first search for a value that cannot be safely exported by var_export():
+     *   - Closures (cannot be exported at all)
+     *   - Objects that do not implement __set_state() (var_export would produce
+     *     ClassName::__set_state([...]) which fatals at require-time when the
+     *     method is absent, with no useful context for the developer)
      *
-     * @return string|null Dot-path of the first Closure found, or null.
+     * @return array{string, string}|null Tuple of [dot-path, human-readable reason], or null when safe.
      */
-    private function findClosure(mixed $value, string $path): ?string
+    private function findUnsafeValue(mixed $value, string $path): ?array
     {
         if ($value instanceof Closure) {
-            return $path;
+            return [$path, 'Closure'];
+        }
+
+        if (is_object($value) && !method_exists($value, '__set_state')) {
+            return [$path, 'object of class ' . get_class($value) . ' (no __set_state)'];
         }
 
         if (is_array($value)) {
             foreach ($value as $key => $item) {
-                $found = $this->findClosure($item, $path === '' ? (string) $key : $path . '.' . $key);
+                $child = $path === '' ? (string) $key : $path . '.' . $key;
+                $found = $this->findUnsafeValue($item, $child);
                 if ($found !== null) {
                     return $found;
                 }
