@@ -50,6 +50,10 @@ The merged list is de-duplicated (first occurrence wins). Host providers run **l
 
 This means a host app normally needs **no `providers` key at all** — drop a provider into `src/Providers/` (or install a package that declares `extra.ions.providers`) and it is registered and booted automatically.
 
+In production, run `ions discover:cache` (included in `ions optimize`) to freeze the discovered list into `var/cache/providers.php`; boot then loads it with one `require` and skips all scans. Debug bypasses the cache; re-run it after composer changes or provider edits — see [performance.md](performance.md).
+
+> **Security note:** `composer require` means code running at boot — a package's `extra.ions.providers` providers register and boot on every request with full framework access. Review the `extra.ions.providers` of packages you install. Escape hatches: `app.dont_discover` (skip specific packages), `app.discovery => false` (no scans at all), or an explicit `app.providers` list (full control).
+
 **Setting this key replaces everything** — no discovery scan runs at all, and the list (including any framework providers you still need) is used verbatim. Full explicit control:
 
 ```php
@@ -74,6 +78,22 @@ Ignored when `app.providers` is set (an explicit list already bypasses discovery
 ```php
 'discovery' => false, // pure framework defaults, no scans
 ```
+
+---
+
+## `app.dont_discover`
+
+**Type:** `array` of composer package names  **Default:** `[]`
+
+Opt out of provider auto-discovery for specific composer packages while keeping discovery on for everything else. Each entry is an **exact `vendor/package` name match** against the installed package's composer name — no prefixes or wildcards:
+
+```php
+'dont_discover' => [
+    'acme/ions-stripe', // its extra.ions.providers are ignored
+],
+```
+
+The package's `extra.ions.providers` are simply skipped; the host can still register the providers it wants explicitly. Ignored when `app.providers` is set or `app.discovery` is `false` (no package scan runs in either case). See the security note under [`app.providers`](#appproviders).
 
 ---
 

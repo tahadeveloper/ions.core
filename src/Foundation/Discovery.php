@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ions\Foundation;
 
 use Composer\Autoload\ClassLoader;
+use Ions\Bundles\Logs;
 use Ions\Bundles\Path;
 use Ions\Container\ServiceProvider;
 use ReflectionClass;
@@ -30,6 +31,12 @@ use Throwable;
  * Discovery is bypassed entirely when the host sets `app.providers` (full
  * explicit control) and disabled via `app.discovery => false` (pure
  * framework defaults) — both handled by Kernel::bootProviders().
+ *
+ * Production cache: `discover:cache` (part of `optimize`) writes the merged
+ * list to var/cache/providers.php; {@see cachedProviders()} loads it with a
+ * single require — no installed.json parse, no glob, no per-file regex —
+ * whenever APP_DEBUG is off and the file exists (same philosophy as the
+ * route/config caches: debug always discovers live).
  */
 final class Discovery extends Singleton
 {
@@ -91,6 +98,70 @@ final class Discovery extends Singleton
     }
 
     /**
+     * The provider list cached by `discover:cache` (var/cache/providers.php),
+     * or null when the cache must not be used: APP_DEBUG is truthy (debug
+     * always discovers live, mirroring the route/config caches) or the file
+     * does not exist / does not return an array.
+     *
+     * Stale entries — cached FQCNs whose class no longer exists or is no
+     * longer a concrete ServiceProvider (provider file deleted, package
+     * removed without re-running discover:cache) — are filtered out with a
+     * logged warning, never a fatal: a vanishing provider must be diagnosable
+     * but must not take the host down.
+     *
+     * Invalidation: the file never invalidates itself — re-run `optimize`
+     * (or `discover:cache`) after composer install/update and after adding
+     * or removing providers.
+     *
+     * @return list<class-string<ServiceProvider>>|null
+     */
+    public static function cachedProviders(): ?array
+    {
+        if (env('APP_DEBUG', false)) {
+            return null;
+        }
+
+        $file = Path::cache('providers.php');
+        if (!is_file($file)) {
+            return null;
+        }
+
+        try {
+            $cached = require $file;
+        } catch (Throwable $e) {
+            self::warn(sprintf(
+                'Discovery: provider cache %s failed to load (%s) — falling back to live discovery. Re-run discover:cache.',
+                $file,
+                $e->getMessage()
+            ));
+
+            return null;
+        }
+
+        if (!is_array($cached)) {
+            return null;
+        }
+
+        $providers = [];
+        foreach ($cached as $class) {
+            if (is_string($class) && self::isConcreteProvider($class)) {
+                /** @var class-string<ServiceProvider> $class */
+                $providers[] = $class;
+
+                continue;
+            }
+
+            self::warn(sprintf(
+                'Discovery: cached provider %s (from %s) no longer exists or is not a concrete ServiceProvider — skipped. Re-run discover:cache (or optimize) after composer/provider changes.',
+                is_string($class) ? $class : get_debug_type($class),
+                $file
+            ));
+        }
+
+        return array_values(array_unique($providers));
+    }
+
+    /**
      * Scan the host application's {src|app}/Providers directory (preserving
      * the src/ → app/ fallback via Path::src()) for concrete ServiceProvider
      * subclasses. Classes are matched by namespace declaration — the same
@@ -115,12 +186,8 @@ final class Discovery extends Singleton
                 continue;
             }
 
-            if (!class_exists($class)) {
-                try {
-                    require_once $file;
-                } catch (Throwable) {
-                    continue;
-                }
+            if (!class_exists($class) && !self::includeProviderFile($file)) {
+                continue;
             }
 
             if (self::isConcreteProvider($class)) {
@@ -133,11 +200,51 @@ final class Discovery extends Singleton
     }
 
     /**
+     * Hardened require_once fallback for host provider files whose class is
+     * not composer-autoloadable. Any top-level output the file emits is
+     * swallowed (never leaks into the response) and ANY Throwable — parse
+     * error, fatal initializer, anything — logs a warning naming the file
+     * (always, not only in debug: a vanishing provider must be diagnosable)
+     * and reports failure so the scan continues with the next file.
+     */
+    private static function includeProviderFile(string $file): bool
+    {
+        $level = ob_get_level();
+        ob_start();
+
+        try {
+            require_once $file;
+
+            return true;
+        } catch (Throwable $e) {
+            self::warn(sprintf(
+                'Discovery: failed loading host provider file %s (%s: %s) — skipped.',
+                $file,
+                get_debug_type($e),
+                $e->getMessage()
+            ));
+
+            return false;
+        } finally {
+            // Discard everything the file printed (including any buffers it
+            // opened itself) so boot output stays clean.
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
+        }
+    }
+
+    /**
      * Providers declared by installed composer packages under
      * `extra.ions.providers`. Read from vendor/composer/installed.json (the
      * only runtime composer metadata that carries `extra` — installed.php /
      * InstalledVersions::getAllRawData() do not) and memoized per process.
      * Missing/odd metadata (skeleton tests, fixtures without vendor) → [].
+     *
+     * Packages listed in `app.dont_discover` (exact `vendor/package` name
+     * match) are skipped entirely. The filter is applied at scan time and
+     * thus captured by the memo — config is loaded before providers boot,
+     * and tests reset via {@see reset()}.
      *
      * @return list<class-string<ServiceProvider>>
      */
@@ -147,8 +254,15 @@ final class Discovery extends Singleton
             return self::$packageProviders;
         }
 
+        $dontDiscover = self::dontDiscover();
+
         $providers = [];
         foreach (self::$metadataOverride ?? self::installedPackages() as $package) {
+            $name = $package['name'] ?? null;
+            if (is_string($name) && in_array($name, $dontDiscover, true)) {
+                continue;
+            }
+
             $extra = $package['extra'] ?? null;
             $declared = is_array($extra) ? ($extra['ions']['providers'] ?? null) : null;
             if (!is_array($declared)) {
@@ -163,6 +277,43 @@ final class Discovery extends Singleton
         }
 
         return self::$packageProviders = array_values(array_unique($providers));
+    }
+
+    /**
+     * Composer package names the host opted out of via `app.dont_discover`
+     * (exact `vendor/package` match). Read defensively: before the kernel
+     * holds a Config object (unit tests driving the scanner directly) it
+     * yields [].
+     *
+     * @return list<string>
+     */
+    private static function dontDiscover(): array
+    {
+        try {
+            $list = config('app.dont_discover', []);
+        } catch (Throwable) {
+            return [];
+        }
+
+        if (!is_array($list)) {
+            return [];
+        }
+
+        return array_values(array_filter($list, 'is_string'));
+    }
+
+    /**
+     * Log a discovery warning to var/logs/app.log. Logging must itself never
+     * break boot (unwritable logs dir, missing host structure) — failures are
+     * swallowed.
+     */
+    private static function warn(string $message): void
+    {
+        try {
+            Logs::create()->warning($message);
+        } catch (Throwable) {
+            // Never let diagnostics take the boot down.
+        }
     }
 
     /**

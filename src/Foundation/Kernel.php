@@ -342,10 +342,21 @@ class Kernel extends Singleton
      * Provider list resolution:
      *   - 'app.providers' set      → used verbatim (full explicit control, BC);
      *                                 no discovery scan runs at all.
-     *   - unset + discovery on     → Discovery::providers(): framework defaults
-     *                                 + composer extra.ions.providers + host
+     *   - unset + discovery on     → the discover:cache file
+     *                                 (var/cache/providers.php) when it exists
+     *                                 and APP_DEBUG is off: one require, zero
+     *                                 scans (Discovery::cachedProviders());
+     *                                 otherwise live Discovery::providers():
+     *                                 framework defaults + composer
+     *                                 extra.ions.providers + host
      *                                 {src|app}/Providers scan.
      *   - 'app.discovery' => false → pure defaultProviders().
+     *
+     * Debug bypasses the providers cache exactly like the route/config caches.
+     * The cache never invalidates itself: re-run `ions optimize` (or
+     * `discover:cache`) after composer install/update and after adding or
+     * removing providers; stale cached FQCNs are filtered with a logged
+     * warning, never a fatal.
      *
      * Runs inside the boot() try block so provider failures route through failBoot().
      *
@@ -357,7 +368,7 @@ class Kernel extends Singleton
         $classes = config('app.providers');
         if (!is_array($classes)) {
             $classes = config('app.discovery', true)
-                ? Discovery::providers()
+                ? (Discovery::cachedProviders() ?? Discovery::providers())
                 : self::defaultProviders();
         }
         $providers = array_map(static fn ($c) => new $c(static::$app), $classes);

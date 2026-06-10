@@ -6,6 +6,8 @@
 
 use Ions\commands\ConfigCacheCommand;
 use Ions\commands\ConfigClearCommand;
+use Ions\commands\DiscoverCacheCommand;
+use Ions\commands\DiscoverClearCommand;
 use Ions\commands\OptimizeClearCommand;
 use Ions\commands\OptimizeCommand;
 use Ions\commands\PreloadGenerateCommand;
@@ -31,6 +33,8 @@ function runOptimizeCommand(\Illuminate\Console\Command $command): CommandTester
         new RouteClearCommand(),
         new ConfigCacheCommand(),
         new ConfigClearCommand(),
+        new DiscoverCacheCommand(),
+        new DiscoverClearCommand(),
         new PreloadGenerateCommand(),
         $command,
     ] as $cmd) {
@@ -48,6 +52,7 @@ function clearOptimizeArtifacts(): void
     $fx = optimizeFixture();
     foreach ([
         $fx . '/var/cache/config.php',
+        $fx . '/var/cache/providers.php',
         $fx . '/var/cache/preload.php',
         $fx . '/var/cache/routes/web.php',
         $fx . '/var/cache/routes/api.php',
@@ -64,7 +69,7 @@ function clearOptimizeArtifacts(): void
 beforeEach(fn () => clearOptimizeArtifacts());
 afterEach(fn () => clearOptimizeArtifacts());
 
-test('optimize builds the route and config caches in one shot', function () {
+test('optimize builds the route, config and provider caches in one shot', function () {
     $fx = optimizeFixture();
     bootFixtureKernel($fx);
 
@@ -74,8 +79,10 @@ test('optimize builds the route and config caches in one shot', function () {
         ->and(is_file($fx . '/var/cache/routes/web.php'))->toBeTrue()
         ->and(is_file($fx . '/var/cache/routes/api.php'))->toBeTrue()
         ->and(is_file($fx . '/var/cache/config.php'))->toBeTrue()
+        ->and(is_file($fx . '/var/cache/providers.php'))->toBeTrue()
         ->and($tester->getDisplay())->toContain('route')
-        ->and($tester->getDisplay())->toContain('config');
+        ->and($tester->getDisplay())->toContain('config')
+        ->and($tester->getDisplay())->toContain('rovider');
 });
 
 test('optimize propagates a route:cache failure (closure routes)', function () {
@@ -86,7 +93,7 @@ test('optimize propagates a route:cache failure (closure routes)', function () {
     expect($tester->getStatusCode())->not->toBe(0);
 });
 
-test('optimize:clear removes route, config and twig caches', function () {
+test('optimize:clear removes route, config, provider and twig caches', function () {
     $fx = optimizeFixture();
     bootFixtureKernel($fx);
     runOptimizeCommand(new OptimizeCommand());
@@ -100,6 +107,7 @@ test('optimize:clear removes route, config and twig caches', function () {
     expect($tester->getStatusCode())->toBe(0)
         ->and(is_file($fx . '/var/cache/routes/web.php'))->toBeFalse()
         ->and(is_file($fx . '/var/cache/config.php'))->toBeFalse()
+        ->and(is_file($fx . '/var/cache/providers.php'))->toBeFalse()
         ->and(is_dir($fx . '/var/cache/twig'))->toBeFalse();
 });
 

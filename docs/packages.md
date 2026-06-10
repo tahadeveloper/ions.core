@@ -26,7 +26,11 @@ At boot, `Ions\Foundation\Discovery` reads `vendor/composer/installed.json` (the
 
 Order: framework defaults → **package providers** → host `{src|app}/Providers/` (host last, so the host always wins). The merged list is de-duplicated, first occurrence wins.
 
-Discovery is bypassed when the host sets `app.providers` (explicit full control) and disabled by `app.discovery => false` — see [config.md](config.md#appproviders). Package authors should document that hosts using an explicit `app.providers` list must add the package's provider(s) themselves.
+Discovery is bypassed when the host sets `app.providers` (explicit full control) and disabled by `app.discovery => false` — see [config.md](config.md#appproviders). A host can also opt out of a single package via `app.dont_discover => ['acme/ions-stripe']` (exact package-name match, see [config.md](config.md#appdont_discover)). Package authors should document that hosts using an explicit `app.providers` list must add the package's provider(s) themselves.
+
+> **Security note:** `composer require` is code running at boot — discovered providers register and boot on every request. Hosts should review the `extra.ions.providers` of packages they install; the escape hatches are `app.dont_discover` (per package), `app.discovery => false` (no scans) and an explicit `app.providers` list (full control).
+
+In production hosts typically freeze the discovered list with `ions discover:cache` (part of `ions optimize`); remind users to re-run it after `composer require`/`update` so your package's providers enter the cache — see [performance.md](performance.md).
 
 ## Writing the provider
 

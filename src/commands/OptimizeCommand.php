@@ -8,8 +8,9 @@ use Illuminate\Console\Command;
 
 /**
  * optimize — build every production cache in one shot:
- *   - route:cache  (compiled route matchers)
- *   - config:cache (merged config array)
+ *   - route:cache    (compiled route matchers)
+ *   - config:cache   (merged config array)
+ *   - discover:cache (frozen provider discovery list)
  *
  * Run it on deploy; run optimize:clear to drop all caches again.
  */
@@ -17,7 +18,7 @@ class OptimizeCommand extends Command
 {
     protected $signature = 'optimize';
 
-    protected $description = 'Cache routes and config for production';
+    protected $description = 'Cache routes, config and discovered providers for production';
 
     public function handle(): int
     {
@@ -35,7 +36,13 @@ class OptimizeCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info('Application optimized: route + config caches written.');
+        if ($this->call('discover:cache') !== self::SUCCESS) {
+            $this->error('optimize aborted: discover:cache failed.');
+
+            return self::FAILURE;
+        }
+
+        $this->info('Application optimized: route + config + provider caches written.');
 
         return self::SUCCESS;
     }

@@ -8,19 +8,20 @@ use Illuminate\Console\Command;
 use Ions\Bundles\Path;
 
 /**
- * optimize:clear — remove every cache optimize/route:cache/config:cache wrote,
- * plus the compiled Twig template cache.
+ * optimize:clear — remove every cache optimize/route:cache/config:cache/
+ * discover:cache wrote, plus the compiled Twig template cache.
  */
 class OptimizeClearCommand extends Command
 {
     protected $signature = 'optimize:clear';
 
-    protected $description = 'Remove the route, config and Twig caches';
+    protected $description = 'Remove the route, config, provider and Twig caches';
 
     public function handle(): int
     {
         $this->call('route:clear');
         $this->call('config:clear');
+        $this->call('discover:clear');
 
         $twigCache = Path::cache('twig');
         if (is_dir($twigCache)) {

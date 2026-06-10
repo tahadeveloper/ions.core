@@ -63,6 +63,8 @@ class Kernel
         \Ions\commands\RouteClearCommand::class,
         \Ions\commands\ConfigCacheCommand::class,
         \Ions\commands\ConfigClearCommand::class,
+        \Ions\commands\DiscoverCacheCommand::class,
+        \Ions\commands\DiscoverClearCommand::class,
         \Ions\commands\OptimizeCommand::class,
         \Ions\commands\OptimizeClearCommand::class,
         \Ions\commands\PreloadGenerateCommand::class,
