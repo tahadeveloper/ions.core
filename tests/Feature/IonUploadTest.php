@@ -11,6 +11,12 @@ function makeUploaded(string $clientName, string $content = 'x'): UploadedFile
     return new UploadedFile($tmp, $clientName, null, null, true);
 }
 
+/** Minimal valid JPEG payload (finfo => image/jpeg) for content-validation. */
+function tinyJpegBytes(): string
+{
+    return "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xFF\xD9";
+}
+
 test('rejects a .php upload (RCE gate) and writes nothing', function () {
     bootFixtureKernel();
     $dest = sys_get_temp_dir() . '/ion_upl_' . bin2hex(random_bytes(4));
@@ -25,10 +31,30 @@ test('accepts a .jpg upload and stores it with a random safe name', function () 
     bootFixtureKernel();
     $dest = sys_get_temp_dir() . '/ion_upl_' . bin2hex(random_bytes(4));
     mkdir($dest);
-    $out = IonUpload::store(makeUploaded('photo.jpg'), $dest)->response();
+    $out = IonUpload::store(makeUploaded('photo.jpg', tinyJpegBytes()), $dest)->response();
     expect($out['error'])->toBe(0)
         ->and($out['store_name'])->toEndWith('.jpg');
     expect(file_exists($dest . '/' . $out['store_name']))->toBeTrue();
+});
+
+test('rejects a .jpg whose content is PHP source (magic-bytes gate) and writes nothing', function () {
+    bootFixtureKernel();
+    $dest = sys_get_temp_dir() . '/ion_upl_' . bin2hex(random_bytes(4));
+    mkdir($dest);
+    $out = IonUpload::store(makeUploaded('innocent.jpg', '<?php system($_GET["c"]);'), $dest)->response();
+    expect($out['error'])->toBe(1)
+        ->and($out['message'])->toContain('content');
+    expect(glob($dest . '/*'))->toBe([]); // nothing written
+});
+
+test('app.uploads.mime_map override is honoured by IonUpload::store', function () {
+    bootFixtureKernel();
+    config(['app.uploads.mime_map' => ['jpg' => ['text/plain']]]);
+    $dest = sys_get_temp_dir() . '/ion_upl_' . bin2hex(random_bytes(4));
+    mkdir($dest);
+    // With the override, plain text named .jpg is now acceptable content.
+    $out = IonUpload::store(makeUploaded('notes.jpg', 'plain text content'), $dest)->response();
+    expect($out['error'])->toBe(0);
 });
 
 test('optional image hook post-processes a stored upload', function () {

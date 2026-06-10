@@ -68,6 +68,16 @@ Both follow the CSP rule: a header already set by the caller is never
 overwritten. If your app relies on browser camera/geolocation/microphone
 access, set a matching `permissions_policy`.
 
+### Uploads: magic-bytes content validation
+
+`IonUpload::store()`, `IonDisk::put()` and `IonDisk::putFile()` now verify —
+after the extension allow-list — that the actual content's `finfo` MIME
+agrees with the claimed extension (e.g. PHP source named `.jpg` is rejected
+with "File content does not match its extension"). The extension→MIME map is
+configurable at `app.uploads.mime_map` (merged over the built-in defaults);
+extensions absent from the map are accepted on the extension gate alone. See
+`docs/config.md`.
+
 ## Behavior changes
 
 ### Query logging is no longer implied by APP_DEBUG

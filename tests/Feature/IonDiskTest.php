@@ -44,11 +44,17 @@ test('IonDisk::put() rejects a .php upload (RCE gate) and writes nothing to disk
     removeTempDest($dest);
 });
 
+/** Minimal valid JPEG payload (finfo => image/jpeg) for content-validation. */
+function tinyJpegBytesForDisk(): string
+{
+    return "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xFF\xD9";
+}
+
 test('IonDisk::put() accepts a .jpg upload and stores it with a .jpg extension', function () {
     bootFixtureKernel();
 
     $dest = makeTempDest();
-    $file = makeUploadedForDisk('photo.jpg', 'fakejpegdata');
+    $file = makeUploadedForDisk('photo.jpg', tinyJpegBytesForDisk());
 
     $result = IonDisk::put($file, $dest);
 
@@ -58,6 +64,47 @@ test('IonDisk::put() accepts a .jpg upload and stores it with a .jpg extension',
     expect(file_exists($dest . '/' . $result['filename']))->toBeTrue();
 
     removeTempDest($dest);
+});
+
+test('IonDisk::put() rejects a .jpg whose content is PHP source (magic-bytes gate)', function () {
+    bootFixtureKernel();
+
+    $dest = makeTempDest();
+    $file = makeUploadedForDisk('innocent.jpg', '<?php system($_GET["c"]);');
+
+    $result = IonDisk::put($file, $dest);
+
+    expect($result['error'])->toBeTruthy()
+        ->and($result['message'])->toContain('content');
+    expect(glob($dest . '/*'))->toBe([]); // nothing written
+
+    removeTempDest($dest);
+});
+
+test('IonDisk::putFile() rejects raw PHP content named .png (buffer magic-bytes gate)', function () {
+    bootFixtureKernel();
+    IonDisk::disk('local'); // re-init the flysystem against the booted fixture config
+
+    $result = IonDisk::putFile('<?php echo 1;', 'innocent.png', 'ion_disk_putfile_' . bin2hex(random_bytes(4)));
+
+    expect($result)->toHaveKey('error')
+        ->and($result['error'])->toContain('content');
+});
+
+test('IonDisk::putFile() accepts a real PNG named .png', function () {
+    bootFixtureKernel();
+    IonDisk::disk('local');
+
+    $png = (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+    $dir = 'ion_disk_putfile_' . bin2hex(random_bytes(4));
+
+    $result = IonDisk::putFile($png, 'pixel.png', $dir);
+
+    expect($result)->toHaveKey('upload_name')
+        ->and($result['upload_name'])->toEndWith('.png');
+
+    @unlink(sys_get_temp_dir() . '/' . $dir . '/' . $result['upload_name']);
+    @rmdir(sys_get_temp_dir() . '/' . $dir);
 });
 
 test('IonDisk::put() rejects .phtm extension (newly-denied)', function () {

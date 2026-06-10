@@ -189,6 +189,31 @@ Extension allow-list enforced by `Ions\Security\UploadValidator` (used by `IonUp
 
 ---
 
+## `app.uploads.mime_map`
+
+**Type:** `array<string, string[]>`  **Default:** built-in map (jpg/jpeg → image/jpeg, png → image/png, pdf → application/pdf, txt/csv → `text/*`, zip → application/zip, doc/docx/xls/xlsx → office types, …)
+
+Per-extension MIME agreement map for magic-bytes content validation (4.1).
+After the extension allow-list passes, `UploadValidator::isContentValid()`
+checks that the `finfo` MIME of the actual content agrees with the claimed
+extension — a `.jpg` containing PHP source is rejected. Entries here are
+merged **over** the defaults (an entry replaces the whole list for that
+extension). A `type/*` value matches any subtype.
+
+Extensions absent from the map are accepted on the extension gate alone, so
+uncommon types are not bricked — add a mapping to opt them into content
+validation.
+
+```php
+'uploads' => [
+    'mime_map' => [
+        'json' => ['application/json', 'text/*'],
+    ],
+],
+```
+
+---
+
 ## `app.ratelimit.max`
 
 **Type:** `int`  **Default:** `60`
