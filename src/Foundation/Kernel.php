@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\File;
 use Ions\Bundles\AttributeRouteControllerLoader;
 use Ions\Bundles\Path;
 use Ions\Container\Container;
+use Ions\Events\RequestHandled;
 use Ions\Http\ExceptionHandler;
 use Ions\Http\Middleware\AuthMiddleware;
 use Ions\Http\Middleware\ControllerDispatcher;
@@ -155,6 +156,14 @@ class Kernel extends Singleton
     {
         static::$app = new Container();
         Facade::setFacadeApplication(static::$app);
+
+        // Bind the container to itself under its concrete class and the PSR /
+        // Illuminate container contracts so libraries that type-hint a Container
+        // (e.g. the queue's CallQueuedHandler) resolve the live Ions container.
+        static::$app->instance(Container::class, static::$app);
+        static::$app->instance(\Illuminate\Container\Container::class, static::$app);
+        static::$app->instance(\Illuminate\Contracts\Container\Container::class, static::$app);
+
         // These inline bindings MUST stay here: captureConfig() calls Storage::files()
         // which requires 'filesystem'/'files' to exist BEFORE providers are bootstrapped.
         // FilesystemProvider's bound() guard makes it a harmless no-op at provider time.
@@ -183,6 +192,9 @@ class Kernel extends Singleton
             \Ions\Providers\FilesystemProvider::class,
             \Ions\Providers\SessionProvider::class,
             \Ions\Providers\DatabaseProvider::class,
+            \Ions\Providers\CacheProvider::class,
+            \Ions\Providers\EventProvider::class,
+            \Ions\Providers\QueueProvider::class,
             \Ions\Providers\AuthProvider::class,
             \Ions\Providers\MailProvider::class,
             \Ions\Providers\ViewProvider::class,
@@ -422,16 +434,46 @@ class Kernel extends Singleton
                 $response->headers->addCacheControlDirective('must-revalidate', true);
             }
 
+            self::fireRequestHandled($request, $response);
+
             return $response;
 
         } catch (NoConfigurationException $e) {
-            return self::exceptionHandler()->render(new NotFoundHttpException('Page route not found', $e), $request);
+            $response = self::exceptionHandler()->render(new NotFoundHttpException('Page route not found', $e), $request);
+            self::fireRequestHandled($request, $response);
+            return $response;
         } catch (MethodNotAllowedException $e) {
-            return self::exceptionHandler()->render(new MethodNotAllowedHttpException([], 'Method not allowed', $e), $request);
+            $response = self::exceptionHandler()->render(new MethodNotAllowedHttpException([], 'Method not allowed', $e), $request);
+            self::fireRequestHandled($request, $response);
+            return $response;
         } catch (ResourceNotFoundException $e) {
-            return self::exceptionHandler()->render(new NotFoundHttpException('Page route not found', $e), $request);
+            $response = self::exceptionHandler()->render(new NotFoundHttpException('Page route not found', $e), $request);
+            self::fireRequestHandled($request, $response);
+            return $response;
         } catch (Throwable $e) {
-            return self::exceptionHandler()->render($e, $request);
+            $response = self::exceptionHandler()->render($e, $request);
+            self::fireRequestHandled($request, $response);
+            return $response;
+        }
+    }
+
+    /**
+     * Fire the framework's RequestHandled event in a fire-and-continue manner:
+     * the dispatcher (and any listener) must never break the response, so all
+     * failures — including the events binding being absent (e.g. in a partially
+     * booted test) — are swallowed.
+     */
+    private static function fireRequestHandled(Request $request, SymfonyResponse $response): void
+    {
+        try {
+            if (!static::$app->bound('events')) {
+                return;
+            }
+            /** @var \Illuminate\Contracts\Events\Dispatcher $events */
+            $events = static::$app->get('events');
+            $events->dispatch(new RequestHandled($request, $response));
+        } catch (Throwable) {
+            // Intentionally ignored: lifecycle events are best-effort.
         }
     }
 

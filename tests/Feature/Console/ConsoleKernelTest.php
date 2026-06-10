@@ -23,7 +23,8 @@ test('the console kernel registers the framework commands', function () {
         ->and($app->has('make:middleware'))->toBeTrue()
         ->and($app->has('make:service-provider'))->toBeTrue()
         ->and($app->has('route:list'))->toBeTrue()
-        ->and($app->has('migrate'))->toBeTrue();
+        ->and($app->has('migrate'))->toBeTrue()
+        ->and($app->has('queue:work'))->toBeTrue();
 });
 
 test('a command runs through the kernel and returns exit code 0', function () {

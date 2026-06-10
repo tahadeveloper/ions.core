@@ -11,6 +11,8 @@ parameters:
         - src/Session
         - src/View
         - src/Console
+        - src/Events
+        - src/Queue
     scanFiles:
         - src/helpers.php
     # NO baseline — this code must be clean at level 8

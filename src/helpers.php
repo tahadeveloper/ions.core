@@ -356,6 +356,110 @@ if (!function_exists('session')) {
     }
 }
 
+if (!function_exists('cache')) {
+    /**
+     * Interact with the shared cache.
+     *
+     * Mirrors the config()/session() overloads:
+     *   cache()                 -> the default cache repository
+     *   cache('key')            -> get a value (with optional default)
+     *   cache(['k' => 'v'], $t) -> put one or more values (TTL in seconds, null = forever)
+     *
+     * @param string|array<string,mixed>|null $key
+     * @param mixed $default When getting: the fallback. When putting: the TTL in seconds.
+     * @return \Illuminate\Contracts\Cache\Repository|mixed
+     */
+    function cache(string|array|null $key = null, mixed $default = null)
+    {
+        /** @var \Illuminate\Cache\CacheManager $manager */
+        $manager = Kernel::app()->get('cache');
+        $repository = $manager->store();
+
+        if (is_null($key)) {
+            return $repository;
+        }
+
+        if (is_array($key)) {
+            foreach ($key as $k => $value) {
+                if ($default === null) {
+                    $repository->forever((string) $k, $value);
+                } else {
+                    $repository->put((string) $k, $value, $default);
+                }
+            }
+
+            return $repository;
+        }
+
+        return $repository->get($key, $default);
+    }
+}
+
+if (!function_exists('event')) {
+    /**
+     * Dispatch an event through the shared dispatcher.
+     *
+     *   event($eventObject)            -> dispatch an event object (class name = event name)
+     *   event('name', [$a, $b])        -> dispatch a named event with a payload
+     *
+     * Listeners are invoked synchronously. Returns the array of listener
+     * responses (or null when a listener halts propagation), mirroring
+     * Illuminate's dispatcher.
+     *
+     * @param object|string $event
+     * @param array<int,mixed> $payload
+     * @return array<int,mixed>|null
+     */
+    function event(object|string $event, array $payload = []): ?array
+    {
+        /** @var \Illuminate\Contracts\Events\Dispatcher $dispatcher */
+        $dispatcher = Kernel::app()->get('events');
+
+        return $dispatcher->dispatch($event, $payload);
+    }
+}
+
+if (!function_exists('listen')) {
+    /**
+     * Register an event listener with the shared dispatcher.
+     *
+     * @param string|array<int,string> $events
+     * @param \Closure|string|array<int,string>|null $listener
+     * @return void
+     */
+    function listen(string|array $events, \Closure|string|array|null $listener = null): void
+    {
+        /** @var \Illuminate\Contracts\Events\Dispatcher $dispatcher */
+        $dispatcher = Kernel::app()->get('events');
+        $dispatcher->listen($events, $listener);
+    }
+}
+
+if (!function_exists('dispatch')) {
+    /**
+     * Dispatch a job onto the queue.
+     *
+     * The job is pushed onto its target connection (the job's own
+     * ->onConnection()/->onQueue() take precedence, otherwise the configured
+     * default connection). On the 'sync' connection the job runs immediately;
+     * on persistent connections (e.g. 'database') it is stored for a worker.
+     *
+     * @param object $job
+     * @return mixed The queue driver's push result (e.g. the inserted job id).
+     */
+    function dispatch(object $job): mixed
+    {
+        /** @var \Illuminate\Queue\QueueManager $manager */
+        $manager = Kernel::app()->get('queue');
+
+        $connection = property_exists($job, 'connection') ? $job->connection : null;
+        $queue = property_exists($job, 'queue') ? $job->queue : null;
+
+        return $manager->connection(is_string($connection) ? $connection : null)
+            ->push($job, '', is_string($queue) ? $queue : null);
+    }
+}
+
 if (!function_exists('trans')) {
     /**
      * @param string|null $key

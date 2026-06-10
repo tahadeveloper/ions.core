@@ -390,3 +390,127 @@ session(['k' => 'v']);      // put one or more values (starts the session)
 The manager API: `start()`, `get()`, `put()`, `has()`, `forget()`, `all()`,
 `flush()`, `flash()`/`getFlash()`, `regenerate()`, `token()`, `getId()`, `save()`,
 and `getSession()` (the underlying Symfony session).
+
+## Cache config (`config/cache.php`)
+
+`CacheProvider` binds the shared Illuminate `CacheManager` as `cache`. Stores
+are resolved lazily, so only the ones you use are built.
+
+```php
+return [
+    'default' => 'file',           // store used by cache() with no store name
+    'prefix'  => 'ions',           // global key prefix
+    'persistent_store' => 'file',  // store for cross-request data (revocations, throttle)
+    'stores'  => [
+        'array' => ['driver' => 'array', 'serialize' => false],
+        'file'  => ['driver' => 'file'],   // path defaults to var/cache/data
+        // 'redis' => ['driver' => 'redis', 'connection' => 'cache'],
+    ],
+];
+```
+
+### `cache.default`
+
+Name of the store returned by `cache()` / `cache('key')`. Defaults to `file`
+when the key is absent.
+
+### `cache.prefix`
+
+Prefix prepended to every cache key across all stores. Defaults to `ions`.
+
+### `cache.persistent_store`
+
+The store used for data that must survive across requests — JWT revocations
+(`revocation_store`) and rate-limit counters (`RateLimitMiddleware`). Both
+subsystems now reuse this shared cache instead of building their own file
+stores. Defaults to the `file` store (falling back to `cache.default`).
+
+### The `cache()` helper
+
+Mirrors the `config()`/`session()` overloads:
+
+```php
+cache();                       // the default cache repository
+cache('key');                  // get a value
+cache('key', 'default');       // get with a default
+cache(['k' => 'v'], 60);       // put with a TTL (seconds); omit TTL → forever
+cache()->forget('key');        // forget
+cache()->store('array');       // a named store as a repository
+```
+
+## Events config (`config/events.php`)
+
+`EventProvider` binds the Illuminate event `Dispatcher` as `events` and
+auto-registers the listeners declared under `events.listen`.
+
+```php
+return [
+    'listen' => [
+        \Ions\Events\RequestHandled::class => [
+            \App\Listeners\LogRequest::class,   // resolved via the container; handle($event) called
+        ],
+    ],
+];
+```
+
+### Helpers
+
+```php
+event(new RequestHandled($request, $response));   // dispatch an event object
+event('my.event', ['payload']);                   // dispatch a named event
+listen('my.event', fn ($value) => ...);           // register a listener
+```
+
+### Framework event: `RequestHandled`
+
+`Ions\Events\RequestHandled` carries the `Request` and `Response` and is fired
+once at the end of `Kernel::handle()` — for both successful and error responses
+— in a fire-and-continue manner (listener failures never break the response).
+
+## Queue config (`config/queue.php`)
+
+`QueueProvider` binds the Illuminate `QueueManager` as `queue` with the `sync`,
+`database` (and, when a host binds a Redis factory, `redis`) connectors.
+
+```php
+return [
+    'default' => 'sync',           // sync runs jobs inline
+    'connections' => [
+        'sync'     => ['driver' => 'sync'],
+        'database' => [
+            'driver' => 'database', 'table' => 'jobs',
+            'queue'  => 'default',  'retry_after' => 90,
+        ],
+    ],
+];
+```
+
+### Jobs
+
+Extend `Ions\Queue\Job` (implements `ShouldQueue`, pulls in the Illuminate queue
+traits) and implement `handle()`:
+
+```php
+final class SendWelcome extends \Ions\Queue\Job {
+    public function __construct(private int $userId) {}
+    public function handle(): void { /* ... */ }
+}
+
+dispatch(new SendWelcome($id));                          // default connection
+dispatch((new SendWelcome($id))->onConnection('database'));
+```
+
+On `sync`, `handle()` runs immediately. On `database`, the job is persisted to
+the `jobs` table and processed by a worker.
+
+### `queue:work`
+
+```bash
+ions queue:work                       # work the default connection until empty
+ions queue:work database --once       # process a single job, then exit
+ions queue:work database --stop-when-empty --tries=3
+```
+
+The `database` connection needs the `jobs`/`failed_jobs` tables. A migration
+stub is shipped at `src/Queue/stubs/create_jobs_table.stub` — copy it into the
+host's `{src|app}/Database` directory (dropping `.stub`) and run `ions migrate`.

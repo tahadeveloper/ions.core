@@ -51,6 +51,24 @@ function bootFixtureKernel(string $path = __DIR__ . '/fixtures/app'): void
 }
 
 /**
+ * Run a single Illuminate console Command against the booted Ions container and
+ * return the CommandTester so callers can assert exit code / output.
+ *
+ * @param array<string, mixed> $input
+ */
+function runConsoleCommand(\Illuminate\Console\Command $command, array $input = []): \Symfony\Component\Console\Tester\CommandTester
+{
+    $proxy = new \Ions\Console\ConsoleContainerProxy(\Ions\Foundation\Kernel::app());
+    $app = new \Illuminate\Console\Application($proxy, new \Illuminate\Events\Dispatcher(), '1.0');
+    $app->add($command);
+
+    $tester = new \Symfony\Component\Console\Tester\CommandTester($app->find($command->getName() ?? ''));
+    $tester->execute($input);
+
+    return $tester;
+}
+
+/**
  * Creates all Sentinel tables on the in-memory SQLite connection.
  * Shared by SentinelUserProviderTest and GuardTest to avoid duplication.
  * InnoDB engine declarations in the original migration are ignored by SQLite.
