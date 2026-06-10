@@ -53,16 +53,26 @@ Maps short alias names to middleware FQCNs for use in `Route::middleware([...])`
 
 ## `app.cors`
 
-**Type:** `array`  **Default:** `[]`
+**Type:** `array`  **Default:** `[]` — **deny-by-default since 4.1 (D8-1)**
 
-Passed to `CorsMiddleware`. Recognised keys:
+Passed to `CorsMiddleware`. With no `origins` configured, no CORS headers are
+emitted at all (cross-origin browser requests are denied; preflights get a
+plain 204). Recognised keys:
 
 | Key | Description |
 |---|---|
-| `origins` | Allowed origin pattern(s) |
+| `origins` | Allowed origins (exact strings), or `['*']` for a public wildcard. Default `[]` = deny |
 | `methods` | Allowed HTTP methods |
 | `headers` | Allowed request headers |
 | `max_age` | Preflight cache duration (seconds) |
+| `credentials` | Emit `Access-Control-Allow-Credentials: true`. Only honoured when explicitly `true` **and** `origins !== ['*']` (the Fetch spec forbids credentials with a wildcard) |
+
+```php
+'cors' => [
+    'origins' => ['https://app.example.com'],
+    'credentials' => true,
+],
+```
 
 ---
 
@@ -138,6 +148,33 @@ Value of the `Content-Security-Policy` header applied by `SecurityHeaders::apply
 
 ---
 
+## `app.security.hsts`
+
+**Type:** `string|false`  **Default:** `"max-age=31536000; includeSubDomains"`
+
+Value of the `Strict-Transport-Security` header. Only emitted when the handled
+request is HTTPS (`$request->isSecure()`), and only when the response does not
+already carry the header. Set to `false` to disable.
+
+---
+
+## `app.security.permissions_policy`
+
+**Type:** `string|false`  **Default:** `"camera=(), geolocation=(), microphone=()"`
+
+Value of the `Permissions-Policy` header applied by `SecurityHeaders::apply()`.
+Only set when the header is not already present on the response. Set to
+`false` to disable.
+
+```php
+'security' => [
+    'hsts' => 'max-age=63072000; includeSubDomains; preload',
+    'permissions_policy' => 'camera=(self), geolocation=(), microphone=()',
+],
+```
+
+---
+
 ## `app.uploads.allowed`
 
 **Type:** `string[]`  **Default:** common safe types (images, PDF, zip)
@@ -147,6 +184,31 @@ Extension allow-list enforced by `Ions\Security\UploadValidator` (used by `IonUp
 ```php
 'uploads' => [
     'allowed' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'zip'],
+],
+```
+
+---
+
+## `app.uploads.mime_map`
+
+**Type:** `array<string, string[]>`  **Default:** built-in map (jpg/jpeg → image/jpeg, png → image/png, pdf → application/pdf, txt/csv → `text/*`, zip → application/zip, doc/docx/xls/xlsx → office types, …)
+
+Per-extension MIME agreement map for magic-bytes content validation (4.1).
+After the extension allow-list passes, `UploadValidator::isContentValid()`
+checks that the `finfo` MIME of the actual content agrees with the claimed
+extension — a `.jpg` containing PHP source is rejected. Entries here are
+merged **over** the defaults (an entry replaces the whole list for that
+extension). A `type/*` value matches any subtype.
+
+Extensions absent from the map are accepted on the extension gate alone, so
+uncommon types are not bricked — add a mapping to opt them into content
+validation.
+
+```php
+'uploads' => [
+    'mime_map' => [
+        'json' => ['application/json', 'text/*'],
+    ],
 ],
 ```
 
@@ -168,6 +230,25 @@ Window length for rate limiting. After `max` hits within `decay` seconds, subseq
 'ratelimit' => [
     'max'   => 5,
     'decay' => 60,
+],
+```
+
+---
+
+## `app.auth.forgot_throttle`
+
+**Type:** `array{max?: int, decay?: int}`  **Default:** `['max' => 3, 'decay' => 600]`
+
+Per-(email+IP) throttle applied inside `AuthController::forgotPassword()` on
+top of any route-level `throttle` middleware. After `max` requests for the
+same email from the same IP within `decay` seconds, further requests receive
+HTTP 429 with a generic message and a `Retry-After` header (enumeration-safe:
+the limit applies whether or not the account exists). Backed by the shared
+cache; skipped gracefully when no cache is bound.
+
+```php
+'auth' => [
+    'forgot_throttle' => ['max' => 3, 'decay' => 600],
 ],
 ```
 
@@ -376,9 +457,9 @@ return [
     'driver' => 'native',          // 'native' | 'array' | 'mock'
     'name' => 'ion_session',       // session cookie name (native driver)
     'lifetime' => 0,               // cookie lifetime in seconds (0 = until browser close)
-    'cookie_secure' => false,
-    'cookie_httponly' => true,
-    'cookie_samesite' => 'lax',
+    'cookie_secure' => 'auto',     // default true; 'auto' = follow request scheme
+    'cookie_httponly' => true,     // default true
+    'cookie_samesite' => 'lax',    // default 'lax'
 ];
 ```
 
@@ -395,6 +476,20 @@ return [
 
 Cookie options passed to `NativeSessionStorage` (ignored by the array/mock
 driver). `cookie_samesite` accepts `'lax'`, `'strict'`, or `'none'`.
+
+**Secure by default (4.1):** when the `cookie_*` keys are omitted the native
+driver applies `cookie_httponly => true`, `cookie_samesite => 'lax'`, and
+`cookie_secure => true`. Each can be overridden explicitly. `cookie_secure`
+additionally accepts `'auto'` — secure when the current request is HTTPS;
+fails secure (`true`) when no request is available at session construction
+(CLI, pre-request worker boot). Plain-HTTP dev hosts must set
+`'cookie_secure' => false` (or `'auto'`) explicitly.
+
+> **Caveat:** behind a TLS-terminating reverse proxy the framework has no
+> trusted-proxy support yet, so `Request::isSecure()` is `false` and `'auto'`
+> resolves to an **insecure** cookie — do not use `'auto'` there; keep the
+> default `true`. HSTS via [`app.security.hsts`](#appsecurityhsts) likewise
+> depends on the request scheme and is never emitted behind such a proxy.
 
 ### The `session()` helper
 

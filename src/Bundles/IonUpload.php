@@ -27,11 +27,18 @@ class IonUpload extends Singleton
 
         $allowed = $options['allowed'] ?? config('app.uploads.allowed', ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'zip']);
         unset($options['allowed']);
-        $validator = new UploadValidator($allowed);
+        $validator = new UploadValidator($allowed, (array) config('app.uploads.mime_map', []));
 
         $originalName = $file->getClientOriginalName();
         if (!$validator->isAllowed($originalName)) {
             self::$output = ['error' => 1, 'message' => 'File extension not allowed'];
+            return new self();
+        }
+
+        // Magic-bytes gate: the actual content must agree with the claimed
+        // extension (e.g. PHP source named .jpg is rejected) BEFORE the move.
+        if (!$validator->isContentValid($file->getPathname(), $originalName)) {
+            self::$output = ['error' => 1, 'message' => 'File content does not match its extension'];
             return new self();
         }
 

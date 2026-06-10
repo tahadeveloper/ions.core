@@ -50,11 +50,29 @@ final class SessionManager
     /**
      * Build NativeSessionStorage options from config keys.
      *
+     * Secure by default (4.1, D8-1): omitting the cookie_* keys yields
+     * httponly + samesite=lax + secure cookies. Each default can be overridden
+     * by setting the corresponding key explicitly in config/session.php.
+     *
+     * cookie_secure additionally accepts the string 'auto': the flag follows
+     * the scheme of the current request (HTTPS -> secure). When no request is
+     * available at session construction (CLI, early boot, workers before the
+     * first request) 'auto' fails secure and the flag is true.
+     *
+     * Public so the option construction can be verified without starting a
+     * native session (CLI/tests).
+     *
      * @return array<string,mixed>
      */
-    private function nativeOptions(): array
+    public function nativeOptions(): array
     {
-        $options = [];
+        // D8-1 secure defaults — applied unless explicitly overridden below.
+        $options = [
+            'cookie_secure' => true,
+            'cookie_httponly' => true,
+            'cookie_samesite' => 'lax',
+        ];
+
         if (isset($this->config['name'])) {
             $options['name'] = (string) $this->config['name'];
         }
@@ -62,7 +80,8 @@ final class SessionManager
             $options['cookie_lifetime'] = (int) $this->config['lifetime'];
         }
         if (isset($this->config['cookie_secure'])) {
-            $options['cookie_secure'] = (bool) $this->config['cookie_secure'];
+            $secure = $this->config['cookie_secure'];
+            $options['cookie_secure'] = $secure === 'auto' ? $this->requestIsSecure() : (bool) $secure;
         }
         if (isset($this->config['cookie_httponly'])) {
             $options['cookie_httponly'] = (bool) $this->config['cookie_httponly'];
@@ -72,6 +91,21 @@ final class SessionManager
         }
 
         return $options;
+    }
+
+    /**
+     * Best-effort scheme detection for cookie_secure => 'auto'.
+     *
+     * Fails secure: when the kernel request is unavailable (CLI, tests,
+     * pre-request worker boot) the cookie is marked secure.
+     */
+    private function requestIsSecure(): bool
+    {
+        try {
+            return \Ions\Foundation\Kernel::request()->isSecure();
+        } catch (\Throwable) {
+            return true;
+        }
     }
 
     /**

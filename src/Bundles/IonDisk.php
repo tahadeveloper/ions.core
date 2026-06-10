@@ -97,9 +97,15 @@ class IonDisk
     {
         // Security: validate extension against allow-list BEFORE writing to disk
         $allowed = $options['allowed'] ?? config('app.uploads.allowed', ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'zip']);
-        $validator = new UploadValidator($allowed);
+        $validator = new UploadValidator($allowed, (array) config('app.uploads.mime_map', []));
         if (!$validator->isAllowed($originalFilename)) {
             return ['error' => 'File extension not allowed'];
+        }
+
+        // Magic-bytes gate on the raw content (no file path exists yet here):
+        // the buffer's finfo MIME must agree with the claimed extension.
+        if (!$validator->isContentValidBuffer((string) $fileContent, (string) $originalFilename)) {
+            return ['error' => 'File content does not match its extension'];
         }
 
         // Derive safe extension and sanitized stem from validated filename
@@ -232,9 +238,16 @@ class IonDisk
 
         // Security: validate extension against allow-list BEFORE any write (covers both local and cloud paths)
         $allowed = $options['allowed'] ?? config('app.uploads.allowed', ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'zip']);
-        $validator = new UploadValidator($allowed);
+        $validator = new UploadValidator($allowed, (array) config('app.uploads.mime_map', []));
         if (!$validator->isAllowed($fileNameWithExt)) {
             return ['error' => true, 'message' => 'File extension not allowed'];
+        }
+
+        // Magic-bytes gate: the uploaded temp file's content must agree with
+        // the claimed extension before any local move or cloud write.
+        $realPath = $file->getRealPath();
+        if ($realPath === false || !$validator->isContentValid($realPath, $fileNameWithExt)) {
+            return ['error' => true, 'message' => 'File content does not match its extension'];
         }
 
         // Derive the stored extension from the validator so allow-list check and on-disk extension are the same value

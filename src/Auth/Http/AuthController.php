@@ -41,7 +41,8 @@ class AuthController
      */
     public function login(Request $request): JsonResponse
     {
-        if ($this->jwt === null) {
+        $jwt = $this->jwt;
+        if ($jwt === null) {
             return Json::error('Auth unavailable', 503);
         }
         if ($this->users === null) {
@@ -58,11 +59,38 @@ class AuthController
 
         $userId = (string) $user->getAuthIdentifier();
 
+        // Session fixation hardening: a web-originated login (session exists
+        // and is started) gets a fresh session id; data is preserved.
+        // Stateless API logins (no started session) are unaffected.
+        $this->regenerateSession();
+
         return Json::ok([
-            'access_token'  => $this->jwt->issue($userId),
-            'refresh_token' => $this->jwt->issueRefresh($userId),
+            'access_token'  => $jwt->issue($userId),
+            'refresh_token' => $jwt->issueRefresh($userId),
             'token_type'    => 'Bearer',
         ]);
+    }
+
+    /**
+     * Rotate the framework session id after a successful credential check.
+     *
+     * Best-effort: a missing session binding or a not-yet-started session is a
+     * no-op, and failures never break the login response.
+     */
+    private function regenerateSession(): void
+    {
+        try {
+            $app = app();
+            if (!$app->has('session')) {
+                return;
+            }
+            $session = $app->get('session');
+            if ($session instanceof \Ions\Session\SessionManager && $session->isStarted()) {
+                $session->regenerate();
+            }
+        } catch (\Throwable) {
+            // Never let session handling break a successful login.
+        }
     }
 
     /**
@@ -119,6 +147,12 @@ class AuthController
      *
      * Always responds 200 with a generic message (no user enumeration) when the
      * provider supports reset; 501 when it does not.
+     *
+     * A tight per-(email+IP) throttle runs on top of any route-level throttle
+     * (config app.auth.forgot_throttle = ['max' => 3, 'decay' => 600]).
+     * Throttled requests get a 429 with a generic message — consistent with
+     * the route 'throttle' middleware and still enumeration-safe (the limit
+     * applies whether or not the account exists).
      */
     public function forgotPassword(Request $request): JsonResponse
     {
@@ -129,6 +163,11 @@ class AuthController
 
         /** @var array<string,mixed> $input */
         $input = (array) RequestInput::parse($request);
+
+        $throttled = $this->forgotThrottleResponse($request, (string) ($input['email'] ?? ''));
+        if ($throttled !== null) {
+            return $throttled;
+        }
 
         // The issued code is delivered out-of-band (e.g. e-mail); it is never
         // returned in the response to avoid leaking it to unauthenticated callers.
@@ -161,6 +200,55 @@ class AuthController
         }
 
         return Json::ok(['message' => 'password reset']);
+    }
+
+    /**
+     * Per-(email+IP) throttle for the forgot-password endpoint, backed by the
+     * shared cache. Returns the 429 response when throttled, null otherwise.
+     *
+     * Best-effort: when the cache binding is unavailable the throttle is
+     * skipped rather than blocking password resets.
+     */
+    private function forgotThrottleResponse(Request $request, string $email): ?JsonResponse
+    {
+        try {
+            $app = app();
+            if (!$app->has('cache')) {
+                return null;
+            }
+
+            /** @var array<string,mixed> $config */
+            $config = (array) config('app.auth.forgot_throttle', []);
+            $max = (int) ($config['max'] ?? 3);
+            $decay = (int) ($config['decay'] ?? 600);
+
+            /** @var \Illuminate\Cache\CacheManager $manager */
+            $manager = $app->get('cache');
+            $cache = $manager->store();
+
+            // trim(): MySQL pad-space collations resolve 'a@x.com ' to the
+            // same account as 'a@x.com', so the key must collapse them too.
+            $key = 'forgot:' . sha1(strtolower(trim($email)) . '|' . (string) $request->getClientIp());
+
+            // add() establishes the key with the TTL (window starts now); a
+            // losing concurrent add() is fine — the key then already exists.
+            // increment() is only ever called on an existing key, so the
+            // counter always carries a TTL (a bare increment() on a missing
+            // key would re-create it with no expiry = a permanent lock-out).
+            $cache->add($key, 0, $decay);
+            $hits = (int) $cache->increment($key);
+
+            if ($hits > $max) {
+                $response = Json::error('Too many requests', 429, ['retry_after' => $decay]);
+                $response->headers->set('Retry-After', (string) $decay);
+
+                return $response;
+            }
+        } catch (\Throwable) {
+            // Never let throttling internals break the reset flow.
+        }
+
+        return null;
     }
 
     /**
