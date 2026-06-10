@@ -132,6 +132,7 @@ The framework resolves application paths relative to the host-app root (five dir
 | Document | Contents |
 |---|---|
 | [docs/skeleton.md](docs/skeleton.md) | Host-app skeleton (`skeleton/`): layout, quick-start, secure defaults |
+| [docs/testing.md](docs/testing.md) | Host-app test kit: `Ions\Testing\TestCase`, verb helpers, `actingAs()` (real JWT), `TestResponse` assertions |
 | [docs/lifecycle.md](docs/lifecycle.md) | Boot sequence, request pipeline, response dispatch |
 | [docs/routing.md](docs/routing.md) | Route registration, prefixes, groups, middleware, attributes |
 | [docs/middleware.md](docs/middleware.md) | `MiddlewareInterface`, pipeline, default stacks, writing middleware |

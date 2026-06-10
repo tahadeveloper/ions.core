@@ -41,6 +41,8 @@ return [
             '/api/auth/logout',
             '/api/auth/password/forgot',
             '/api/auth/password/reset',
+            // Unauthenticated echo endpoint used by the Ions\Testing kit tests.
+            '/api/echo',
         ],
     ],
 ];

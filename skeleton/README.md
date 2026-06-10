@@ -46,6 +46,29 @@ Open <http://localhost:8000> — you should see the welcome page. `curl localhos
 | `public/uploads`, `public/lang` | Uploads disk root, translation files |
 | `var/` | Writable: `cache/`, `logs/`, `templates/` (compiled Twig) |
 
+## Testing
+
+The framework ships a host-app test kit: subclass `Ions\Testing\TestCase`,
+point `$basePath` at this directory, and drive the full HTTP stack in-process
+(no web server). See `docs/testing.md` in `ionzile/core` for the full guide.
+
+```php
+final class PingTest extends \Ions\Testing\TestCase
+{
+    protected string $basePath = __DIR__ . '/..';   // app root (from tests/)
+
+    public function test_ping(): void
+    {
+        $this->get('/api/ping')
+            ->assertOk()
+            ->assertJsonPath('data.message', 'pong');
+    }
+}
+```
+
+`actingAs($userIdOrUser)` issues a real JWT for protected `/api` routes —
+it requires `APP_KEY` (≥ 32 bytes) in the `.env` used by your tests.
+
 ## Production notes
 
 - Set `APP_DEBUG=false` and run `php bin/ions optimize` (route + config caches).
