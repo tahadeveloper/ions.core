@@ -19,8 +19,10 @@ use IonsFixture\RecordingListener;
 | Fakes — integration with Ions\Testing\TestCase
 |--------------------------------------------------------------------------
 | Class-based so the real per-test boot/reset lifecycle is exercised. The
-| isolation tests below rely on PHPUnit's in-class declaration order:
-| test_..._installs_every_fake runs before test_..._previous_test.
+| isolation pair below is ordered via #[Depends]: the verifying test declares
+| a dependency on the setup test, so PHPUnit always runs the setup first and
+| skips the verification (instead of silently passing) if the setup is
+| filtered out or fails.
 */
 
 class FakesIntegrationTest extends TestCase
@@ -72,6 +74,7 @@ class FakesIntegrationTest extends TestCase
         $disk->assertStored(self::$isolationPath);
     }
 
+    #[\PHPUnit\Framework\Attributes\Depends('test_isolation_setup_installs_every_fake')]
     public function test_isolation_fakes_installed_in_the_previous_test_are_gone(): void
     {
         $app = Kernel::app();

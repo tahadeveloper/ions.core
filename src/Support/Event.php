@@ -64,6 +64,16 @@ final class Event
     /**
      * @param class-string|string $event
      *
+     * @see EventFake::assertFiredTimes()
+     */
+    public static function assertFiredTimes(string $event, int $times = 1): void
+    {
+        self::installedFake()->assertFiredTimes($event, $times);
+    }
+
+    /**
+     * @param class-string|string $event
+     *
      * @see EventFake::assertNotFired()
      */
     public static function assertNotFired(string $event, ?callable $filter = null): void

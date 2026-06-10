@@ -57,7 +57,7 @@ final class Mail
     }
 
     /**
-     * @param class-string|callable(RawMessage): bool|null $filter
+     * @param class-string|callable(RawMessage, Envelope|null): bool|null $filter
      *
      * @see MailFake::assertSent()
      */

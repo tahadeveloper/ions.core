@@ -185,6 +185,14 @@ nothing to tear down.
 Calling a static assertion without having installed the fake first throws a
 `RuntimeException` telling you to call `::fake()`.
 
+Every assertion on a fake instance returns the fake itself, so assertions
+chain:
+
+```php
+$fake->assertDispatched(SendWelcomeEmail::class)
+    ->assertNotDispatched(ChargeCard::class);
+```
+
 ### `Ions\Support\Queue::fake()`
 
 Jobs dispatched through the `dispatch()` helper are recorded instead of run.
@@ -230,6 +238,7 @@ Event::assertNotFired(OrderCancelled::class);
 | Assertion | Verifies |
 |---|---|
 | `assertFired(string $event, ?callable $filter = null)` | Event fired (filter receives the event object) |
+| `assertFiredTimes(string $event, int $times = 1)` | Exact fire count |
 | `assertNotFired(string $event, ?callable $filter = null)` | Event did not fire (or none matching the filter) |
 | `assertNothingFired()` | No events were recorded at all |
 
@@ -240,6 +249,18 @@ Swaps the named disk (default: `config('filesystem.default')`) for a fresh
 configured as `s3` or `local` never sees test writes. Files written through
 normal `Storage` calls land in the fake; assertions live on the returned
 handle.
+
+> **Warning — what `Storage::fake()` does and does not intercept.**
+> `Storage::fake()` covers `Ions\Filesystem\Storage` — the disks resolved
+> through the container's `filesystem.manager` — **only**. The legacy
+> `Ions\Bundles\IonDisk` and `Ions\Bundles\IonUpload` helpers, and the
+> Illuminate-facade shim `Ions\Support\Storage`, are **not** intercepted:
+> code going through them in a test will hit the real local disk (or S3).
+>
+> **Import trap:** the correct import is `use Ions\Filesystem\Storage;`.
+> `use Ions\Support\Storage;` is a different class (an Illuminate facade
+> shim) — its `::fake()` is Laravel's facade fake and fails confusingly in
+> an Ions app because there is no Laravel application behind it.
 
 ```php
 use Ions\Filesystem\Storage;
@@ -265,7 +286,9 @@ $disk->assertMissing('avatars/8.png');
 Replaces the `mailer` binding (Symfony Mailer) with a recorder implementing
 the same `MailerInterface`, so anything sending through the container — the
 `newMailerDsn()` helper included — records instead of opening an SMTP
-connection. Hosts send Symfony `Email` objects; filters receive the message.
+connection. Hosts send Symfony `Email` objects; filter callables receive the
+message plus the recorded `Symfony\Component\Mailer\Envelope` as a second
+argument (`null` when the sender did not pass one).
 
 ```php
 use Ions\Support\Mail;
@@ -281,11 +304,13 @@ $mailer->assertSentCount(1);
 
 | Assertion | Verifies |
 |---|---|
-| `assertSent(string\|callable\|null $filter = null)` | At least one mail sent; a class-string requires an instance of it, a callable must match at least one message |
+| `assertSent(string\|callable\|null $filter = null)` | At least one mail sent; a class-string requires an instance of it, a callable receives `($message, ?Envelope $envelope)` and must match at least one |
 | `assertSentCount(int $count)` | Exact number of sent mails |
 | `assertNothingSent()` | No mails were sent at all |
 
-`$mailer->sent()` returns every recorded message in send order.
+`$mailer->sent()` returns every recorded message in send order;
+`$mailer->sentEnvelopes()` returns the index-aligned list of envelopes
+(`null` entries where no explicit envelope was passed).
 
 ## Complete example (skeleton layout)
 

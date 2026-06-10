@@ -6,6 +6,8 @@ use Ions\Foundation\Kernel;
 use Ions\Support\Mail;
 use Ions\Testing\Fakes\MailFake;
 use PHPUnit\Framework\AssertionFailedError;
+use Symfony\Component\Mailer\Envelope;
+use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 
 beforeEach(fn () => bootFixtureKernel());
@@ -53,6 +55,43 @@ test('the newMailerDsn() helper routes through the fake', function () {
     } finally {
         [$_ENV['MAIL_FROM_ADDRESS'], $_ENV['MAIL_FROM_NAME']] = $envBackup;
     }
+});
+
+test('the fake records the envelope alongside each message', function () {
+    $fake = Mail::fake();
+
+    $envelope = new Envelope(
+        new Address('bounce@example.test'),
+        [new Address('rcpt@example.test')]
+    );
+
+    Mail::send(buildTestEmail('No envelope'));
+    Mail::send(buildTestEmail('Custom envelope'), $envelope);
+
+    expect($fake->sentEnvelopes())->toHaveCount(2)
+        ->and($fake->sentEnvelopes()[0])->toBeNull()
+        ->and($fake->sentEnvelopes()[1])->toBe($envelope)
+        ->and($fake->sentEnvelopes()[1]->getSender()->getAddress())->toBe('bounce@example.test');
+});
+
+test('assertSent callables receive the recorded envelope as a second argument', function () {
+    $fake = Mail::fake();
+
+    $envelope = new Envelope(
+        new Address('bounce@example.test'),
+        [new Address('rcpt@example.test')]
+    );
+
+    Mail::send(buildTestEmail('With envelope'), $envelope);
+
+    $fake->assertSent(
+        fn (Email $email, ?Envelope $sentWith) => $sentWith === $envelope
+            && $email->getSubject() === 'With envelope'
+    );
+
+    Mail::send(buildTestEmail('Bare'));
+
+    $fake->assertSent(fn (Email $email, ?Envelope $sentWith) => $email->getSubject() === 'Bare' && $sentWith === null);
 });
 
 test('assertSent accepts a class-string filter', function () {
@@ -113,6 +152,18 @@ test('assertions are reachable statically through the facade', function () {
 
     expect(fn () => Mail::assertNothingSent())
         ->toThrow(AssertionFailedError::class);
+});
+
+test('the Ions assertions chain by returning the fake', function () {
+    $fake = Mail::fake();
+
+    expect($fake->assertNothingSent())->toBe($fake);
+
+    Mail::send(buildTestEmail('Chain'));
+
+    expect($fake->assertSent())->toBe($fake)
+        ->and($fake->assertSent(Email::class))->toBe($fake)
+        ->and($fake->assertSentCount(1))->toBe($fake);
 });
 
 test('static assertions without an installed fake throw a helpful error', function () {
