@@ -34,6 +34,10 @@ php -S localhost:8000 -t public
 
 Open <http://localhost:8000> — you should see the welcome page. `curl localhost:8000/api/ping` returns JSON.
 
+Serving behind nginx or Apache? `public/.htaccess` ships the Apache rewrite;
+for the full nginx/Apache configs, PHP-FPM notes and the deploy checklist see
+`docs/deploy.md` in `ionzile/core`.
+
 > Local HTTP dev: session cookies are `Secure` by default (4.1). If you need
 > session/CSRF over plain `http://localhost`, set `'cookie_secure' => 'auto'`
 > in `config/session.php`.

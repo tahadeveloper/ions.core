@@ -131,6 +131,18 @@ test('the skeleton ships runnable test scaffolding', function () {
     expect((string) file_get_contents($exampleTest))->toContain('Ions\Testing\TestCase');
 });
 
+test('the skeleton ships an Apache front-controller .htaccess', function () {
+    $htaccess = skeletonPath() . '/public/.htaccess';
+    expect(is_file($htaccess))->toBeTrue();
+
+    $contents = (string) file_get_contents($htaccess);
+    expect($contents)->toContain('RewriteEngine')
+        // Everything that is not an existing file/directory hits the front controller…
+        ->and($contents)->toContain('index.php')
+        // …and dotfiles (.env, .git, …) are denied outright.
+        ->and($contents)->toContain('(^|/)\.');
+});
+
 test('GET /api/ping returns 200 JSON', function () {
     $response = Kernel::handle(Request::create('/api/ping'));
 
