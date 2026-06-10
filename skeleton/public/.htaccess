@@ -1,0 +1,26 @@
+# Apache front-controller rewrite for the Ions skeleton.
+# Requires mod_rewrite and `AllowOverride All` on the public/ directory
+# (or inline the rules in the vhost — see docs/deploy.md in ionzile/core).
+
+# No directory listings, no content negotiation (MultiViews can bypass the rewrite).
+Options -MultiViews -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Pass the Authorization header through to PHP (mod_proxy_fcgi strips it
+    # by default, which breaks Bearer-token API auth; harmless under mod_php).
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Deny dotfiles anywhere in the path (.env, .git, .htaccess, …).
+    RewriteRule (^|/)\. - [F]
+
+    # Existing files and directories are served as-is (uploads, build/ assets, …).
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Everything else goes to the front controller.
+    RewriteRule ^ index.php [L]
+</IfModule>
