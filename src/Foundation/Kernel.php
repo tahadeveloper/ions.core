@@ -14,6 +14,7 @@ use Ions\Bundles\AttributeRouteControllerLoader;
 use Ions\Bundles\Path;
 use Ions\Container\Container;
 use Ions\Events\RequestHandled;
+use Ions\Http\ActionArgumentResolver;
 use Ions\Http\ExceptionHandler;
 use Ions\Http\Middleware\AuthMiddleware;
 use Ions\Http\Middleware\ControllerDispatcher;
@@ -21,6 +22,7 @@ use Ions\Http\Middleware\CorsMiddleware;
 use Ions\Http\Middleware\CsrfMiddleware;
 use Ions\Http\Middleware\Pipeline;
 use Ions\Http\Middleware\SecurityHeadersMiddleware;
+use Ions\Http\ResponseNormalizer;
 use Ions\Http\Middleware\StartSessionMiddleware;
 use Ions\Http\Middleware\TrustedHostMiddleware;
 use Ions\Security\ArrayRevocationStore;
@@ -587,12 +589,18 @@ class Kernel extends Singleton
                 }
             }
 
+            // Route placeholder values (9.3 method injection) — matcher params
+            // minus routing internals, shared by both terminal styles.
+            $routeParams = self::routeParameters($matcherParams);
+
             // Resolve the terminal callable.
             if ($matcherParams['_controller'] instanceof Closure) {
                 $closure = $matcherParams['_controller'];
-                $terminal = function (Request $r) use ($closure): SymfonyResponse {
-                    $result = $closure($r);
-                    return self::normalizeToResponse($result);
+                $terminal = function (Request $r) use ($closure, $routeParams): SymfonyResponse {
+                    $args = (new ActionArgumentResolver(static::$app))
+                        ->resolve(new \ReflectionFunction($closure), $r, $routeParams);
+
+                    return ResponseNormalizer::normalize($closure(...$args), $r);
                 };
             } else {
                 // Set Vary headers on the shared response (preserving old behaviour).
@@ -600,7 +608,7 @@ class Kernel extends Singleton
                 static::$response->setVary(['Content-Encoding', 'br']);
 
                 [$controller, $method] = self::handleRouteRequest($matcherParams, $namespace);
-                $terminal = new ControllerDispatcher(static::$app, $controller, $method);
+                $terminal = new ControllerDispatcher(static::$app, $controller, $method, $routeParams);
             }
 
             // Build middleware stack for the group.
@@ -698,28 +706,22 @@ class Kernel extends Singleton
     }
 
     /**
-     * Normalize a controller/closure return value to a Response.
+     * Extract route placeholder values from matcher params: drop routing
+     * internals (underscore-prefixed keys such as _route/_controller) and the
+     * legacy `id => 0` placeholder, mirroring handleRouteRequest()'s filter.
      *
-     * If the return value is already a Symfony Response it is returned as-is.
-     * Otherwise the shared kernel Response (which the closure may have written
-     * to via Kernel::response()) is returned as the fallback.
+     * Return normalization itself lives in Ions\Http\ResponseNormalizer —
+     * the single normalizer shared by closure routes and ControllerDispatcher
+     * (9.3 unification).
      *
-     * @param mixed $result
-     * @return SymfonyResponse
+     * @param array<string, mixed> $matcherParams
+     * @return array<string, mixed>
      */
-    private static function normalizeToResponse(mixed $result): SymfonyResponse
+    private static function routeParameters(array $matcherParams): array
     {
-        if ($result instanceof SymfonyResponse) {
-            return $result;
-        }
-
-        // `return view('users.index')` from a closure route (9.2): render to
-        // a 200 HTML Response, same bridge as ControllerDispatcher actions.
-        if ($result instanceof \Ions\View\View) {
-            return ControllerDispatcher::viewResponse($result);
-        }
-
-        return static::$response;
+        return Arr::where($matcherParams, static function ($value, $key) {
+            return !str_starts_with((string) $key, '_') && !($key === 'id' && $value === 0);
+        });
     }
 
     /**
@@ -840,11 +842,14 @@ class Kernel extends Singleton
      *   through this resolver — there is no name-resolution step to fail for
      *   them, so this policy governs per-route middleware only.
      *
+     * Public since 9.3: ControllerDispatcher resolves per-controller
+     * middleware() entries through this same fail-closed policy.
+     *
      * @param string $name FQCN or alias string.
      * @return \Ions\Http\Middleware\MiddlewareInterface
      * @throws \InvalidArgumentException when the middleware cannot be resolved.
      */
-    private static function resolveMiddleware(string $name): \Ions\Http\Middleware\MiddlewareInterface
+    public static function resolveMiddleware(string $name): \Ions\Http\Middleware\MiddlewareInterface
     {
         /** @var array<string,string> $aliases */
         $aliases = (array) config('app.middleware_aliases', []);

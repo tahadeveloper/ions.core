@@ -12,6 +12,22 @@ use Ions\Support\Str;
 use Ions\Traits\Twig;
 use Ions\View\View;
 
+/**
+ * Web controller base. Dispatch lifecycle (see docs/controllers.md):
+ *
+ *   __construct (container-built — call parent::__construct() when overriding)
+ *   → _initState → _loadInit → _loadedState
+ *   → boot(...)                                  [optional, method-injected]
+ *   → [middleware(): array — sub-pipeline]       [optional, fail-closed]
+ *   →   beforeAction($request): ?Response        [optional, non-null short-circuits]
+ *   →   action (method-injected: Request, route placeholders, services)
+ *   →   afterAction($request, $response): ?Response  [optional, non-null replaces]
+ *   → _endState                                  (always runs)
+ *
+ * The optional hooks are duck-typed via method_exists (like the legacy
+ * underscore hooks) — define them on a controller only when needed; this base
+ * deliberately ships no no-op defaults so host signatures can't collide.
+ */
 abstract class BaseController implements BluePrint
 {
     use Twig;

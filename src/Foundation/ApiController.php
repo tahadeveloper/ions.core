@@ -12,6 +12,13 @@ use Ions\Support\Request;
 use Ions\Support\Response;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 
+/**
+ * API controller base. Same dispatch lifecycle as BaseController (see
+ * docs/controllers.md): the optional boot()/beforeAction()/afterAction()/
+ * middleware() hooks are duck-typed via method_exists, actions are
+ * method-injected, and constructor dependencies resolve from the container
+ * (call parent::__construct() when overriding).
+ */
 abstract class ApiController implements BluePrint
 {
     protected string|object|array $inputs;

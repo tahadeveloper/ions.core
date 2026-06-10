@@ -43,6 +43,11 @@ templates at render time):
 `View::render(): string` is available when you need the markup directly
 (e.g. to embed in a custom `Response`).
 
+View returns are one branch of the shared return normalizer
+(`Ions\Http\ResponseNormalizer`) — the full set of allowed action returns and
+the controller lifecycle around them are documented in
+[controllers.md](controllers.md).
+
 ## Namespaced view roots
 
 `app.twig.paths` registers named namespaces on the loader (`'admin' =>

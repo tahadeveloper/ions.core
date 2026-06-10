@@ -19,6 +19,10 @@ function makeLayoutHost(array $dirs): string
 {
     $base = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'ions-path-layout-' . bin2hex(random_bytes(4));
 
+    // Always create the base so the fresh-host case ([] dirs) has a real
+    // directory and teardown's rmdir never warns.
+    mkdir($base, 0777, true);
+
     foreach ($dirs as $dir) {
         mkdir($base . DIRECTORY_SEPARATOR . $dir, 0777, true);
     }
