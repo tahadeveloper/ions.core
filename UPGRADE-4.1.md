@@ -31,6 +31,20 @@ after a successful credential check **when a framework session is bound and
 started** (web-originated logins). Session data is preserved; only the id
 rotates. Stateless API logins without a started session are unaffected.
 
+### New response headers: HSTS + Permissions-Policy
+
+`SecurityHeaders::apply()` now also emits:
+
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains` — **HTTPS
+  requests only**. Override with a string at `app.security.hsts`, or disable
+  with `false`.
+- `Permissions-Policy: camera=(), geolocation=(), microphone=()` — override at
+  `app.security.permissions_policy`, or disable with `false`.
+
+Both follow the CSP rule: a header already set by the caller is never
+overwritten. If your app relies on browser camera/geolocation/microphone
+access, set a matching `permissions_policy`.
+
 ## Behavior changes
 
 ### Query logging is no longer implied by APP_DEBUG

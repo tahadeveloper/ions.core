@@ -481,7 +481,7 @@ class Kernel extends Singleton
     public static function sendResponse(?SymfonyResponse $response = null): void
     {
         $toSend = $response ?? static::$response;
-        SecurityHeaders::apply($toSend);
+        SecurityHeaders::apply($toSend, static::$request);
         $toSend->send();
     }
 

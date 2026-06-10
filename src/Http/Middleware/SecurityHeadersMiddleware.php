@@ -13,6 +13,6 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
     public function handle(Request $request, callable $next): Response
     {
         $response = $next($request);
-        return SecurityHeaders::apply($response);
+        return SecurityHeaders::apply($response, $request);
     }
 }

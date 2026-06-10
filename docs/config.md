@@ -138,6 +138,33 @@ Value of the `Content-Security-Policy` header applied by `SecurityHeaders::apply
 
 ---
 
+## `app.security.hsts`
+
+**Type:** `string|false`  **Default:** `"max-age=31536000; includeSubDomains"`
+
+Value of the `Strict-Transport-Security` header. Only emitted when the handled
+request is HTTPS (`$request->isSecure()`), and only when the response does not
+already carry the header. Set to `false` to disable.
+
+---
+
+## `app.security.permissions_policy`
+
+**Type:** `string|false`  **Default:** `"camera=(), geolocation=(), microphone=()"`
+
+Value of the `Permissions-Policy` header applied by `SecurityHeaders::apply()`.
+Only set when the header is not already present on the response. Set to
+`false` to disable.
+
+```php
+'security' => [
+    'hsts' => 'max-age=63072000; includeSubDomains; preload',
+    'permissions_policy' => 'camera=(self), geolocation=(), microphone=()',
+],
+```
+
+---
+
 ## `app.uploads.allowed`
 
 **Type:** `string[]`  **Default:** common safe types (images, PDF, zip)
