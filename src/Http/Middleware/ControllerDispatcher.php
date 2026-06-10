@@ -75,7 +75,7 @@ final class ControllerDispatcher
         // the hook is skipped — otherwise the method would fire twice per hit
         // (this preserves the legacy App\Schedule::boot web-cron contract).
         // (method_exists is repeated inline for phpstan's type narrowing.)
-        if ($this->method !== 'boot' && method_exists($instance, 'boot') && $this->hasPublicHook($instance, 'boot')) {
+        if (strcasecmp($this->method, 'boot') !== 0 && method_exists($instance, 'boot') && $this->hasPublicHook($instance, 'boot')) {
             $instance->boot(...$this->resolver->resolve(new ReflectionMethod($instance, 'boot'), $request, []));
         }
 
