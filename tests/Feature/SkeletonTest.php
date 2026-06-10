@@ -1,0 +1,124 @@
+<?php
+
+declare(strict_types=1);
+
+use Ions\Foundation\Kernel;
+use Ions\Support\Request;
+
+/*
+|--------------------------------------------------------------------------
+| Host-app skeleton boot test
+|--------------------------------------------------------------------------
+| Boots the kernel against the in-repo skeleton (skeleton/) — the reference
+| host application that will be split into ionzile/app at release — and
+| exercises its routes end-to-end through Kernel::handle().
+|
+| The skeleton's App\ namespace is intentionally NOT autoloaded by this
+| repo's composer.json (it belongs to the future ionzile/app package), so a
+| scoped PSR-4 autoloader App\ -> skeleton/src is registered here.
+|
+| No .env is committed in skeleton/ (and Kernel::boot()'s Dotenv::safeLoad()
+| would tolerate a missing one — at the cost of a PHPUnit-surfaced stream
+| warning). Instead, each test copies .env.example to a temporary .env and
+| removes it afterwards; $_ENV/$_SERVER are snapshotted and restored so the
+| skeleton's env never leaks into other tests in the same process.
+*/
+
+spl_autoload_register(static function (string $class): void {
+    if (!str_starts_with($class, 'App\\')) {
+        return;
+    }
+    $file = dirname(__DIR__, 2) . '/skeleton/src/' . str_replace('\\', '/', substr($class, 4)) . '.php';
+    if (is_file($file)) {
+        require $file;
+    }
+});
+
+function skeletonPath(): string
+{
+    return dirname(__DIR__, 2) . '/skeleton';
+}
+
+/**
+ * Remove every test artifact under skeleton/var (compiled Twig templates,
+ * cache data, logs) while keeping the committed .gitkeep placeholders.
+ */
+function cleanSkeletonVar(): void
+{
+    $var = skeletonPath() . '/var';
+    if (!is_dir($var)) {
+        return;
+    }
+
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($var, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+
+    foreach ($iterator as $item) {
+        /** @var SplFileInfo $item */
+        if ($item->isFile() && $item->getFilename() !== '.gitkeep') {
+            @unlink($item->getPathname());
+        } elseif ($item->isDir() && !in_array($item->getPathname(), [
+            $var . '/cache', $var . '/logs', $var . '/templates',
+        ], true)) {
+            @rmdir($item->getPathname());
+        }
+    }
+}
+
+beforeEach(function () {
+    $this->envSnapshot = $_ENV;
+    $this->serverSnapshot = $_SERVER;
+
+    copy(skeletonPath() . '/.env.example', skeletonPath() . '/.env');
+
+    // The skeleton defaults SESSION_DRIVER to 'native'; a native PHP session
+    // cannot be exercised from the CLI test process, so opt into the in-memory
+    // driver exactly like a host would for its own test runs.
+    $_ENV['SESSION_DRIVER'] = 'array';
+
+    // Make boot failures loud: without APP_DEBUG, Kernel::failBoot() die()s,
+    // which Pest's output buffering would swallow as a silent exit-0.
+    $_ENV['APP_DEBUG'] = true;
+
+    bootFixtureKernel(skeletonPath());
+});
+
+afterEach(function () {
+    @unlink(skeletonPath() . '/.env');
+    cleanSkeletonVar();
+
+    $_ENV = $this->envSnapshot;
+    $_SERVER = $this->serverSnapshot;
+});
+
+test('the skeleton boots: config loads and app.name resolves', function () {
+    expect(config('app.name'))->toBeString()->not->toBeEmpty()
+        // 4.1 secure defaults are embraced: CORS deny-by-default…
+        ->and(config('app.cors.origins'))->toBe([])
+        // …and the session cookie_secure flip is NOT overridden to insecure.
+        ->and(config('session.cookie_secure'))->toBeNull()
+        // The auth surface is pre-allowlisted for AuthMiddleware.
+        ->and(config('app.auth.public_paths'))->toContain('/api/auth/login')
+        ->and(config('app.auth.public_paths'))->toContain('/api/auth/refresh');
+});
+
+test('GET / renders the Twig welcome page', function () {
+    $response = Kernel::handle(Request::create('/'));
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and((string) $response->getContent())->toContain('Ions PHP framework')
+        ->and((string) $response->getContent())->toContain(config('app.name'))
+        ->and($response->headers->get('X-Content-Type-Options'))->toBe('nosniff');
+});
+
+test('GET /api/ping returns 200 JSON', function () {
+    $response = Kernel::handle(Request::create('/api/ping'));
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and($response->headers->get('Content-Type'))->toContain('application/json');
+
+    $payload = json_decode((string) $response->getContent(), true);
+    expect($payload)->toBe(['status' => 'success', 'data' => ['message' => 'pong']]);
+});

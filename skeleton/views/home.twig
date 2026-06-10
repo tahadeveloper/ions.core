@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }}</title>
+    <style>
+        :root { color-scheme: light dark; }
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; margin: 0;
+        }
+        main { text-align: center; padding: 2rem; }
+        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        p { opacity: 0.7; }
+        a { color: #6366f1; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code {
+            background: rgba(99, 102, 241, 0.1); border-radius: 4px;
+            padding: 0.15rem 0.4rem; font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <h1>{{ app_name }}</h1>
+    <p>Welcome — this application runs on the Ions PHP framework.</p>
+    <p>
+        Edit <code>views/home.twig</code> and <code>routes/web.php</code> to get started,
+        or read the <a href="https://github.com/tahadeveloper/ions.core/tree/main/docs">documentation</a>.
+    </p>
+</main>
+</body>
+</html>
