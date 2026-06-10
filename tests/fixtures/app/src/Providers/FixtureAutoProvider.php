@@ -15,6 +15,13 @@ class FixtureAutoProvider extends ServiceProvider
     public function register(): void
     {
         $this->container->instance('fixture.auto.marker', 'auto-discovered');
+
+        // Interface binding consumed by the 9.3 controller DI fixtures
+        // (constructor + action injection of a provider-bound abstraction).
+        $this->container->bind(
+            \IonsFixture\Services\GreeterContract::class,
+            \IonsFixture\Services\SimpleGreeter::class,
+        );
     }
 
     public function boot(): void

@@ -9,8 +9,9 @@ use Ions\Foundation\Kernel;
 /**
  * A lazily-rendered view: a normalized Twig template path plus its data.
  *
- * Returned by the view() helper and BaseController::view(); the dispatcher
- * (ControllerDispatcher::normalize() / Kernel::normalizeToResponse()) calls
+ * Returned by the view() helper and BaseController::view(); the shared
+ * normalizer (Ions\Http\ResponseNormalizer — used by ControllerDispatcher
+ * and the closure-route terminal) calls
  * render() when converting the action return into an HTML Response. The
  * shared Twig Environment ('view.env' singleton) is resolved AT RENDER TIME,
  * never at construction — building a View is free and never touches Twig.
