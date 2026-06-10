@@ -104,6 +104,19 @@ values, build a bare Monolog `Logger` yourself.
 
 ## Behavior changes
 
+### Unresolvable per-route middleware now fails the request
+
+Before 4.1, a per-route middleware name that could not be resolved (unknown
+alias, missing class, or a constructor that threw) was logged and **silently
+dropped in production** — the route was served without it. In 4.1 resolution
+failure always throws (rendered as a 500; generic body in production with the
+detail logged, full error in debug). This is deliberately fail-closed: a
+typo'd `'signed'` or `'throttle'` alias must not leave a guarded route open.
+Group middleware stacks are pre-constructed instances and are unaffected.
+
+**Action:** if a production log shows dropped-middleware warnings today, fix
+the alias/class before upgrading — those routes will 500 under 4.1.
+
 ### Query logging is no longer implied by APP_DEBUG
 
 Before 4.1, `DatabaseProvider::boot()` called `enableQueryLog()` on the

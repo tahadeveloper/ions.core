@@ -119,4 +119,4 @@ Route::get('/premium', 'ContentController@premium')
     ->middleware(['subscribed']);
 ```
 
-The Kernel resolves aliases from `app.middleware_aliases`, then instantiates the class via the container. Unknown aliases are silently skipped (fail-open per-route, not fail-hard for the request).
+The Kernel resolves aliases from `app.middleware_aliases`, then instantiates the class via the container. An unknown alias or unresolvable class **fails the request** (500): per-route middleware is never silently dropped, so a broken alias can't leave a guarded route serving traffic unprotected. In debug mode the error names the middleware; in production the body is generic and the detail goes to the log.
