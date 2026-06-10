@@ -42,6 +42,7 @@ use Symfony\Component\Routing\Exception\NoConfigurationException;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Symfony\Component\Routing\Loader\AttributeDirectoryLoader;
 use Symfony\Component\Routing\Loader\YamlFileLoader;
+use Symfony\Component\Routing\Matcher\CompiledUrlMatcher;
 use Symfony\Component\Routing\Matcher\UrlMatcher;
 use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
@@ -57,6 +58,21 @@ class Kernel extends Singleton
     protected static Config|array $config = [];
     protected static Container $app;
     protected static RouteCollection $collection;
+
+    /**
+     * Per-group (web/api) route collections, captured once per process.
+     *
+     * @var array<string, RouteCollection>
+     */
+    protected static array $routeCollections = [];
+
+    /**
+     * Per-group compiled route caches loaded from var/cache/routes/{group}.php.
+     * Value is the compiled-routes array, or false when no cache file applies.
+     *
+     * @var array<string, array|false>
+     */
+    protected static array $compiledRoutes = [];
 
     public static string $envName = '.env';
 
@@ -90,6 +106,8 @@ class Kernel extends Singleton
             self::captureConfig();
 
             static::$collection = new RouteCollection();
+            static::$routeCollections = [];
+            static::$compiledRoutes = [];
 
             include_once Path::core('helpers.php');
 
@@ -123,6 +141,8 @@ class Kernel extends Singleton
         static::$session = null;
         static::$request = null;
         static::$response = null;
+        static::$routeCollections = [];
+        static::$compiledRoutes = [];
         \Ions\Bundles\Path::resetBasePath();
     }
 
@@ -389,11 +409,27 @@ class Kernel extends Singleton
         }
 
         try {
-            $routes = self::captureRoute($targetFolder);
             $context = new RequestContext();
             $context->fromRequest($request);
-            $matcher = new UrlMatcher($routes, $context);
-            $matcherParams = $matcher->match($context->getPathInfo());
+
+            // Prefer the compiled route cache (route:cache, non-debug only);
+            // fall back to live capture + UrlMatcher otherwise.
+            $routeMiddlewareNames = [];
+            $compiled = self::compiledRoutes($targetFolder);
+            if ($compiled !== null) {
+                $matcher = new CompiledUrlMatcher($compiled, $context);
+                $matcherParams = $matcher->match($context->getPathInfo());
+                $routeMiddlewareNames = (array) ($matcherParams['_middleware'] ?? []);
+                unset($matcherParams['_middleware']);
+            } else {
+                $routes = self::routes($targetFolder);
+                $matcher = new UrlMatcher($routes, $context);
+                $matcherParams = $matcher->match($context->getPathInfo());
+                if (isset($matcherParams['_route'])) {
+                    $matched = $routes->get($matcherParams['_route']);
+                    $routeMiddlewareNames = (array) ($matched?->getOption('middleware') ?? []);
+                }
+            }
 
             // Resolve the terminal callable.
             if ($matcherParams['_controller'] instanceof Closure) {
@@ -416,13 +452,10 @@ class Kernel extends Singleton
 
             // Append per-route middleware (runs closest to the controller).
             $routeMiddleware = [];
-            if (isset($matcherParams['_route'])) {
-                $matched = $routes->get($matcherParams['_route']);
-                foreach ((array) ($matched?->getOption('middleware') ?? []) as $name) {
-                    $resolved = self::resolveMiddleware((string) $name);
-                    if ($resolved !== null) {
-                        $routeMiddleware[] = $resolved;
-                    }
+            foreach ($routeMiddlewareNames as $name) {
+                $resolved = self::resolveMiddleware((string) $name);
+                if ($resolved !== null) {
+                    $routeMiddleware[] = $resolved;
                 }
             }
             $stack = array_merge($stack, $routeMiddleware);
@@ -656,20 +689,58 @@ class Kernel extends Singleton
     }
 
     /**
-     * @param string $targetFolder
+     * Return the route collection for a group, capturing it at most once per
+     * process. Re-booting the kernel (boot()/resetForTesting()) clears the
+     * cache, so workers/tests that re-boot always get fresh routes.
+     *
+     * @param string $targetFolder 'web' or 'api'
      * @return RouteCollection
      */
-    private static function captureRoute(string $targetFolder): RouteCollection
+    private static function routes(string $targetFolder): RouteCollection
     {
-        file_exists(Path::route($targetFolder . '.php')) ? $target = 'php' : $target = 'yaml';
+        return static::$routeCollections[$targetFolder] ??= self::buildRouteCollection($targetFolder);
+    }
 
-        if ($target === 'php') {
-            require Path::route($targetFolder . '.' . $target);
-            $routes = static::RouteCollection();
-        } else {
+    /**
+     * Build the full route collection for a group from scratch: routes already
+     * registered on the shared collection (e.g. by App\Booting), the group's
+     * routes/{group}.php or .yaml file, attribute routes, and the cron
+     * schedule route.
+     *
+     * Public so cache/inspection commands (route:cache) can reuse the exact
+     * capture logic the request path dispatches with.
+     *
+     * @param string $targetFolder 'web' or 'api'
+     * @return RouteCollection
+     */
+    public static function buildRouteCollection(string $targetFolder): RouteCollection
+    {
+        $routes = new RouteCollection();
+
+        // Routes registered at boot time directly on the shared collection
+        // (via the Route facade outside a routes file) stay matchable.
+        $shared = static::RouteCollection();
+        $before = array_keys($shared->all());
+        foreach ($shared->all() as $name => $route) {
+            $routes->add($name, $route);
+        }
+
+        $phpFile = Path::route($targetFolder . '.php');
+        $yamlFile = Path::route($targetFolder . '.yaml');
+
+        if (file_exists($phpFile)) {
+            // The Route facade appends to the shared collection; copy the
+            // delta this file produced so the group collection stays complete.
+            require $phpFile;
+            foreach ($shared->all() as $name => $route) {
+                if (!in_array($name, $before, true)) {
+                    $routes->add($name, $route);
+                }
+            }
+        } elseif (file_exists($yamlFile)) {
             $fileLocator = new FileLocator([__DIR__]);
             $loader = new YamlFileLoader($fileLocator);
-            $routes = $loader->load(Path::route($targetFolder . '.' . $target));
+            $routes->addCollection($loader->load($yamlFile));
         }
 
         // attributes routing
@@ -687,6 +758,39 @@ class Kernel extends Singleton
         $routes->add(Str::random(10) . '_schedule', new Route('/cron/schedule', ['_controller' => 'App\Schedule::boot']));
 
         return $routes;
+    }
+
+    /**
+     * Load the compiled route cache for a group, when applicable.
+     *
+     * The cache only applies when APP_DEBUG is off and
+     * var/cache/routes/{group}.php exists (written by route:cache). The loaded
+     * compiled array is memoized per process; the cheap is_file() check keeps
+     * route:clear effective within a running process.
+     *
+     * @param string $targetFolder 'web' or 'api'
+     * @return array|null Compiled routes array for CompiledUrlMatcher, or null.
+     */
+    private static function compiledRoutes(string $targetFolder): ?array
+    {
+        if (env('APP_DEBUG', false)) {
+            return null;
+        }
+
+        $file = Path::cache('routes' . DIRECTORY_SEPARATOR . $targetFolder . '.php');
+        if (!is_file($file)) {
+            unset(static::$compiledRoutes[$targetFolder]);
+            return null;
+        }
+
+        if (!array_key_exists($targetFolder, static::$compiledRoutes)) {
+            $loaded = require $file;
+            static::$compiledRoutes[$targetFolder] = is_array($loaded) ? $loaded : false;
+        }
+
+        $cached = static::$compiledRoutes[$targetFolder];
+
+        return $cached === false ? null : $cached;
     }
 
     /**

@@ -58,7 +58,8 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "IonsFixture\\": "tests/fixtures/app/src/"
+      "IonsFixture\\": "tests/fixtures/app/src/",
+      "IonsFixtureCache\\": "tests/fixtures/app-cache/src/"
     }
   },
   "require-dev": {
