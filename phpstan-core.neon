@@ -17,6 +17,7 @@ parameters:
         - src/Media
         - src/Support
         - src/Runtime
+        - src/Testing
     scanFiles:
         - src/helpers.php
     # NO baseline — this code must be clean at level 8

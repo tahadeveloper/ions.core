@@ -77,6 +77,13 @@ class Kernel extends Singleton
     public static string $envName = '.env';
 
     /**
+     * Armed (permanently, for the life of the process) by resetForTesting().
+     * When true, failBoot() rethrows the boot error instead of die()-ing so a
+     * test runner reports the failure instead of being killed mid-suite.
+     */
+    private static bool $testing = false;
+
+    /**
      * boot app with evn properties.
      *
      * @param string|null $basePath Optional absolute path to the host-app root.
@@ -137,12 +144,17 @@ class Kernel extends Singleton
      */
     public static function resetForTesting(): void
     {
+        self::$testing = true;
         static::$config = [];
         static::$session = null;
         static::$request = null;
         static::$response = null;
         static::$routeCollections = [];
         static::$compiledRoutes = [];
+        // boot() (and TrustedHostMiddleware) set trusted-host patterns on a
+        // Symfony Request CLASS static — clear it or every later boot in this
+        // process inherits the previous app's host allowlist.
+        Request::setTrustedHosts([]);
         \Ions\Bundles\Path::resetBasePath();
     }
 
@@ -383,10 +395,11 @@ class Kernel extends Singleton
 
     /**
      * Handle a fatal boot/config error: log it (best-effort), then either
-     * re-throw the original throwable when APP_DEBUG is on (so developers see
-     * the real cause) or die with a generic 500 in production.
+     * re-throw the original throwable when APP_DEBUG is on or testing mode is
+     * armed (so developers / the test runner see the real cause) or die with
+     * a generic 500 in production.
      *
-     * @throws \Throwable when APP_DEBUG is truthy
+     * @throws \Throwable when APP_DEBUG is truthy or resetForTesting() has run
      */
     private static function failBoot(\Throwable $e, string $context): never
     {
@@ -396,7 +409,7 @@ class Kernel extends Singleton
         } catch (\Throwable) {
             // ignore logging failures
         }
-        if (env('APP_DEBUG', false)) {
+        if (self::$testing || env('APP_DEBUG', false)) {
             throw $e;
         }
         if (!headers_sent()) {

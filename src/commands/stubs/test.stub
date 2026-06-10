@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+use Ions\Testing\TestCase;
+
+final class {{ class }} extends TestCase
+{
+    /** Host application root — the directory containing config/ and routes/. */
+    protected string $basePath = __DIR__ . '/..';
+
+    public function test_example(): void
+    {
+        $this->get('/')->assertOk();
+    }
+}

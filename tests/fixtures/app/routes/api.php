@@ -41,3 +41,23 @@ Route::get('/api/auth/login-history', function (Request $request) {
 Route::get('/api/items/{id}', function (Request $request) {
     return new Response('item ' . $request->attributes->get('id'));
 });
+
+/*
+|--------------------------------------------------------------------------
+| Public JSON echo endpoint (Ions\Testing kit feature tests)
+|--------------------------------------------------------------------------
+| Listed in config('app.auth.public_paths') so it bypasses AuthMiddleware.
+| Echoes the decoded JSON body plus selected request headers so the test
+| kit can verify json() round-trips and default-header merging.
+*/
+Route::post('/api/echo', function (Request $request) {
+    return new \Symfony\Component\HttpFoundation\JsonResponse([
+        'json' => json_decode((string) $request->getContent(), true),
+        'content_type' => $request->headers->get('Content-Type'),
+        // Server bag directly — proves headers were passed INTO Request::create
+        // as server keys, not patched onto the header bag afterwards.
+        'server_content_type' => $request->server->get('CONTENT_TYPE'),
+        'accept' => $request->headers->get('Accept'),
+        'x_custom' => $request->headers->get('X-Custom'),
+    ]);
+});

@@ -36,7 +36,7 @@ final class ExceptionHandler
             return Json::error($clientMessage, $status, $extra);
         }
 
-        return $this->html($clientMessage, $status, $e, $debug);
+        return $this->html($clientMessage, $status, $e, $debug, $request);
     }
 
     /**
@@ -54,19 +54,27 @@ final class ExceptionHandler
             return Json::error($message, $status, ['errors' => $errors]);
         }
 
-        return $this->html($message, $status, $e, (bool) env('APP_DEBUG', false));
+        return $this->html($message, $status, $e, (bool) env('APP_DEBUG', false), $request);
     }
 
-    private function html(string $message, int $status, Throwable $e, bool $debug): Response
+    private function html(string $message, int $status, Throwable $e, bool $debug, Request $request): Response
     {
         if ($debug) {
-            $body = sprintf(
-                "<h1>%d %s</h1><pre>%s\n\n%s</pre>",
-                $status,
-                htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
-                htmlspecialchars($e::class, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
-                htmlspecialchars($e->getTraceAsString(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
-            );
+            // Rich debug page (source excerpt, redacted request summary,
+            // chained exceptions). It is heavily guarded internally, but if
+            // it ever throws, degrade to the old minimal pre block — a broken
+            // error page is worse than an ugly one.
+            try {
+                $body = (new DebugPage())->render($e, $request, $status);
+            } catch (Throwable) {
+                $body = sprintf(
+                    "<h1>%d %s</h1><pre>%s\n\n%s</pre>",
+                    $status,
+                    htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                    htmlspecialchars($e::class, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                    htmlspecialchars($e->getTraceAsString(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                );
+            }
         } else {
             $body = sprintf('<h1>%d %s</h1>', $status, htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
         }

@@ -1,5 +1,7 @@
 <?php
 
+// Drift guard: skeleton/config/ mirrors this config set with production values —
+// add new framework config keys in BOTH places.
 return [
     'name' => 'IonsFixture',
     'app_url' => 'http://localhost',
@@ -39,6 +41,8 @@ return [
             '/api/auth/logout',
             '/api/auth/password/forgot',
             '/api/auth/password/reset',
+            // Unauthenticated echo endpoint used by the Ions\Testing kit tests.
+            '/api/echo',
         ],
     ],
 ];

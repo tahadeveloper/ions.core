@@ -56,6 +56,12 @@ These ship with the framework and are always registered:
 | `make:service-provider` | `MakeServiceProviderCommand` | Generate a container service provider. |
 | `make:middleware` | `MakeMiddlewareCommand` | Generate an HTTP middleware. |
 | `make:command` | `MakeCommandCommand` | Generate a console command (see below). |
+| `make:resource` | `MakeResourceCommand` | Generate an API resource (`--collection` for a `ResourceCollection`). |
+| `make:request` | `MakeRequestCommand` | Generate a form request (`Ions\Http\FormRequest`). |
+| `make:job` | `MakeJobCommand` | Generate a queue job (`Ions\Queue\Job`). |
+| `make:event` | `MakeEventCommand` | Generate a plain event class. |
+| `make:listener` | `MakeListenerCommand` | Generate an event listener (`--event=` to type-hint the event). |
+| `make:test` | `MakeTestCommand` | Generate a host test in `tests/` (`--unit` for a plain PHPUnit test). |
 | `make:control` | `ControllerCommand` | Generate a controller. |
 | `make:seeder` | `SeederCommand` | Generate a seeder. |
 | `make:schema` | `SchemaCommand` | Generate a schema/migration. |
@@ -104,6 +110,32 @@ class SendReportsCommand extends Command
 
 When `--command` is omitted the signature defaults to `app:<kebab-name>` (with a
 trailing `Command` stripped from the class name).
+
+## Class generators — `make:*`
+
+Six additional generators scaffold host application classes. Each one writes
+into the host `{src|app}/` tree (honouring the `src/` → `app/` layout fallback),
+refuses to overwrite an existing file (exit code 1) unless `--force` is passed,
+and fills a stub from `src/commands/stubs/`:
+
+```bash
+php bin/ions make:resource UserResource                # {src|app}/Http/Resources — extends Ions\Http\Resource
+php bin/ions make:resource UserCollection --collection #   … extends Ions\Http\ResourceCollection (wired to UserResource)
+php bin/ions make:request StoreUserRequest             # {src|app}/Http/Requests — extends Ions\Http\FormRequest
+php bin/ions make:job SendWelcomeJob                   # {src|app}/Jobs — extends Ions\Queue\Job
+php bin/ions make:event UserRegistered                 # {src|app}/Events — plain payload class
+php bin/ions make:listener SendWelcomeEmail            # {src|app}/Listeners — handle(object $event)
+php bin/ions make:listener SendWelcomeEmail --event=UserRegistered   # type-hints App\Events\UserRegistered
+php bin/ions make:test PingTest                        # host tests/ — extends Ions\Testing\TestCase ($basePath wired)
+php bin/ions make:test MathTest --unit                 # host tests/ — plain PHPUnit\Framework\TestCase
+```
+
+`make:listener --event=` accepts either a short name (resolved to
+`App\Events\…`) or a fully-qualified class name (e.g.
+`Ions\Events\RequestHandled`). `make:test` writes to the host-root `tests/`
+directory (`Path::tests()`); the generated feature test sets
+`protected string $basePath = __DIR__ . '/..'` so it boots the surrounding app —
+see [testing.md](testing.md).
 
 ## Registering host commands
 

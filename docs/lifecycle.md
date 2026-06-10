@@ -41,3 +41,26 @@ If any step in the `try` block throws, `Kernel::failBoot()` logs the error (best
 | `Kernel::run()` | New front controllers — handles + sends |
 | `Kernel::handle(Request)` | When you need the `Response` object (e.g. tests) |
 | `Kernel::make()` | BC shim — delegates to `run()` |
+
+## Error rendering (`Ions\Http\ExceptionHandler`)
+
+Every `Throwable` caught by `Kernel::handle()` becomes a `Response`:
+
+- `ValidationException` → **422** (`{message, errors}` for JSON, HTML otherwise).
+- `HttpExceptionInterface` (e.g. from `abort()`) keeps its status and its message — those messages are deliberate and client-facing.
+- Any other `Throwable` → **500**; its message is shown only when `APP_DEBUG` is truthy.
+- JSON is selected when `Request::wantsJson()` or the first path segment is `api`; HTML otherwise.
+
+### Debug error page (APP_DEBUG only)
+
+In debug mode the HTML path renders `Ions\Http\DebugPage` — a single self-contained document (inline CSS, no JS, no external assets, no Whoops/Ignition dependency) with:
+
+- exception class, message, status header;
+- a ±10-line **source excerpt** around the throwing line (escaped, error line highlighted);
+- the `getPrevious()` **chain** (class + message + file:line, capped at 5);
+- a **stack trace** (max 50 frames) with paths shortened relative to the host base path and vendor frames visually de-emphasized;
+- a **request summary**: method, path, route name (when resolvable), client IP, headers, query and body params.
+
+**Redaction & deliberate minimalism.** Headers and params pass the same key redaction as the log `RedactionProcessor` (`password`/`token`/`secret`/`authorization`/`api_key`, …) **plus** `Cookie`, so raw `Authorization`/`Cookie` values are never printed; long values are truncated. The page deliberately renders **no env vars, no config dump, no server superglobals, and no frame arguments** — even in debug mode the surface is kept minimal against accidental info-leak (screenshots, shared dev URLs).
+
+The renderer is failure-safe: each section is individually guarded and the whole page falls back to the previous minimal `<h1>/<pre>` block if rendering ever throws. Production output (`APP_DEBUG` off) is unchanged: a bare `<h1>{status} {text}</h1>` with non-HTTP exception messages hidden.

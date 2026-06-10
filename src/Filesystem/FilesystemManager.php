@@ -83,6 +83,17 @@ class FilesystemManager
     }
 
     /**
+     * Replace a named disk with the given Filesystem instance, bypassing its
+     * configuration. Subsequent disk($name) calls return this instance until
+     * it is forgotten. Used by {@see Storage::fake()} to force a fresh
+     * in-memory disk in tests, whatever driver the disk is configured with.
+     */
+    public function set(string $name, Filesystem $filesystem): void
+    {
+        $this->disks[$name] = $filesystem;
+    }
+
+    /**
      * Forget a cached disk (or all of them) so it is re-resolved on next access.
      */
     public function forgetDisk(?string $name = null): void
