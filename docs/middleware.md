@@ -74,7 +74,7 @@ php artisan make:middleware CheckSubscription
 vendor/bin/ions make:middleware CheckSubscription
 ```
 
-This produces a stub in `src/Http/Middleware/CheckSubscriptionMiddleware.php`. Fill in the logic:
+This produces a stub in `app/Http/Middleware/CheckSubscriptionMiddleware.php` (or `src/` on legacy layouts). Fill in the logic:
 
 ```php
 <?php

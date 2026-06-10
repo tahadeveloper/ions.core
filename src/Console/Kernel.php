@@ -19,7 +19,7 @@ use Symfony\Component\Console\Output\ConsoleOutput;
  *  - boots the framework container so commands resolve config(), db, session, …;
  *  - discovers and registers the framework commands shipped in src/commands;
  *  - registers host commands declared in config('console.commands') and any
- *    classes auto-discovered from the host {src|app}/Commands directory.
+ *    classes auto-discovered from the host {app|src}/Commands directory.
  *
  * The bin/ions entry point creates the Kernel and calls run().
  */
@@ -136,7 +136,7 @@ class Kernel
 
     /**
      * Resolve every host command class: the explicit config('console.commands')
-     * list plus any classes auto-discovered in the host {src|app}/Commands dir.
+     * list plus any classes auto-discovered in the host {app|src}/Commands dir.
      *
      * @return list<class-string>
      */

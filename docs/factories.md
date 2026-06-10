@@ -43,7 +43,7 @@ class WidgetFactory extends Factory
 ```
 
 Generate one with `php bin/ions make:factory WidgetFactory` (writes to
-`{src|app}/Factories/`, inferring the model `App\Widget` from the name —
+`{app|src}/Factories/`, inferring the model `App\Widget` from the name —
 override with `--model=App\Models\Widget`). **Caveat:** the generated class
 always lives in `App\Factories\`, but `HasIonsFactory` resolves
 `{ModelNamespace}\Factories\{Model}Factory` — so for a model outside the

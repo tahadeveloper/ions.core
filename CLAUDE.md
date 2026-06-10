@@ -23,12 +23,12 @@ Tests live in `tests/`, match `*Test.php`, and use Pest's `test()`/`expect()` sy
 This library resolves paths **relative to the host app**, which lives **5 directories up** from `src/Foundation/` and `src/Bundles/` (see `Path::$environmentPath` and `Kernel::$environmentPath`). All filesystem access goes through `Ions\Bundles\Path`, which expects this host structure:
 
 - `config/` — PHP config files, each returning an array; loaded by filename into `Kernel::config()` (e.g. `config/app.php` → `config('app.*')`).
-- `src/` **or** `app/` — host application code. **`Path` checks for `src/` first and falls back to `app/`** for newer projects. Controllers live in `{src|app}/Http/Controllers`, API endpoints in `{src|app}/Http/Api`, super-admin in `{src|app}/Http/super`, migrations/seeders in `{src|app}/Database`.
+- `app/` **or** `src/` — host application code. **`Path` checks for `app/` first (the convention since 4.2) and falls back to `src/`** for legacy projects. Controllers live in `{app|src}/Http/Controllers`, API endpoints in `{app|src}/Http/Api`, super-admin in `{app|src}/Http/super`, migrations/seeders in `{app|src}/Database`.
 - `routes/` — `web.php`/`web.yaml` and `api.php`/`api.yaml` route definitions.
 - `views/`, `public/` (with `public/uploads`, `public/lang`), `var/` (`cache/`, `logs/`, `templates/`).
 - `.env` at the host root (loaded via vlucas/phpdotenv; `Kernel::$envName` defaults to `.env`).
 
-When editing path logic, **always preserve the `src/` → `app/` fallback** in `Path::src/api/database`.
+When editing path logic, **always preserve the `app/` → `src/` fallback** in `Path::src/api/database` (legacy `src/` hosts must keep working).
 
 ## Architecture
 

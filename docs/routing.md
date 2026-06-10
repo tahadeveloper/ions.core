@@ -78,7 +78,7 @@ Route::get('/profile', 'UserController@profile')->middleware([
 
 ## Attribute routing
 
-Controllers annotated with `#[Route]` in `src/Http/` (web) or `app/Api/` (api) are auto-discovered via Symfony's `AttributeDirectoryLoader`:
+Controllers annotated with `#[Route]` in `{app|src}/Http/` (web) or `{app|src}/Http/Api` (api) are auto-discovered via Symfony's `AttributeDirectoryLoader`:
 
 ```php
 use Symfony\Component\Routing\Attribute\Route;
@@ -99,4 +99,4 @@ Attribute routes are merged with file-based routes; file-based routes take prece
 | Route file | `routes/web.php` | `routes/api.php` |
 | Controller namespace suffix | `Controllers\` | `Api\` |
 | Default middleware | TrustedHost + SecurityHeaders + CORS + CSRF | TrustedHost + SecurityHeaders + CORS + Auth |
-| Attribute scan path | `src/Http/` | `app/Api/` |
+| Attribute scan path | `{app|src}/Http/` | `{app|src}/Http/Api` |

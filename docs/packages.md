@@ -24,7 +24,7 @@ Declare your package's service providers in its `composer.json` under `extra.ion
 
 At boot, `Ions\Foundation\Discovery` reads `vendor/composer/installed.json` (the only runtime composer metadata that carries `extra` — `installed.php` / `Composer\InstalledVersions` do not expose it) **once per process** (memoized) and registers every declared provider that is a concrete `Ions\Container\ServiceProvider` subclass. Entries that don't exist, aren't providers, or are abstract are silently skipped — a bad declaration never breaks the host's boot.
 
-Order: framework defaults → **package providers** → host `{src|app}/Providers/` (host last, so the host always wins). The merged list is de-duplicated, first occurrence wins.
+Order: framework defaults → **package providers** → host `{app|src}/Providers/` (host last, so the host always wins). The merged list is de-duplicated, first occurrence wins.
 
 Discovery is bypassed when the host sets `app.providers` (explicit full control) and disabled by `app.discovery => false` — see [config.md](config.md#appproviders). A host can also opt out of a single package via `app.dont_discover => ['acme/ions-stripe']` (exact package-name match, see [config.md](config.md#appdont_discover)). Package authors should document that hosts using an explicit `app.providers` list must add the package's provider(s) themselves.
 
@@ -70,7 +70,7 @@ Conventions:
 
 ## Registering console commands from a package
 
-There is no composer-extra hook for commands (host commands are auto-discovered from `{src|app}/Commands` — see [console.md](console.md)). Packages register commands through their provider's `register()` by appending to `config('console.commands')`, which the Console Kernel reads **after** providers have bootstrapped:
+There is no composer-extra hook for commands (host commands are auto-discovered from `{app|src}/Commands` — see [console.md](console.md)). Packages register commands through their provider's `register()` by appending to `config('console.commands')`, which the Console Kernel reads **after** providers have bootstrapped:
 
 ```php
 public function register(): void

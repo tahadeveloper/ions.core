@@ -7,7 +7,7 @@ use Ions\Support\DB;
 /**
  * Schema for the notifications 'database' channel.
  *
- * Copy this into the host's {src|app}/Database migrations directory (dropping
+ * Copy this into the host's {app|src}/Database migrations directory (dropping
  * the .stub extension) and run `ions migrate` to create the table the
  * DatabaseChannel inserts into. Rename the table here AND set
  * config('notifications.table') if you want a non-default name.

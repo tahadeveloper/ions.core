@@ -15,7 +15,7 @@ use Ions\Support\Request;
 |
 | The skeleton's App\ namespace is intentionally NOT autoloaded by this
 | repo's composer.json (it belongs to the future ionzile/app package), so a
-| scoped PSR-4 autoloader App\ -> skeleton/src is registered here.
+| scoped PSR-4 autoloader App\ -> skeleton/app is registered here.
 |
 | No .env is committed in skeleton/ (and Kernel::boot()'s Dotenv::safeLoad()
 | would tolerate a missing one — at the cost of a PHPUnit-surfaced stream
@@ -28,7 +28,7 @@ spl_autoload_register(static function (string $class): void {
     if (!str_starts_with($class, 'App\\')) {
         return;
     }
-    $file = dirname(__DIR__, 2) . '/skeleton/src/' . str_replace('\\', '/', substr($class, 4)) . '.php';
+    $file = dirname(__DIR__, 2) . '/skeleton/app/' . str_replace('\\', '/', substr($class, 4)) . '.php';
     if (is_file($file)) {
         require $file;
     }

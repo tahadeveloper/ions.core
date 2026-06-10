@@ -55,20 +55,33 @@ class Path extends Singleton
     }
 
     /**
-     * src folder
+     * The host application code directory. Since 4.2 the `app/` convention
+     * wins: `{root}/app` is used whenever it exists (and for fresh hosts with
+     * neither directory); `{root}/src` is the preserved fallback for hosts
+     * still on the legacy layout.
+     */
+    private static function appDir(): string
+    {
+        $base = self::base();
+
+        if (!is_dir($base . DIRECTORY_SEPARATOR . 'app') && is_dir($base . DIRECTORY_SEPARATOR . 'src')) {
+            // Legacy layout fallback — only src/ exists.
+            return $base . DIRECTORY_SEPARATOR . 'src';
+        }
+
+        // The 'app' folder convention (also the default for fresh hosts).
+        return $base . DIRECTORY_SEPARATOR . 'app';
+    }
+
+    /**
+     * Host application code folder: app/ first, src/ fallback (see appDir()).
      *
      * @param string $file
      * @return string
      */
     public static function src(string $file): string
     {
-        if (is_dir(self::base() . DIRECTORY_SEPARATOR . 'src')) {
-            // Use the 'src' folder for backward compatibility
-            return self::base() . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . $file;
-        }
-
-        // Use the 'app' folder for new projects
-        return self::base() . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . $file;
+        return self::appDir() . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -83,20 +96,14 @@ class Path extends Singleton
     }
 
     /**
-     * src folder
+     * API controllers folder ({app|src}/Http/Api): app/ first, src/ fallback.
      *
      * @param string $file
      * @return string
      */
     public static function api(string $file = ''): string
     {
-        if (is_dir(self::base() . DIRECTORY_SEPARATOR . 'src')) {
-            // Use the 'src' folder for backward compatibility
-            return self::base() . DIRECTORY_SEPARATOR . '/src/Http/Api' . DIRECTORY_SEPARATOR . $file;
-        }
-
-        // Use the 'app' folder for new projects
-        return self::base() . DIRECTORY_SEPARATOR . '/app/Http/Api' . DIRECTORY_SEPARATOR . $file;
+        return self::appDir() . DIRECTORY_SEPARATOR . 'Http' . DIRECTORY_SEPARATOR . 'Api' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**
@@ -269,20 +276,14 @@ class Path extends Singleton
     }
 
     /**
-     * database folder
+     * database folder ({app|src}/Database): app/ first, src/ fallback.
      *
      * @param string $file
      * @return string
      */
     public static function database(string $file): string
     {
-        if (is_dir(self::base() . DIRECTORY_SEPARATOR . 'src')) {
-            // Use the 'src' folder for backward compatibility
-            return self::base() . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . $file;
-        }
-
-        // Use the 'app' folder for new projects
-        return self::base() . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . $file;
+        return self::appDir() . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . $file;
     }
 
     /**

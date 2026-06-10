@@ -44,11 +44,11 @@ Rules:
 
 1. **Framework defaults** — `Kernel::defaultProviders()` (the 13 built-in `Ions\Providers\*` providers: Config, Filesystem, Session, Database, Cache, Event, Queue, Auth, Mail, Notification, HttpClient, Security, View).
 2. **Package providers** — every installed composer package declaring `extra.ions.providers` in its composer.json (see [packages.md](packages.md)). Read once per process from `vendor/composer/installed.json` and memoized.
-3. **Host providers** — every concrete `ServiceProvider` subclass in the host's `{src|app}/Providers/` directory (single `glob()` per boot; the `src/` → `app/` fallback applies).
+3. **Host providers** — every concrete `ServiceProvider` subclass in the host's `{app|src}/Providers/` directory (single `glob()` per boot; the `app/` → `src/` fallback applies — `app/` wins since 4.2).
 
 The merged list is de-duplicated (first occurrence wins). Host providers run **last**, so they can override bindings registered by framework or package providers. Abstract classes and non-provider classes in the scanned locations are skipped.
 
-This means a host app normally needs **no `providers` key at all** — drop a provider into `src/Providers/` (or install a package that declares `extra.ions.providers`) and it is registered and booted automatically.
+This means a host app normally needs **no `providers` key at all** — drop a provider into `app/Providers/` (or install a package that declares `extra.ions.providers`) and it is registered and booted automatically.
 
 In production, run `ions discover:cache` (included in `ions optimize`) to freeze the discovered list into `var/cache/providers.php`; boot then loads it with one `require` and skips all scans. Debug bypasses the cache; re-run it after composer changes or provider edits — see [performance.md](performance.md).
 
@@ -71,7 +71,7 @@ In production, run `ions discover:cache` (included in `ions optimize`) to freeze
 
 **Type:** `bool`  **Default:** `true`
 
-Escape hatch for provider auto-discovery. When `false` (and `app.providers` is not set), the kernel registers **only** `Kernel::defaultProviders()` — neither the host `{src|app}/Providers/` scan nor the composer `extra.ions.providers` scan runs.
+Escape hatch for provider auto-discovery. When `false` (and `app.providers` is not set), the kernel registers **only** `Kernel::defaultProviders()` — neither the host `{app|src}/Providers/` scan nor the composer `extra.ions.providers` scan runs.
 
 Ignored when `app.providers` is set (an explicit list already bypasses discovery).
 
@@ -329,7 +329,7 @@ cache; skipped gracefully when no cache is bound.
 
 **Type:** `string[]`  **Default:** `[]`
 
-Paths relative to `src/` that are `include_once`'d during boot (e.g. global helpers or aliases).
+Paths relative to the host code directory (`app/`, or `src/` on the legacy layout) that are `include_once`'d during boot (e.g. global helpers or aliases).
 
 ---
 
@@ -723,7 +723,7 @@ ions queue:work database --stop-when-empty --tries=3
 
 The `database` connection needs the `jobs`/`failed_jobs` tables. A migration
 stub is shipped at `src/Queue/stubs/create_jobs_table.stub` — copy it into the
-host's `{src|app}/Database` directory (dropping `.stub`) and run `ions migrate`.
+host's `{app|src}/Database` directory (dropping `.stub`) and run `ions migrate`.
 
 ## Notifications config (`config/notifications.php`)
 
