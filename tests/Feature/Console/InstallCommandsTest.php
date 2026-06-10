@@ -48,10 +48,19 @@ test('install:vue scaffolds package.json, vite.config.js and the resources/js en
         ->and($package['devDependencies'])->toHaveKeys(['vue', 'vite', '@vitejs/plugin-vue']);
 
     $config = (string) file_get_contents($this->host . '/vite.config.js');
-    expect($config)->toContain('manifest: true')
+    expect($config)->toContain("manifest: 'manifest.json'") // NOT true — Vite >=5 would bury it in .vite/
         ->and($config)->toContain("outDir: 'public/build'")
+        ->and($config)->toContain('publicDir: false') // default would copy public/ into public/build
+        ->and($config)->toContain("base: command === 'build' ? '/build/' : '/'")
+        ->and($config)->toContain('cors') // Vite >=6.0.9 blocks non-localhost page origins by default
+        ->and($config)->toContain('localhost|127\\.0\\.0\\.1|\\[::1\\]')
         ->and($config)->toContain('public/hot') // the inline hot-file plugin
         ->and($config)->toContain("input: 'resources/js/app.js'");
+
+    // No node in CI: at least guarantee every bracket type balances.
+    foreach ([['(', ')'], ['{', '}'], ['[', ']']] as [$open, $close]) {
+        expect(substr_count($config, $open))->toBe(substr_count($config, $close));
+    }
 
     expect((string) file_get_contents($this->host . '/resources/js/app.js'))->toContain('createApp')
         ->and((string) file_get_contents($this->host . '/resources/js/App.vue'))->toContain('<template>');
@@ -100,7 +109,7 @@ test('install:vue --force overwrites existing files', function () {
     $tester = runConsoleCommand(new InstallVueCommand(), ['--force' => true]);
 
     expect($tester->getStatusCode())->toBe(0)
-        ->and((string) file_get_contents($this->host . '/vite.config.js'))->toContain('manifest: true');
+        ->and((string) file_get_contents($this->host . '/vite.config.js'))->toContain("manifest: 'manifest.json'");
 });
 
 // ---------------------------------------------------------------------------

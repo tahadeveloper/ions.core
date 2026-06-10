@@ -52,6 +52,52 @@ test('vite() emits css links then the module script from public/build/manifest.j
         ->and(strpos($html, 'app-deadbeef.css'))->toBeLessThan((int) strpos($html, 'app-4ed993c7.js'));
 });
 
+test('vite() falls back to the Vite >=5 default location public/build/.vite/manifest.json', function () {
+    // A hand-rolled host config with `manifest: true` lands here on real builds.
+    mkdir($this->host . '/public/build/.vite', 0777, true);
+    file_put_contents($this->host . '/public/build/.vite/manifest.json', json_encode([
+        'resources/js/app.js' => [
+            'file' => 'assets/app-4ed993c7.js',
+            'css'  => ['assets/app-deadbeef.css'],
+        ],
+    ]));
+
+    $html = $this->ext->vite('resources/js/app.js');
+
+    expect($html)->toContain('<link rel="stylesheet" href="http://localhost/build/assets/app-deadbeef.css">')
+        ->and($html)->toContain('<script type="module" src="http://localhost/build/assets/app-4ed993c7.js"></script>');
+});
+
+test('vite() prefers public/build/manifest.json over the .vite/ fallback', function () {
+    file_put_contents($this->host . '/public/build/manifest.json', json_encode([
+        'resources/js/app.js' => ['file' => 'assets/app-primary.js'],
+    ]));
+    mkdir($this->host . '/public/build/.vite', 0777, true);
+    file_put_contents($this->host . '/public/build/.vite/manifest.json', json_encode([
+        'resources/js/app.js' => ['file' => 'assets/app-fallback.js'],
+    ]));
+
+    expect($this->ext->vite('resources/js/app.js'))->toContain('app-primary.js')
+        ->and($this->ext->vite('resources/js/app.js'))->not->toContain('app-fallback.js');
+});
+
+test('vite() memoizes manifest reads per instance — one read per request', function () {
+    file_put_contents($this->host . '/public/build/manifest.json', json_encode([
+        'resources/js/app.js' => ['file' => 'assets/app-first.js'],
+    ]));
+
+    $first = $this->ext->vite('resources/js/app.js');
+
+    // A rewrite mid-request is not re-read by the same instance...
+    file_put_contents($this->host . '/public/build/manifest.json', json_encode([
+        'resources/js/app.js' => ['file' => 'assets/app-second.js'],
+    ]));
+
+    expect($this->ext->vite('resources/js/app.js'))->toBe($first)
+        // ...but a fresh instance (next request) sees the new build.
+        ->and((new AssetExtension())->vite('resources/js/app.js'))->toContain('app-second.js');
+});
+
 test('vite() handles a chunk without css entries', function () {
     file_put_contents($this->host . '/public/build/manifest.json', json_encode([
         'resources/js/app.js' => ['file' => 'assets/app-cafef00d.js'],
@@ -78,6 +124,20 @@ test('vite() prefers the hot dev server when public/hot exists', function () {
     expect($html)->toContain('<script type="module" src="http://localhost:5173/@vite/client"></script>')
         ->and($html)->toContain('<script type="module" src="http://localhost:5173/resources/js/app.js"></script>')
         ->and($html)->not->toContain('build/assets');
+});
+
+test('vite() ignores a garbage hot file and falls through to manifest mode', function () {
+    // Defense-in-depth: only an http(s) origin may redirect script URLs.
+    file_put_contents($this->host . '/public/hot', "javascript:alert(1)//\n");
+    file_put_contents($this->host . '/public/build/manifest.json', json_encode([
+        'resources/js/app.js' => ['file' => 'assets/app-4ed993c7.js'],
+    ]));
+
+    $html = $this->ext->vite('resources/js/app.js');
+
+    expect($html)->toContain('http://localhost/build/assets/app-4ed993c7.js')
+        ->and($html)->not->toContain('@vite/client')
+        ->and($html)->not->toContain('javascript:');
 });
 
 // ---------------------------------------------------------------------------
@@ -129,6 +189,13 @@ test('asset() builds an app_url URL with a filemtime cache-buster', function () 
 
 test('asset() omits the buster when the file is missing and never throws', function () {
     expect($this->ext->asset('js/missing.js'))->toBe('http://localhost/js/missing.js');
+});
+
+test('asset() skips the filemtime buster when the path contains ".."', function () {
+    // Never probe mtimes outside public/ — the URL is still returned as-is.
+    file_put_contents($this->host . '/outside.txt', 'secret');
+
+    expect($this->ext->asset('../outside.txt'))->toBe('http://localhost/../outside.txt');
 });
 
 test('asset() normalizes slashes between app_url and the path', function () {

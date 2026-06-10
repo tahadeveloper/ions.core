@@ -27,7 +27,7 @@ exists the command fails listing the conflicts and writes **nothing**;
 | File | Contents |
 | ---- | -------- |
 | `package.json` | `name` from the `app.name` slug, `private: true`, scripts `dev`/`build`, devDependencies `vue ^3.5` / `vite ^6` / `@vitejs/plugin-vue ^5` |
-| `vite.config.js` | plugin-vue; builds to `public/build/` with `manifest: true`; input `resources/js/app.js`; the inline hot-file plugin (below) |
+| `vite.config.js` | plugin-vue; builds to `public/build/` with `manifest: 'manifest.json'` (a plain string keeps the manifest at `public/build/manifest.json` — Vite ≥5 would bury `manifest: true` in `public/build/.vite/`); `publicDir: false` (the default would copy the whole `public/` tree into the build output); `base` switching to `/build/` for builds so code-split chunks, preloads and CSS `url()`s resolve in production; a dev-server CORS allowlist (below); input `resources/js/app.js`; the inline hot-file plugin (below) |
 | `resources/js/app.js` | `createApp(App).mount('#app')` entry |
 | `resources/js/App.vue` | Small example component |
 | `.gitignore` | Appends `node_modules/`, `public/build/`, `public/hot` (created when missing; idempotent — re-runs never duplicate lines) |
@@ -76,6 +76,20 @@ Then load the entry in your layout:
 The inline plugins exist so no extra npm package (`laravel-vite-plugin`) is
 needed — vanilla Vite doesn't write a hot file natively.
 
+If you maintain your own `vite.config.js` with `manifest: true`, Vite ≥5
+writes the manifest to `public/build/.vite/manifest.json` — `vite()` falls
+back to that location automatically when `public/build/manifest.json` is
+absent. A hot file whose contents do not start with `http://`/`https://`
+is ignored (manifest mode is used instead).
+
+### Dev-server CORS (custom local domains)
+
+Vite ≥6.0.9 only answers cross-origin requests from localhost pages by
+default. The scaffolded config allows `localhost`/`127.0.0.1`/`[::1]` and
+any `*.test` domain. If your app runs on a different local domain (e.g.
+`http://myapp.local`), add its origin to `server.cors.origin` in
+`vite.config.js` or the browser will refuse to load dev-server modules.
+
 When neither `public/hot` nor `public/build/manifest.json` exists (or the
 entry is missing from the manifest), `vite()` **returns an HTML comment**
 (`<!-- vite: manifest not found; run npm run build -->`) and logs a warning
@@ -100,8 +114,8 @@ changes). Link them with `asset()`:
 
 | Function | Returns | Behaviour |
 | -------- | ------- | --------- |
-| `vite(entry)` | HTML (safe-marked) | `public/hot` exists → HMR client + dev-server entry script. Else `public/build/manifest.json` → CSS links + hashed module script (URLs based on `app.app_url`). Missing manifest/entry → HTML comment + `view.log` warning. Never throws. |
-| `asset(path)` | URL string (auto-escaped) | `rtrim(app.app_url, '/') . '/' . path` for a file under `public/`. Appends `?v=<filemtime>` when the file exists; no buster when missing. Never throws. |
+| `vite(entry)` | HTML (safe-marked) | `public/hot` exists with an `http(s)://` origin → HMR client + dev-server entry script. Else `public/build/manifest.json` (falling back to `public/build/.vite/manifest.json`) → CSS links + hashed module script (URLs based on `app.app_url`); the manifest is read once per request. Missing manifest/entry → HTML comment + `view.log` warning. Never throws. |
+| `asset(path)` | URL string (auto-escaped) | `rtrim(app.app_url, '/') . '/' . path` for a file under `public/`. Appends `?v=<filemtime>` when the file exists; no buster when missing or when the path contains `..`. Never throws. |
 
 `asset()` works for ANY file under `public/` (`asset('uploads/logo.png')`),
 not just the `install:assets` starters. Vite's build output needs no buster —
