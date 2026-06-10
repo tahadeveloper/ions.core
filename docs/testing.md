@@ -180,12 +180,12 @@ Accessors: `status()`, `content()`, `headers()`,
 when absent or not JSON), and the public `baseResponse` property — the
 underlying Symfony response, as an escape hatch.
 
-## Fakes: Queue, Event, Storage, Mail
+## Fakes: Queue, Event, Storage, Mail, Http
 
 Each framework service can be swapped for a recording fake with a single
 static call. `::fake()` rebinds the service in the container and returns the
-fake; assertions work on the returned instance **and** (for Queue/Event/Mail)
-as static passthroughs on the same facade. Because every test boots a fresh
+fake; assertions work on the returned instance **and** (for
+Queue/Event/Mail/Http) as static passthroughs on the same facade. Because every test boots a fresh
 container, an installed fake never leaks into the next test — there is
 nothing to tear down.
 
@@ -318,6 +318,39 @@ $mailer->assertSentCount(1);
 `$mailer->sent()` returns every recorded message in send order;
 `$mailer->sentEnvelopes()` returns the index-aligned list of envelopes
 (`null` entries where no explicit envelope was passed).
+
+### `Ions\Support\Http::fake(callable|array|null $responses = null)`
+
+Replaces the `http` binding (Symfony HttpClient) with a recorder built on
+Symfony's own `MockHttpClient`, so nothing leaves the process. With no
+argument every request answers 200 with an empty body; pass an associative
+array of URL patterns (`*` wildcards) to responses, a sequential list, or a
+`MockHttpClient` factory callable. Requests are recorded with the fully
+resolved URL and Symfony's processed options.
+
+```php
+use Ions\Support\Http;
+use Symfony\Component\HttpClient\Response\MockResponse;
+
+$fake = Http::fake([
+    'https://api.example.test/*' => new MockResponse('{"id":7}', ['http_code' => 201]),
+]);
+
+Http::withToken('secret')->json('https://api.example.test/users', ['name' => 'Amr']);
+
+Http::assertSent('https://api.example.test/*');
+$fake->assertSentCount(1);
+```
+
+| Assertion | Verifies |
+|---|---|
+| `assertSent(string\|callable $urlOrFilter)` | At least one request matches; a string is a URL pattern (`*` wildcards), a callable receives `(string $method, string $url, array $options)` |
+| `assertSentCount(int $count)` | Exact number of requests sent |
+| `assertNothingSent()` | No requests were sent at all |
+
+`$fake->sent()` returns every recorded request in order as
+`['method' => ..., 'url' => ..., 'options' => ...]`. Full client and fake
+reference: [docs/http-client.md](http-client.md).
 
 ## Complete example (skeleton layout)
 

@@ -144,6 +144,7 @@ The framework resolves application paths relative to the host-app root (five dir
 | [docs/console.md](docs/console.md) | Console Kernel, `bin/ions`, command discovery, `make:command` |
 | [docs/resources.md](docs/resources.md) | API resources, collections, form requests, `openapi:generate` |
 | [docs/media.md](docs/media.md) | Image processing over `intervention/image` v3 |
+| [docs/http-client.md](docs/http-client.md) | Outbound HTTP: `Http` facade over `symfony/http-client`, response wrapper, `Http::fake()` |
 | [docs/config.md](docs/config.md) | All `app.*`, `auth.*`, `filesystem.*`, `session.*`, `cache.*`, `queue.*`, `events.*`, `media.*` config keys |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 | [UPGRADE-4.0.md](UPGRADE-4.0.md) | Breaking changes and migration guide for 3.x → 4.0.0 |

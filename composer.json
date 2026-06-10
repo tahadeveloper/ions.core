@@ -48,6 +48,7 @@
     "peppeocchi/php-cron-scheduler": "^4.0",
     "psr/container": "^2.0",
     "symfony/config": "^7.0",
+    "symfony/http-client": "^7.0",
     "symfony/mailer": "^7.0",
     "symfony/routing": "^7.0",
     "symfony/security-csrf": "^7.0",

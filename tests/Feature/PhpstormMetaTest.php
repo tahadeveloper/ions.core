@@ -70,6 +70,7 @@ test('the meta map matches what the container actually resolves', function () {
         'files' => \Illuminate\Filesystem\Filesystem::class,
         'filesystem' => \Illuminate\Filesystem\Filesystem::class,
         'filesystem.manager' => \Ions\Filesystem\FilesystemManager::class,
+        'http' => \Symfony\Contracts\HttpClient\HttpClientInterface::class,
         'queue' => \Illuminate\Queue\QueueManager::class,
         'request_stack' => \Symfony\Component\HttpFoundation\RequestStack::class,
         'session' => \Ions\Session\SessionManager::class,
