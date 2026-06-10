@@ -71,10 +71,16 @@ $schedule->command('imports:run')->everyMinute()->withoutOverlapping(600);
 
 While a `withoutOverlapping()` task runs, a cache lock
 (`schedule.lock.<sha1(name)>` on the shared cache) blocks concurrent runs —
-an overlapping invocation is **skipped**, not queued. The lock is always
-released when the run finishes (success or failure); the TTL (default 3600s)
-is only a safety net for runs that die hard. Without a usable cache the guard
+an overlapping invocation is **skipped**, not queued. The lock holds a
+per-run owner token and is released when the run finishes (success or
+failure) only while it still belongs to that run, so a run that outlives its
+TTL can never delete a successor's lock. Without a usable cache the guard
 degrades to plain execution.
+
+**TTL caveat:** the TTL (default 3600s) is both the safety net for runs that
+die hard *and* the maximum protected window — once a run exceeds its TTL the
+lock expires and the next invocation is no longer blocked. Pick a TTL
+comfortably above the task's worst-case runtime.
 
 ## Running — `schedule:run` + crontab
 
@@ -115,6 +121,13 @@ with a JSON summary:
 
 Point any external ping service at it every minute for cron parity.
 
+**Security note:** the route is registered publicly — anyone who knows the
+URL can trigger a run (tasks only execute when due, but a flood of hits still
+costs work and log noise). In production either front it with a middleware
+that checks a secret token (e.g. a `?token=` query or header compared against
+an env value) or skip the web-cron entirely and rely on `schedule:run` from
+system cron.
+
 ### Legacy compatibility
 
 Before 4.2, `/cron/schedule` dispatched `App\Schedule::boot` directly — the
@@ -127,7 +140,9 @@ schedule class at all the route answers 404.
 Hosts still declaring `GO\Scheduler` jobs in a root (or `routes/`)
 `schedule.php` file also keep working: `schedule:run` runs those legacy jobs
 after the scheduler tasks. Migrating them to `App\Schedule::boot(Scheduler)`
-is recommended.
+is recommended. When migrating, **remove each job from the legacy
+`schedule.php` once it is defined in `App\Schedule`** — both registries run on
+every `schedule:run`, so a job left in both executes twice.
 
 ## Logging
 

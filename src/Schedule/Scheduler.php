@@ -25,8 +25,10 @@ use Throwable;
  *    no console dependency (the command injects $this->call(), the web cron
  *    injects a console-application call) — a non-zero exit counts as failed;
  *  - ->withoutOverlapping() tasks take a cache lock (add() is atomic enough
- *    per store) which is always released in finally; the TTL only matters
- *    when a run dies hard and never reaches finally;
+ *    per store) holding a per-run owner token, released in finally only while
+ *    the key still holds that token — a run that outlives its TTL can never
+ *    delete a successor's lock. The TTL is therefore both the crash safety
+ *    net and the maximum protected window;
  *  - results are logged through the injected PSR logger (schedule.log when
  *    built by ScheduleProvider) — logging failures are swallowed, they must
  *    never break a run.
@@ -62,7 +64,14 @@ final class Scheduler
      */
     public function call(callable $callback, ?string $name = null): Task
     {
-        return $this->tasks[] = Task::callable($callback, $name ?? 'closure-' . (count($this->tasks) + 1));
+        $task = Task::callable($callback, $name ?? 'closure-' . (count($this->tasks) + 1));
+        if ($name === null) {
+            // Remembered so runDue() can warn if this task later takes an
+            // overlap lock under a positional name (see the notice there).
+            $task->markAutoNamed();
+        }
+
+        return $this->tasks[] = $task;
     }
 
     /**
@@ -96,9 +105,24 @@ final class Scheduler
 
         foreach ($this->dueTasks($now) as $task) {
             $lockKey = null;
+            $lockToken = null;
             if ($task->shouldRunWithoutOverlapping() && $this->cache !== null) {
+                if ($task->isAutoNamed()) {
+                    // Positional auto-names ('closure-N') shift when tasks are
+                    // added/removed between deploys — and the lock identity
+                    // shifts with them, silently dropping overlap protection.
+                    $this->log('notice', sprintf(
+                        "Task '%s' uses withoutOverlapping() with an auto-generated name; call ->name() to give its lock a stable identity across deploys.",
+                        $task->getName()
+                    ));
+                }
+
+                // Owner token: the lock value identifies THIS run, so the
+                // finally-release below can never delete a successor's lock
+                // (acquired after this run outlived its TTL).
                 $lockKey = 'schedule.lock.' . sha1($task->getName());
-                if (!$this->cache->add($lockKey, 1, $task->getLockTtl())) {
+                $lockToken = bin2hex(random_bytes(8));
+                if (!$this->cache->add($lockKey, $lockToken, $task->getLockTtl())) {
                     $summary['skipped']++;
                     $this->log('info', sprintf("Skipped '%s': overlap lock held by a previous run.", $task->getName()));
                     if ($onResult !== null) {
@@ -133,8 +157,11 @@ final class Scheduler
                     $onResult($task, 'failed', $e, $durationMs);
                 }
             } finally {
-                // $lockKey is only ever set when a cache is present.
-                if ($lockKey !== null && $this->cache !== null) {
+                // $lockKey is only ever set when a cache is present. Release
+                // is owner-scoped: only delete the lock while it still holds
+                // THIS run's token — if the run outlived its TTL and another
+                // run re-acquired the key, that successor's lock must survive.
+                if ($lockKey !== null && $this->cache !== null && $this->cache->get($lockKey) === $lockToken) {
                     $this->cache->forget($lockKey);
                 }
             }
@@ -146,7 +173,7 @@ final class Scheduler
     /**
      * Best-effort logging — a broken log channel must never break a run.
      *
-     * @param 'info'|'error' $level
+     * @param 'info'|'notice'|'error' $level
      */
     private function log(string $level, string $message): void
     {

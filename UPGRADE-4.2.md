@@ -87,6 +87,10 @@ inspects your `App\Schedule::boot()` signature at hit time:
 
 - **Legacy zero-parameter `boot()` — nothing changes.** The class keeps the
   exact controller-string dispatch it always had (`boot()` IS the cron job).
+  One introspection nuance: because the route now targets the framework
+  controller, the request attributes report `_controller_name`
+  `'WebCronController'` / `_method_name` `'run'` (previously
+  `'Schedule'`/`'boot'`) — hosts reading those attributes should adjust.
 - **New signature `boot(\Ions\Schedule\Scheduler $schedule)` — opt-in.** The
   route runs the due tasks of the new fluent scheduler (the same tasks
   `schedule:run` executes) and answers with a JSON summary

@@ -201,6 +201,54 @@ test('the overlap lock is held during the run and released afterwards — even o
         ->and($summary)->toBe(['ran' => 1, 'failed' => 1, 'skipped' => 0]);
 });
 
+test('lock release is owner-scoped: a run that outlives its TTL never deletes a successor\'s lock', function () {
+    $cache = scheduleTestCache();
+    $scheduler = new Scheduler($cache);
+
+    // Simulate the expiry race: while A runs, its lock TTL expires and run B
+    // acquires the key with B's own token. A's finally (the release path)
+    // must leave B's lock untouched.
+    $task = $scheduler->call(static function () use ($cache, &$key): void {
+        $cache->forget($key);                       // A's lock TTL expired mid-run…
+        $cache->add($key, 'token-of-run-B', 3600);  // …and run B acquired the lock.
+    }, 'long-running')->everyMinute()->withoutOverlapping(1);
+    $key = 'schedule.lock.' . sha1($task->getName());
+
+    $summary = $scheduler->runDue(new DateTimeImmutable('2026-06-10 12:30:00'), unusedCommandRunner());
+
+    expect($summary['ran'])->toBe(1)
+        ->and($cache->get($key))->toBe('token-of-run-B');
+});
+
+test('an unnamed withoutOverlapping() closure logs a notice recommending ->name()', function () {
+    $logger = new Logger('test');
+    $handler = new TestHandler();
+    $logger->pushHandler($handler);
+
+    $scheduler = new Scheduler(scheduleTestCache(), $logger);
+
+    $scheduler->call(static fn (): bool => true)->everyMinute()->withoutOverlapping();
+    $scheduler->call(static fn (): bool => true, 'named')->everyMinute()->withoutOverlapping();
+
+    $scheduler->runDue(new DateTimeImmutable('2026-06-10 12:30:00'), unusedCommandRunner());
+
+    expect($handler->hasNoticeThatContains("'closure-1'"))->toBeTrue()
+        ->and($handler->hasNoticeThatContains('named'))->toBeFalse();
+});
+
+test('an unnamed closure renamed via ->name() does not trigger the auto-name notice', function () {
+    $logger = new Logger('test');
+    $handler = new TestHandler();
+    $logger->pushHandler($handler);
+
+    $scheduler = new Scheduler(scheduleTestCache(), $logger);
+    $scheduler->call(static fn (): bool => true)->name('renamed')->everyMinute()->withoutOverlapping();
+
+    $scheduler->runDue(new DateTimeImmutable('2026-06-10 12:30:00'), unusedCommandRunner());
+
+    expect($handler->hasNoticeRecords())->toBeFalse();
+});
+
 test('without a cache the overlap guard degrades to running the task', function () {
     $scheduler = new Scheduler();
     $runs = 0;

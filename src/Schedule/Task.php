@@ -31,6 +31,14 @@ final class Task
     private int $lockTtl = 3600;
 
     /**
+     * True while the task carries a positional auto-generated name
+     * ('closure-N'); cleared by an explicit {@see name()} call. The Scheduler
+     * uses it to warn when such a task takes an overlap lock — positional
+     * names shift between deploys, shifting the lock identity with them.
+     */
+    private bool $autoNamed = false;
+
+    /**
      * @param 'command'|'callable'  $type
      * @param array<int|string, mixed> $arguments Console arguments/options for command tasks.
      */
@@ -141,6 +149,18 @@ final class Task
     public function name(string $name): self
     {
         $this->name = $name;
+        $this->autoNamed = false;
+
+        return $this;
+    }
+
+    /**
+     * Flag the task as carrying an auto-generated positional name (set by
+     * {@see Scheduler::call()} when no explicit name is given).
+     */
+    public function markAutoNamed(): self
+    {
+        $this->autoNamed = true;
 
         return $this;
     }
@@ -192,6 +212,11 @@ final class Task
     public function shouldRunWithoutOverlapping(): bool
     {
         return $this->withoutOverlapping;
+    }
+
+    public function isAutoNamed(): bool
+    {
+        return $this->autoNamed;
     }
 
     public function getLockTtl(): int

@@ -206,6 +206,8 @@ the new hooks — add them per controller as needed.
   method that happens to be named `boot()`, `middleware()`, `beforeAction()`,
   or `afterAction()` will now be treated as a lifecycle hook — rename such
   methods if they were plain actions. Protected/private methods with those
-  names are not treated as hooks.
+  names are not treated as hooks. Exception: when a route's **action** method
+  is itself named `boot` (e.g. `Schedule::boot`), it is dispatched once as the
+  action and the `boot()` hook is skipped — it never fires twice.
 - Untyped first action parameters still receive the `Request` (positional
   legacy contract), unless their name matches a route placeholder.

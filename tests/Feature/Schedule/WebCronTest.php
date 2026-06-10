@@ -44,7 +44,7 @@ test('a legacy zero-parameter App\\Schedule::boot keeps its old controller-strin
     $response = Kernel::handle(Request::create('/cron/schedule'));
 
     expect($response->getStatusCode())->toBe(200)
-        ->and(LegacySchedule::$runs)->toBeGreaterThanOrEqual(1);
+        ->and(LegacySchedule::$runs)->toBe(1);
 });
 
 test('a missing schedule class yields a 404', function () {
