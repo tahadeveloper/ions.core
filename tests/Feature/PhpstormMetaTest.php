@@ -73,6 +73,7 @@ test('the meta map matches what the container actually resolves', function () {
         'http' => \Symfony\Contracts\HttpClient\HttpClientInterface::class,
         'queue' => \Illuminate\Queue\QueueManager::class,
         'request_stack' => \Symfony\Component\HttpFoundation\RequestStack::class,
+        'schedule' => \Ions\Schedule\Scheduler::class,
         'session' => \Ions\Session\SessionManager::class,
         'user_provider' => \Ions\Auth\Contracts\UserProvider::class,
         'view' => \Ions\View\ViewFactory::class,

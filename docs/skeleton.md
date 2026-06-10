@@ -42,6 +42,7 @@ skeleton/
 │   └── api.php            # '/api/ping' sample + commented JWT auth surface
 ├── app/                   # App\ (PSR-4)
 │   ├── Booting.php        # Optional Kernel::boot() hook
+│   ├── Schedule.php       # Scheduled tasks: boot(Scheduler) (docs/scheduler.md)
 │   ├── Http/Controllers/  # Web controllers (extend Ions\Foundation\BaseController)
 │   └── Commands/          # Auto-discovered console commands
 ├── views/home/index.twig  # Twig templates (app.twig.source; HomeController -> views/home/)

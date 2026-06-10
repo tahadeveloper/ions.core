@@ -11,6 +11,7 @@ parameters:
         - src/Auth/Http
         - src/Filesystem
         - src/Providers
+        - src/Schedule
         - src/Session
         - src/View
         - src/Console

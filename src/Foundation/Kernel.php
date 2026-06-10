@@ -334,6 +334,7 @@ class Kernel extends Singleton
             \Ions\Providers\NotificationProvider::class,
             \Ions\Providers\HttpClientProvider::class,
             \Ions\Providers\SecurityProvider::class,
+            \Ions\Providers\ScheduleProvider::class,
             \Ions\Providers\ViewProvider::class,
         ];
     }
@@ -990,8 +991,14 @@ class Kernel extends Singleton
             }
         }
 
-        // route for schedule cron job
-        $routes->add(Str::random(10) . '_schedule', new Route('/cron/schedule', ['_controller' => 'App\Schedule::boot']));
+        // route for schedule cron job — the framework controller decides at
+        // hit time between the new-style scheduler (boot(Scheduler)) and the
+        // legacy 'App\Schedule::boot' dispatch (zero-parameter boot). A string
+        // controller (not a Closure) keeps the route compatible with route:cache.
+        $routes->add(Str::random(10) . '_schedule', new Route(
+            '/cron/schedule',
+            ['_controller' => \Ions\Schedule\Http\WebCronController::class . '::run']
+        ));
 
         return $routes;
     }
@@ -1059,8 +1066,10 @@ class Kernel extends Singleton
         static::$request->attributes->add($matcherParams);
 
         $needles = array_merge(['super', 'api', 'Api'], static::config()->get('app.needles', []));
-        // add namespace to controller if didn't have
-        if ($namespace && $controller !== 'App\Schedule' && !Str::contains($controller, $namespace)) {
+        // add namespace to controller if didn't have — framework-shipped
+        // controllers (Ions\…, e.g. the web-cron controller) and the legacy
+        // 'App\Schedule' special case are absolute and never prefixed.
+        if ($namespace && $controller !== 'App\Schedule' && !str_starts_with($controller, 'Ions\\') && !Str::contains($controller, $namespace)) {
             // check if super or api
             if (Str::contains($controller, $needles, true) || Str::contains($namespace, 'Api')) {
                 $controller = $namespace . $controller;

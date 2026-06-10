@@ -20,7 +20,8 @@ use Symfony\Component\HttpFoundation\Response;
  *
  *   __construct (container-built: constructor DI)
  *   → _initState → _loadInit → _loadedState            (legacy, unchanged)
- *   → boot()                                           (method-injected, no route params)
+ *   → boot()                                           (method-injected, no route params;
+ *                                                       skipped when the action itself is named boot)
  *   → [controller middleware() — sub-pipeline]
  *       → beforeAction($request): ?Response            (non-null short-circuits)
  *       → action (method-injected: Request, route placeholders, services)
@@ -70,8 +71,11 @@ final class ControllerDispatcher
 
         // boot(): the "easy boot" hook — method-injected (Request + container
         // services; deliberately NO route params, those belong to the action).
+        // When the dispatched ACTION is itself named 'boot' the action wins and
+        // the hook is skipped — otherwise the method would fire twice per hit
+        // (this preserves the legacy App\Schedule::boot web-cron contract).
         // (method_exists is repeated inline for phpstan's type narrowing.)
-        if (method_exists($instance, 'boot') && $this->hasPublicHook($instance, 'boot')) {
+        if (strcasecmp($this->method, 'boot') !== 0 && method_exists($instance, 'boot') && $this->hasPublicHook($instance, 'boot')) {
             $instance->boot(...$this->resolver->resolve(new ReflectionMethod($instance, 'boot'), $request, []));
         }
 

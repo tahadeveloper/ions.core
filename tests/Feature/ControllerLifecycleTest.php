@@ -5,6 +5,7 @@ declare(strict_types=1);
 use IonsFixture\Http\Controllers\Lifecycle\AfterActionController;
 use IonsFixture\Http\Controllers\Lifecycle\BadMiddlewareController;
 use IonsFixture\Http\Controllers\Lifecycle\BareInstanceMiddlewareController;
+use IonsFixture\Http\Controllers\Lifecycle\BootActionController;
 use IonsFixture\Http\Controllers\Lifecycle\ConstructorController;
 use IonsFixture\Http\Controllers\Lifecycle\HookOrderController;
 use IonsFixture\Http\Controllers\Lifecycle\InjectionController;
@@ -44,6 +45,7 @@ beforeEach(function () {
     Route::get('/lifecycle/bad-mw', BadMiddlewareController::class . '::show');
     Route::get('/lifecycle/bare-mw', BareInstanceMiddlewareController::class . '::show');
     Route::get('/lifecycle/protected-hooks', ProtectedHooksController::class . '::show');
+    Route::get('/lifecycle/boot-action', BootActionController::class . '::boot');
     Route::get('/lifecycle/inject/{id}/{slug}', InjectionController::class . '::show');
     Route::get('/lifecycle/inject-default/{id}', InjectionController::class . '::show');
 
@@ -183,6 +185,14 @@ test('a protected boot() helper is not treated as a hook: dispatch succeeds, hoo
         // Recorded once — by the action calling its own helper, never by the
         // dispatcher invoking it as the boot() lifecycle hook.
         ->and(Recorder::$events)->toBe(['protected-boot-helper']);
+});
+
+test('an action literally named boot() runs exactly once — as the action, not also as the hook', function () {
+    $response = Kernel::handle(Request::create('/lifecycle/boot-action'));
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and($response->getContent())->toBe('boot-action')
+        ->and(Recorder::$events)->toBe(['boot-action']);
 });
 
 // ---------------------------------------------------------------------------
