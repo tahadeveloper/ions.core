@@ -147,6 +147,102 @@ class Kernel extends Singleton
     }
 
     /**
+     * Whether boot() has completed far enough that the container exists.
+     */
+    public static function isBooted(): bool
+    {
+        return isset(static::$app);
+    }
+
+    /**
+     * Reset PER-REQUEST state so the same booted process can safely handle the
+     * next request (worker mode: FrankenPHP/RoadRunner/Swoole, or sequential
+     * Kernel::handle() calls in one process).
+     *
+     * Cleared (per-request):
+     *   - the shared Request / Response / legacy Session statics (rebuilt fresh),
+     *   - the framework session: SessionManager::renew() swaps in a brand-new
+     *     inner Symfony session, and the request on the shared 'request_stack'
+     *     is re-pointed at it — the CSRF manager reads through that stack, so
+     *     its token storage follows automatically,
+     *   - the per-request Twig globals (_csrf_token, _trans, appUrl) on the
+     *     shared 'view.env' Environment (only when already built),
+     *   - the Eloquent query log, when config('database.query_log') is enabled
+     *     (otherwise it would accumulate unbounded across worker requests).
+     *
+     * Kept (boot state):
+     *   - the Config object and the container with ALL its singletons
+     *     (cache/db/jwt/session manager binding/view.env/…),
+     *   - the 8.1 per-group route memo and compiled route caches,
+     *   - the Twig Environment object itself (globals refreshed, not rebuilt).
+     */
+    public static function resetForRequest(): void
+    {
+        // Fresh shared HTTP objects (legacy consumers: Kernel::request()/
+        // response()/session(), BaseController, closure-fallback responses).
+        static::$session = null;
+        static::$request = null;
+        static::$response = null;
+        self::structureBone();
+
+        if (!self::isBooted()) {
+            return;
+        }
+
+        // Fresh framework session; keep the SessionManager binding itself.
+        if (static::$app->bound('session')) {
+            /** @var \Ions\Session\SessionManager $manager */
+            $manager = static::$app->get('session');
+            $manager->renew();
+
+            // Re-point the shared RequestStack at the new session so the CSRF
+            // token storage (SessionTokenStorage reads through this stack) and
+            // any other stack consumer see the fresh session.
+            if (static::$app->bound('request_stack')) {
+                /** @var \Symfony\Component\HttpFoundation\RequestStack $stack */
+                $stack = static::$app->get('request_stack');
+                $current = $stack->getCurrentRequest();
+                if ($current !== null) {
+                    $current->setSession($manager->getSession());
+                } else {
+                    $request = new Request();
+                    $request->setSession($manager->getSession());
+                    $stack->push($request);
+                }
+            }
+        }
+
+        // Refresh the per-request Twig globals on the shared Environment —
+        // only when it has already been built; an unresolved 'view.env' will
+        // pick up fresh values at build time anyway.
+        if (static::$app->bound('view.env') && static::$app->resolved('view.env')) {
+            try {
+                /** @var \Twig\Environment $env */
+                $env = static::$app->get('view.env');
+                /** @var \Ions\View\ViewFactory $factory */
+                $factory = static::$app->get('view');
+                $factory->refreshRequestGlobals($env);
+            } catch (Throwable $e) {
+                // Never let a view refresh failure break request handling.
+                try {
+                    \Ions\Bundles\Logs::create('view.log')->warning('refreshRequestGlobals failed during resetForRequest: ' . $e->getMessage());
+                } catch (Throwable) {
+                    // ignore logging failures
+                }
+            }
+        }
+
+        // Bounded query log: flush so an enabled log never grows across requests.
+        if (config('database.query_log', false) && static::$app->bound('db')) {
+            try {
+                static::$app->get('db')->getConnection()->flushQueryLog();
+            } catch (Throwable) {
+                // No live connection — nothing to flush.
+            }
+        }
+    }
+
+    /**
      * @return Request
      */
     private static function capture(): Request
@@ -414,6 +510,12 @@ class Kernel extends Singleton
      */
     public static function handle(Request $request, string $namespace = ''): SymfonyResponse
     {
+        // Keep the shared request static in sync with the request actually
+        // being handled: legacy consumers (Kernel::request(), ApiController,
+        // csrfCheck(), IonUpload, …) must see the CURRENT request — essential
+        // in worker mode where the boot-time capture is stale.
+        static::$request = $request;
+
         // Determine group from first path segment.
         $targetFolder = $request->segment(1) === 'api' ? 'api' : 'web';
         if ($targetFolder === 'api') {
