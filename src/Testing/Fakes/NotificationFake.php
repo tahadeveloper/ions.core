@@ -140,7 +140,20 @@ final class NotificationFake implements Dispatcher
         }
 
         if (method_exists($expected, 'getKey') && method_exists($actual, 'getKey')) {
-            return $expected->getKey() === $actual->getKey();
+            $expectedKey = $expected->getKey();
+            $actualKey = $actual->getKey();
+
+            // String-cast scalars so 7 matches '7' (manually-built vs
+            // driver-hydrated models); two unsaved models (null keys) never match.
+            if ($expectedKey === null || $actualKey === null) {
+                return false;
+            }
+
+            if (is_scalar($expectedKey) && is_scalar($actualKey)) {
+                return (string) $expectedKey === (string) $actualKey;
+            }
+
+            return $expectedKey === $actualKey;
         }
 
         if (isset($expected->id, $actual->id)) {

@@ -99,7 +99,9 @@ abstract class Mailable
     /**
      * Configure the message using the protected fluent helpers. Runs at send
      * time (in the worker, for queued mailables) — never at construct or
-     * dispatch time.
+     * dispatch time. May be invoked more than once per send (e.g. the mail
+     * notification channel checks recipients before sending), so keep it pure
+     * configuration — no side effects.
      */
     abstract public function build(): void;
 
