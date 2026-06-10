@@ -1,5 +1,7 @@
 <?php
 
+// Drift guard: skeleton/config/ mirrors this config set with production values —
+// add new framework config keys in BOTH places.
 return [
     'name' => 'IonsFixture',
     'app_url' => 'http://localhost',

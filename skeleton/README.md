@@ -17,6 +17,16 @@ php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
 php -S localhost:8000 -t public
 ```
 
+> **Pre-release note:** `composer.json` requires `ionzile/core:^4.1`, which is
+> not yet tagged on Packagist (only 4.0.0 is). Until 4.1.0 is released,
+> `composer install` will fail to resolve it — install from the VCS repository
+> instead:
+>
+> ```bash
+> composer config repositories.ions vcs https://github.com/tahadeveloper/ions.core
+> composer require "ionzile/core:dev-main"
+> ```
+
 Open <http://localhost:8000> — you should see the welcome page. `curl localhost:8000/api/ping` returns JSON.
 
 > Local HTTP dev: session cookies are `Secure` by default (4.1). If you need

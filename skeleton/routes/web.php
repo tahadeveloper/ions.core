@@ -4,4 +4,4 @@ declare(strict_types=1);
 
 use Ions\Bundles\Route;
 
-Route::get('/', 'App\Http\Controllers\HomeController::index');
+Route::get('/', \App\Http\Controllers\HomeController::class . '::index');

@@ -80,7 +80,7 @@ beforeEach(function () {
 
     // Make boot failures loud: without APP_DEBUG, Kernel::failBoot() die()s,
     // which Pest's output buffering would swallow as a silent exit-0.
-    $_ENV['APP_DEBUG'] = true;
+    $_ENV['APP_DEBUG'] = 'true';
 
     bootFixtureKernel(skeletonPath());
 });

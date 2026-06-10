@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Ions\Bundles\Path;
 
+// Drift guard: tests/fixtures/app/config/ (in ions.core) mirrors this config set —
+// add new framework config keys in BOTH places.
 return [
     'name' => env('APP_NAME', 'Ions'),
     'app_url' => env('APP_URL', 'http://localhost:8000'),
