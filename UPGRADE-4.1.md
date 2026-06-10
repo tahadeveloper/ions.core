@@ -1,4 +1,12 @@
-# Upgrading to 4.1 (draft — release notes assembled in Phase 8.7)
+# Upgrading to 4.1
+
+> **New in 4.1:** this file covers only the behavior changes and the actions
+> they require. For the full list of what 4.1 *adds* — production caches and
+> `ions optimize`, experimental worker mode, the host-app skeleton and testing
+> kit, generators, the HTTP client, encryption + signed URLs, mailables,
+> notifications, model factories, provider auto-discovery, `ions doctor`, the
+> N+1 detector and typed config accessors — see the
+> [4.1.0 section of the CHANGELOG](CHANGELOG.md).
 
 ## Security default flips (read these first)
 
@@ -8,11 +16,11 @@ Before 4.1, omitting the `cookie_*` keys from `config/session.php` left the
 native session cookie with raw PHP defaults (no `Secure`, no `SameSite`,
 httponly per php.ini). In 4.1 the native driver defaults to:
 
-| Option | 4.1 default |
-|---|---|
-| `cookie_httponly` | `true` |
-| `cookie_samesite` | `'lax'` |
-| `cookie_secure` | `true` |
+| Option            | 4.1 default |
+|-------------------|-------------|
+| `cookie_httponly` | `true`      |
+| `cookie_samesite` | `'lax'`     |
+| `cookie_secure`   | `true`      |
 
 Every default can still be overridden by setting the key explicitly in
 `config/session.php`. `cookie_secure` also accepts `'auto'`: the flag follows
@@ -98,11 +106,36 @@ shape as the route-level `throttle` middleware, and still enumeration-safe.
 
 Loggers built by `Logs::create()` now run `Ions\Bundles\RedactionProcessor`:
 context keys matching *password / passwd / token / secret / authorization /
-api_key* (case-insensitive, recursive through nested arrays) are masked to
+api_key / api-key / apikey* (case-insensitive, recursive through nested arrays) are masked to
 `[REDACTED]` before reaching the log file. If you intentionally log such
 values, build a bare Monolog `Logger` yourself.
 
 ## Behavior changes
+
+### Provider auto-discovery is on by default
+
+A 4.0 host **without** an `app.providers` key gets new behavior on upgrade:
+boot now auto-registers the framework defaults **plus** every concrete
+`ServiceProvider` found in the host `{src|app}/Providers/` directory **plus**
+providers declared by installed composer packages under
+`extra.ions.providers`. Host providers register last, so they can override
+package/framework bindings.
+
+**Double-registration hazard:** if your app already registers the classes in
+`src/Providers/` manually — typically from `App\Booting::boot()` — they will
+now be registered (and booted) a **second time** by discovery. Remove the
+manual registration, or use one of the escape hatches:
+
+- `app.providers => [/* explicit list */]` — full explicit control; discovery
+  is bypassed entirely (the 4.0 behavior). Note that an **empty array counts
+  as an explicit list of zero providers** — don't use `[]` to mean "default".
+- `app.discovery => false` — framework default providers only, no scans.
+- `app.dont_discover => ['vendor/package']` — keep discovery but skip
+  specific composer packages (exact name match).
+
+See [docs/packages.md](docs/packages.md) for the discovery rules and
+[docs/performance.md](docs/performance.md) for the production cache
+(`discover:cache`) that eliminates the scans.
 
 ### Unresolvable per-route middleware now fails the request
 
@@ -149,21 +182,34 @@ must re-boot the kernel to have the change picked up.
 
 ### Richer debug error page (debug mode only)
 
-With `APP_DEBUG=true`, HTML errors now render a full debug page (`Ions\Http\DebugPage`: source excerpt, stack trace, `getPrevious()` chain, redacted request summary) instead of the bare `<h1>/<pre>` block. Production output (`APP_DEBUG` off) is byte-for-byte unchanged, and JSON/api error responses are unaffected. See `docs/lifecycle.md` → "Error rendering".
+With `APP_DEBUG=true`, HTML errors now render a full debug page (`Ions\Http\DebugPage`: source excerpt, stack trace,
+`getPrevious()` chain, redacted request summary) instead of the bare `<h1>/<pre>` block. Production output (`APP_DEBUG`
+off) is byte-for-byte unchanged, and JSON/api error responses are unaffected. See `docs/lifecycle.md` → "Error
+rendering".
 
 ## New (optional) production caches
 
 ```bash
-ions optimize           # route:cache + config:cache
-ions optimize:clear     # clears both + the compiled Twig cache
+ions optimize           # route:cache + config:cache + discover:cache
+ions optimize:clear     # clears all three + the compiled Twig cache
 ions route:cache        # compiled route matching (CompiledUrlMatcher)
 ions config:cache       # one merged config file
+ions discover:cache     # frozen provider-discovery list (var/cache/providers.php)
+ions discover:clear     # remove the provider cache (boot discovers live again)
 ions preload:generate   # opcache.preload file for the framework hot path
 ```
 
 All caches are ignored while `APP_DEBUG` is truthy. Closure-based routes or
 config values cannot be cached — the commands fail with the offending
-route/key named. See [docs/performance.md](docs/performance.md).
+route/key named. The caches never invalidate themselves: re-run
+`ions optimize` on every deploy. See
+[docs/performance.md](docs/performance.md).
+
+After upgrading, run **`ions doctor`** as the sanity step: it checks the
+environment, `var/` writability, the production caches, DB connectivity, PHP
+extensions and the security posture introduced above (session cookie
+overrides, CORS, CSRF, trusted hosts, debug mode), and exits non-zero only on
+critical failures (`--json` for CI).
 
 ## Worker mode (EXPERIMENTAL)
 

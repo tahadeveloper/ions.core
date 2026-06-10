@@ -100,8 +100,12 @@ final class Discovery extends Singleton
     /**
      * The provider list cached by `discover:cache` (var/cache/providers.php),
      * or null when the cache must not be used: APP_DEBUG is truthy (debug
-     * always discovers live, mirroring the route/config caches) or the file
-     * does not exist / does not return an array.
+     * always discovers live, mirroring the route/config caches), the file
+     * does not exist / does not return an array, or filtering leaves zero
+     * usable providers (an empty list must fall back to live discovery —
+     * a legitimate cache always contains at least the framework defaults,
+     * so "empty" only happens when the file was truncated or every entry
+     * went stale).
      *
      * Stale entries — cached FQCNs whose class no longer exists or is no
      * longer a concrete ServiceProvider (provider file deleted, package
@@ -158,7 +162,11 @@ final class Discovery extends Singleton
             ));
         }
 
-        return array_values(array_unique($providers));
+        $providers = array_values(array_unique($providers));
+
+        // Never boot the app with zero providers off a degenerate cache —
+        // fall back to live discovery instead.
+        return $providers === [] ? null : $providers;
     }
 
     /**

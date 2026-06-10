@@ -500,13 +500,20 @@ final class Doctor extends Singleton
     /** @return array{id: string, label: string, status: string, message: string} */
     private static function checkDiscovery(): array
     {
+        // Mirrors Kernel::bootProviders() exactly: ANY array set at
+        // app.providers (including []) is explicit mode, and any falsy
+        // app.discovery value disables discovery.
         $explicit = config('app.providers');
-        if (is_array($explicit) && $explicit !== []) {
+        if (is_array($explicit)) {
+            if ($explicit === []) {
+                return self::result('discovery', 'Provider discovery', self::WARN, "config('app.providers') is an empty array — explicit mode with ZERO providers registered (no framework bindings at all). List the providers, or remove the key to enable discovery.");
+            }
+
             return self::result('discovery', 'Provider discovery', self::INFO, "Explicit config('app.providers') list — discovery is bypassed (zero scans).");
         }
 
-        if (config('app.discovery', true) === false) {
-            return self::result('discovery', 'Provider discovery', self::INFO, "Discovery disabled (config('app.discovery') = false) — framework default providers only.");
+        if (!config('app.discovery', true)) {
+            return self::result('discovery', 'Provider discovery', self::INFO, "Discovery disabled (config('app.discovery') is falsy) — framework default providers only.");
         }
 
         if (is_file(Path::cache('providers.php'))) {
