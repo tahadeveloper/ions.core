@@ -2,6 +2,7 @@ parameters:
     level: 8
     paths:
         - src/Foundation/Discovery.php
+        - src/Foundation/Doctor.php
         - src/Security
         - src/Container
         - src/Http

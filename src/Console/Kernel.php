@@ -68,6 +68,7 @@ class Kernel
         \Ions\commands\OptimizeCommand::class,
         \Ions\commands\OptimizeClearCommand::class,
         \Ions\commands\PreloadGenerateCommand::class,
+        \Ions\commands\DoctorCommand::class,
     ];
 
     private function __construct(ConsoleApplication $application)

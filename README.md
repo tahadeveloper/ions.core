@@ -112,6 +112,7 @@ The framework resolves application paths relative to the host-app root (five dir
 - **Multi-driver filesystem** — `Ions\Filesystem\Storage` / `FilesystemManager`; `local`, `s3`, `ftp`, `sftp`, `memory` + custom drivers
 - **Session** — `Ions\Session\SessionManager`; `session()` helper; CSRF stored in the session
 - **Console** — `bin/ions` runner + `Ions\Console\Kernel`; command discovery; `make:command`, `queue:work`, `schedule:run`
+- **Host-app diagnostics** — `ions doctor` (env, APP_KEY, writable `var/`, caches, DB, extensions, security posture); `--json` for CI; exits non-zero on critical misconfig
 - **Cache / Queue / Events** — `cache()` / `dispatch()` / `event()`+`listen()` helpers; Illuminate-backed providers
 - **API resources** — `Ions\Http\Resource` / `ResourceCollection` (single `data` envelope, pagination meta/links); `FormRequest`; `openapi:generate`
 - **Image processing** — `Ions\Media\Image` over `intervention/image` v3 (resize / crop / cover / watermark / encode)
@@ -146,7 +147,7 @@ The framework resolves application paths relative to the host-app root (five dir
 | [docs/cache-queue-events.md](docs/cache-queue-events.md) | `cache()` / `dispatch()` / `event()`+`listen()`, jobs, `queue:work` |
 | [docs/mail.md](docs/mail.md) | `Mailable` classes (build/send/queue, Twig views), `Mail` facade, `Mail::fake()` FQCN assertions, `newMailerDsn()` |
 | [docs/notifications.md](docs/notifications.md) | `Notification` classes (`via()`/`toMail()`/`toDatabase()`), mail recipient routing, notifications table stub, custom channels, `notify()`, `Notifications::fake()` |
-| [docs/console.md](docs/console.md) | Console Kernel, `bin/ions`, command discovery, `make:command` |
+| [docs/console.md](docs/console.md) | Console Kernel, `bin/ions`, command discovery, `make:command`, `doctor` diagnostics |
 | [docs/resources.md](docs/resources.md) | API resources, collections, form requests, `openapi:generate` |
 | [docs/media.md](docs/media.md) | Image processing over `intervention/image` v3 |
 | [docs/http-client.md](docs/http-client.md) | Outbound HTTP: `Http` facade over `symfony/http-client`, response wrapper, `Http::fake()` |
