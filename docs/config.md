@@ -6,14 +6,55 @@ This is the canonical reference for all framework config keys. Keys live in PHP 
 
 ---
 
+## Typed accessors
+
+The `config()` helper returns the `Ions\Foundation\Config` instance when called with no arguments. Alongside the untyped `get()`/`config('key', $default)` overloads, `Config` exposes **assertion-style typed getters** (mirroring Laravel 11's `Config::string()` family):
+
+```php
+config()->string('app.name');            // string — or throws
+config()->integer('app.ratelimit.max');  // int    — int() alias also available
+config()->boolean('app.csrf.enabled');   // bool   — bool() alias also available
+config()->array('app.providers');        // array
+config()->float('app.jwt.leeway');       // float
+```
+
+Each accessor fetches the value via `get($key, $default)` and **throws `InvalidArgumentException`** when the resolved value is not of the expected type:
+
+```php
+// config/app.php: 'workers' => '4'   (oops — a string)
+config()->integer('app.workers');
+// InvalidArgumentException: Configuration value for key [app.workers]
+// must be an integer, string given.
+```
+
+Rules:
+
+- **No coercion.** `'1'` is not an int, `0`/`1` are not bools, and an int is not a float. A wrongly-typed `.env`-sourced value fails loudly at the read site instead of silently mis-behaving downstream — this kills a whole class of config bugs. (Tip: for `float()` keys write `30.0` in the config file, or use `integer()` if the key is conceptually an int.)
+- **Missing key + typed default** → the default is returned: `config()->string('app.name', 'Ions')`.
+- **Missing key without a default** resolves to `null`, which is a type mismatch → throws. This is deliberate: either pass an explicit default or guarantee the key exists.
+- A stored `null` value likewise throws.
+
+---
+
 ## `app.providers`
 
-**Type:** `array` of FQCN strings implementing `Ions\Container\ServiceProvider`
+**Type:** `array` of FQCN strings extending `Ions\Container\ServiceProvider`
 
-**Default (when absent):** `Kernel::defaultProviders()`:
-`ConfigProvider`, `FilesystemProvider`, `DatabaseProvider`, `AuthProvider`, `MailProvider`, `ViewProvider`
+**Default (when absent):** **auto-discovery** via `Ions\Foundation\Discovery::providers()`, which merges, in order:
 
-Setting this key **replaces** the default list entirely. Include any framework providers you still need.
+1. **Framework defaults** — `Kernel::defaultProviders()` (the 13 built-in `Ions\Providers\*` providers: Config, Filesystem, Session, Database, Cache, Event, Queue, Auth, Mail, Notification, HttpClient, Security, View).
+2. **Package providers** — every installed composer package declaring `extra.ions.providers` in its composer.json (see [packages.md](packages.md)). Read once per process from `vendor/composer/installed.json` and memoized.
+3. **Host providers** — every concrete `ServiceProvider` subclass in the host's `{src|app}/Providers/` directory (single `glob()` per boot; the `src/` → `app/` fallback applies).
+
+The merged list is de-duplicated (first occurrence wins). Host providers run **last**, so they can override bindings registered by framework or package providers. Abstract classes and non-provider classes in the scanned locations are skipped.
+
+This means a host app normally needs **no `providers` key at all** — drop a provider into `src/Providers/` (or install a package that declares `extra.ions.providers`) and it is registered and booted automatically.
+
+In production, run `ions discover:cache` (included in `ions optimize`) to freeze the discovered list into `var/cache/providers.php`; boot then loads it with one `require` and skips all scans. Debug bypasses the cache; re-run it after composer changes or provider edits — see [performance.md](performance.md).
+
+> **Security note:** `composer require` means code running at boot — a package's `extra.ions.providers` providers register and boot on every request with full framework access. Review the `extra.ions.providers` of packages you install. Escape hatches: `app.dont_discover` (skip specific packages), `app.discovery => false` (no scans at all), or an explicit `app.providers` list (full control).
+
+**Setting this key replaces everything** — no discovery scan runs at all, and the list (including any framework providers you still need) is used verbatim. Full explicit control:
 
 ```php
 'providers' => [
@@ -23,6 +64,36 @@ Setting this key **replaces** the default list entirely. Include any framework p
     \App\Providers\AppServiceProvider::class,
 ],
 ```
+
+---
+
+## `app.discovery`
+
+**Type:** `bool`  **Default:** `true`
+
+Escape hatch for provider auto-discovery. When `false` (and `app.providers` is not set), the kernel registers **only** `Kernel::defaultProviders()` — neither the host `{src|app}/Providers/` scan nor the composer `extra.ions.providers` scan runs.
+
+Ignored when `app.providers` is set (an explicit list already bypasses discovery).
+
+```php
+'discovery' => false, // pure framework defaults, no scans
+```
+
+---
+
+## `app.dont_discover`
+
+**Type:** `array` of composer package names  **Default:** `[]`
+
+Opt out of provider auto-discovery for specific composer packages while keeping discovery on for everything else. Each entry is an **exact `vendor/package` name match** against the installed package's composer name — no prefixes or wildcards:
+
+```php
+'dont_discover' => [
+    'acme/ions-stripe', // its extra.ions.providers are ignored
+],
+```
+
+The package's `extra.ions.providers` are simply skipped; the host can still register the providers it wants explicitly. Ignored when `app.providers` is set or `app.discovery` is `false` (no package scan runs in either case). See the security note under [`app.providers`](#appproviders).
 
 ---
 
@@ -439,6 +510,23 @@ connection so `debugQuery()` returns the executed statements.
 > lifetime of the process (unbounded growth in workers/long requests), so it is
 > now strictly opt-in. Debuggers that relied on `APP_DEBUG` must set
 > `'query_log' => true` in `config/database.php`.
+
+### `database.nplusone.enabled`
+
+**Type:** `bool` — **Default:** `true`
+
+Escape hatch for the debug-only N+1 query detector. The detector only ever
+runs when `APP_DEBUG` is truthy **and** `database.query_log` is `true`;
+setting this to `false` prevents `DatabaseProvider::boot()` from attaching the
+`DetectNPlusOne` listener even then. Warnings go to
+`var/logs/performance.log`. See [performance.md](performance.md#n1-query-detector-debug-only).
+
+### `database.nplusone.threshold`
+
+**Type:** `int` — **Default:** `5`
+
+How many times one normalized SELECT pattern must repeat within a single
+request before the N+1 warning fires.
 
 ---
 

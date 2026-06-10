@@ -72,6 +72,7 @@ These ship with the framework and are always registered:
 | `schedule:run` | `ScheduleRunCommand` | Run the due scheduled tasks. |
 | `queue:work` | `QueueWorkCommand` | Process jobs from the queue. |
 | `openapi:generate` | `OpenApiCommand` | Export the routes as an OpenAPI 3.0 spec (see [resources.md](resources.md)). |
+| `doctor` | `Ions\commands\DoctorCommand` | Diagnose the host app (env, APP_KEY, writable `var/`, caches, DB, extensions, security posture) — see [Diagnostics](#diagnostics--doctor). |
 
 The framework commands live in `src/commands` and are autoloaded via the
 Composer `classmap` entry (most are in the global namespace). The console Kernel
@@ -162,6 +163,53 @@ The Kernel registers host commands two ways (both can be combined):
 
 Duplicate registrations (a class in both the config list and the directory) are
 de-duplicated.
+
+## Diagnostics — `doctor`
+
+`ions doctor` diagnoses the host application and exits non-zero on any
+critical misconfiguration — run it after setup, after deploys, and in CI. The
+check logic lives in `Ions\Foundation\Doctor` (the command is a thin renderer).
+
+```bash
+php vendor/ionzile/core/bin/ions doctor          # human-readable table + summary
+php vendor/ionzile/core/bin/ions doctor --json   # structured JSON for CI
+```
+
+### Checks
+
+| Check id | What it verifies | On problem |
+| -------- | ---------------- | ---------- |
+| `env_loaded` | A `.env` file exists at the host root. | WARN (real env vars are fine) |
+| `app_key` | `APP_KEY` is present and ≥ 32 bytes (the `Kernel::buildJwt()` minimum). | **FAIL** |
+| `app_url` | `config('app.app_url')` is set — `signedRoute()`/`url()` links and the `appUrl` view global break without it. | WARN |
+| `writable_var` / `writable_cache` / `writable_logs` / `writable_templates` | `var/`, `var/cache`, `var/logs`, `var/templates` exist and are writable. | **FAIL** (unwritable), WARN (missing but creatable) |
+| `route_cache` / `config_cache` / `providers_cache` | The production caches (`var/cache/routes/`, `config.php`, `providers.php`) are built. | INFO — run `ions optimize` |
+| `db` | When the `db` engine is configured, a trivial `select 1` succeeds. | **FAIL**; SKIP when no engine is configured |
+| `php_extensions` | Required extensions (`openssl`, `sodium`, `zip`, plus `pdo` when a DB is configured) are loaded. | **FAIL** |
+| `csrf` | `config('app.csrf.enabled')` is not disabled. | WARN |
+| `trusted_hosts` | `config('app.trusted_hosts')` is set. | WARN |
+| `session_cookies` | No *explicit* insecure overrides (`cookie_secure => false`, `cookie_httponly => false`) — secure defaults apply since 4.1. | WARN |
+| `cors` | `config('app.cors.origins')` is not the wildcard `['*']`. | WARN |
+| `debug` | `APP_DEBUG` is off. | WARN — doctor cannot know whether this host is production |
+| `discovery` | Which provider-discovery mode is active (explicit list / cached / live). | INFO |
+
+### Severities and exit code
+
+- **FAIL** — critical misconfig; `doctor` exits with a non-zero code.
+- **WARN** — risky but running (debug on, wildcard CORS, …); never fails the run.
+- **INFO** / **SKIP** — state worth knowing / not applicable.
+
+The summary line reads `12 ok, 3 warnings, 0 failures (3 info, 0 skipped)`.
+
+### CI usage
+
+```yaml
+# e.g. a GitHub Actions step — fails the job on any critical misconfig
+- run: php vendor/ionzile/core/bin/ions doctor --json > doctor.json
+```
+
+The JSON payload is `{"checks": [{id, label, status, message}, …],
+"summary": {ok, info, warn, fail, skip}, "ok": bool}`.
 
 ## Task scheduling
 

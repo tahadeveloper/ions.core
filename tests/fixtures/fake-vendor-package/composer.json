@@ -1,0 +1,17 @@
+{
+    "name": "acme/ions-fake-package",
+    "description": "Fake third-party Ions package fixture used by the discovery tests.",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Acme\\FakePackage\\": "src/"
+        }
+    },
+    "extra": {
+        "ions": {
+            "providers": [
+                "Acme\\FakePackage\\FakePackageProvider"
+            ]
+        }
+    }
+}

@@ -78,6 +78,7 @@ final class DatabaseProvider extends ServiceProvider
             // behavior change; see UPGRADE-4.1).
             if (config('database.query_log', false)) {
                 DB::connection()->enableQueryLog();
+                $this->attachNPlusOneDetector();
             }
         }
 
@@ -86,5 +87,38 @@ final class DatabaseProvider extends ServiceProvider
                 "The 'redbean' database engine was removed in v2; ignoring. Use the 'db' (Eloquent) engine."
             );
         }
+    }
+
+    /**
+     * Debug-only, zero-config N+1 detector: when the query log is on AND
+     * APP_DEBUG is truthy, listen for the kernel's RequestHandled event and
+     * scan the request's query log for repeated single-row SELECT patterns
+     * ({@see \Ions\Database\NPlusOneDetector}). Warnings go to
+     * var/logs/performance.log.
+     *
+     * Escape hatch: 'database.nplusone.enabled' => false. Threshold:
+     * 'database.nplusone.threshold' (default 5). Production (APP_DEBUG off or
+     * query_log off) attaches nothing — zero hot-path cost.
+     *
+     * Safe ordering: providers register() in one pass before any boot(), so
+     * EventProvider::register() has already bound 'events' by the time this
+     * boot() runs (and we guard anyway for hosts with a custom provider list).
+     * Idempotent via a container marker — boot() may run more than once
+     * against the same container (worker re-boots, tests).
+     */
+    private function attachNPlusOneDetector(): void
+    {
+        if (!env('APP_DEBUG', false)
+            || !config('database.nplusone.enabled', true)
+            || !$this->container->bound('events')
+            || $this->container->bound('db.nplusone.attached')
+        ) {
+            return;
+        }
+
+        /** @var Dispatcher $events */
+        $events = $this->container->get('events');
+        $events->listen(\Ions\Events\RequestHandled::class, \Ions\Database\Listeners\DetectNPlusOne::class);
+        $this->container->instance('db.nplusone.attached', true);
     }
 }

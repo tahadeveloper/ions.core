@@ -26,6 +26,9 @@ cp .env.example .env
 # set APP_KEY in .env (64-char hex):
 php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
 
+# sanity-check the setup (APP_KEY, writable var/, DB, security posture):
+php bin/ions doctor
+
 php -S localhost:8000 -t public
 ```
 
@@ -40,10 +43,10 @@ Open <http://localhost:8000> — you should see the welcome page. `curl localhos
 | Path | Purpose |
 |---|---|
 | `public/index.php` | Front controller (`Kernel::boot()` + `Kernel::run()`) |
-| `bin/ions` | Console (`php bin/ions list`, `make:*`, `migrate`, `queue:work`, `optimize`) |
+| `bin/ions` | Console (`php bin/ions list`, `make:*`, `migrate`, `queue:work`, `optimize`, `doctor`) |
 | `config/` | One PHP file per namespace: `app.php` → `config('app.*')`, … |
 | `routes/web.php`, `routes/api.php` | Route definitions (`Ions\Bundles\Route`) |
-| `src/` | Application code (`App\` PSR-4): controllers in `src/Http/Controllers`, API controllers in `src/Http/Api`, commands in `src/Commands` |
+| `src/` | Application code (`App\` PSR-4): controllers in `src/Http/Controllers`, API controllers in `src/Http/Api`, commands in `src/Commands`, service providers in `src/Providers` (auto-discovered — no `app.providers` entry needed; see `docs/config.md` in `ionzile/core`) |
 | `views/` | Twig templates |
 | `public/uploads`, `public/lang` | Uploads disk root, translation files |
 | `var/` | Writable: `cache/`, `logs/`, `templates/` (compiled Twig) |
