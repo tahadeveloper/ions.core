@@ -1,5 +1,8 @@
 # Phase 7 — Illuminate 12, PHP 8.3 & Feature Expansion (Master Plan → 4.0.0)
 
+> **STATUS: ✅ COMPLETE (2026-06-10).** All sub-phases 7.1–7.9 are done and shipped as **4.0.0**.
+> 7.1 Illuminate 12 / PHP 8.3 / Sentinel v9 base · 7.2 multi-driver filesystem · 7.3 session · 7.4 console/`bin/ions` · 7.5 cache/queue/events · 7.6 auth completeness · 7.7 API resources/OpenAPI · 7.8 class hardening (level-5 main / level-8 core, baseline 74→25, `intervention/image`) · 7.9 release docs (UPGRADE-4.0, CHANGELOG, README, /docs). Tagging `4.0.0` is handled separately.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development (recommended) or superpowers:executing-plans. This is a MASTER plan: each sub-phase is specified at the task/file level and **MUST be expanded into its own detailed plan** (`docs/superpowers/plans/YYYY-MM-DD-phase7.N-<name>.md`) immediately before executing it — earlier sub-phases' design decisions (PHP 8.3 base, the container/provider conventions) shape later ones. Keep `composer qa` green throughout; new code at `strict_types` + PHPStan **level 8**; backward-compatible where cheap; every change TDD + reviewed; document breaks in `UPGRADE-4.0.md`.
 
 **Goal:** Take the modernized framework (3.0.0, Illuminate 11 / PHP 8.2) onto **Illuminate 12 + PHP 8.3**, and expand it with first-class subsystems (filesystem drivers, session, console, cache/queue/events, auth completeness, API resources/OpenAPI) plus a class-hardening pass — shipping **4.0.0**.

@@ -4,17 +4,49 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-For migration instructions see [UPGRADE-3.0.md](UPGRADE-3.0.md).
+For migration instructions see [UPGRADE-4.0.md](UPGRADE-4.0.md) (3.x → 4.0) and
+[UPGRADE-3.0.md](UPGRADE-3.0.md) (2.1.x → 3.0).
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-06-10
+
+The headline breaking change is the **PHP 8.3 minimum** (was 8.2); everything else
+is additive. See [UPGRADE-4.0.md](UPGRADE-4.0.md).
+
 ### Added
 
+- **Multi-driver filesystem** — `Ions\Filesystem\FilesystemManager` resolves named disks from `config('filesystem.disks')` (drivers `local`, `s3`, `ftp`, `sftp`, `memory`, plus `extend()` for custom drivers); bound as `filesystem.manager`. `Ions\Filesystem\Storage` static facade (`put/get/exists/delete/url`, `disk()`). Config keys `filesystem.default` / `filesystem.disks.*`.
+- **Session** — `Ions\Session\SessionManager` over a Symfony `Session` (drivers `native` / `array` / `mock`); `Ions\Providers\SessionProvider` binds it as `session`; `session()` helper; `Ions\Http\Middleware\StartSessionMiddleware` auto-added to the web stack (before CSRF). Config `session.*`.
+- **Console** — `Ions\Console\Kernel` (boots the container + discovers/registers commands), the `bin/ions` entry point (declared under `bin` in `composer.json`), command discovery from `config('console.commands')` + the host `app/Commands` directory, `make:command` generator, and `schedule:run`.
+- **Cache** — `Ions\Providers\CacheProvider` binds the Illuminate `CacheManager` as `cache`; `cache()` helper (mirrors `config()`). Config `cache.*` (`default`, `prefix`, `persistent_store`, `stores`).
+- **Events** — `Ions\Providers\EventProvider` binds the dispatcher as `events`; `event()` / `listen()` helpers; `Ions\Events\RequestHandled` (carries `Request` + `Response`) fired at the end of every request, fire-and-continue. Config `events.listen`.
+- **Queue** — `Ions\Providers\QueueProvider` binds the `QueueManager` as `queue` (`sync` / `database` / `redis`); `Ions\Queue\Job` base class; `dispatch()` helper; `queue:work` command; `create_jobs_table` migration stub. Config `queue.*`.
+- **HTTP auth controller** — `Ions\Auth\Http\AuthController` with `login` / `refresh` / `logout` / `forgotPassword` / `resetPassword` actions; access tokens bound to the authenticated user id (per-user JWT). `Ions\Auth\Contracts\SupportsPasswordReset` (`createResetCode()` / `resetPassword()`), implemented by `SentinelUserProvider`. `app.auth.public_paths` (segment-anchored) lets endpoints bypass `AuthMiddleware`; `throttle` on login.
 - **`Ions\Http\Resource`** — abstract, `Responsable` API resource that shapes a single model/array/`stdClass` into a typed JSON payload; `make()`, `collection()`, configurable `data` wrapping (`withoutWrapping()`/`wrappedBy()`).
 - **`Ions\Http\ResourceCollection`** — maps a collection/array/`LengthAwarePaginator` through a Resource class; paginator-aware (`meta` + `links`).
 - **`Ions\Http\FormRequest`** — typed, self-validating request object with `rules()`, `authorize()` and `validated()`; `MyRequest::validate($request)` static helper.
-- **ValidationException → 422 mapping** in `Ions\Http\ExceptionHandler` — Illuminate `ValidationException` renders as HTTP 422 with `{message, errors}` for API requests; failed `authorize()` renders as 403.
 - **`openapi:generate` command** (`OpenApiCommand`) — exports the routes (php/yaml + attribute routes) as an OpenAPI 3.0 spec with path params and bearer-auth security flags. Writes `--output` (default `openapi.json`) or `--stdout`.
+- **`Ions\Media\Image`** — image processing (resize / scale / crop / cover / watermark / encode / save) over `intervention/image` v3, with `Ions\Media\ImageException`; restores the capability dropped with `verot/class.upload.php` in 3.0. `IonUpload` image hook. Config `media.driver` (`gd` | `imagick`).
+
+### Changed
+
+- **PHP minimum raised to 8.3** (was 8.2) — `composer.json` `require.php` `^8.3`, `config.platform.php` `8.3`. CI matrix runs PHP **8.3 and 8.4**. This floor bump is the reason 4.0.0 is a major.
+- **Illuminate 11 → 12** — all `illuminate/*` constraints `^11` → `^12` (resolved v12.62). Carbon resolves to 3.x; Symfony stays 7.x; Monolog stays 3.x. No source changes required in Ions.
+- **Cartalyst Sentinel v8 → v9** (`^8.0` → `^9.0`, resolved v9.0.0) — the Ions Sentinel adapter required no changes. Sentinel v9 itself requires PHP 8.3.
+- **`ValidationException → 422` mapping** in `Ions\Http\ExceptionHandler` — Illuminate `ValidationException` renders as HTTP 422 with `{message, errors}` for API requests; a failed `authorize()` renders as 403.
+- **CSRF unified onto the session store** — CSRF tokens are now stored in the bound `session` (via `SessionTokenStorage`), replacing the standalone `NativeSessionTokenStorage`; `csrfToken()` / `ionToken()` and `CsrfMiddleware` share one store.
+- **Hardening** — `strict_types=1` enforced across Support/Bundles/Foundation; `src/` is PHP-8.4-clean; main PHPStan gate at **level 5**; core packages (Security, Container, Http, Auth, Providers, View, Filesystem, Session, Console, Media, Support) clean at **level 8**; PHPStan baseline burned down **74 → 25**.
+
+### Removed
+
+- *(none — 4.0 is additive; the removals were in 3.0.0, see below)*
+
+### Security
+
+- **Per-user JWT binding** — access tokens issued by `AuthController` are bound to the authenticated user's identifier, so `AuthMiddleware` resolves the real user rather than an application-supplied id.
+- **`cache.persistent_store` documented as production-critical** — JWT revocations and rate-limit counters reuse the shared cache; the store must be a persistent driver (`file`/`redis`/`database`) in production, never `array` (which would silently disable revocation and throttling).
+- **Login throttling** — the `AuthController::login` example route is rate-limited via the `throttle` middleware to slow credential-stuffing.
 
 ## [3.0.0] - 2026-06-10
 
@@ -76,5 +108,6 @@ For migration instructions see [UPGRADE-3.0.md](UPGRADE-3.0.md).
 - **CSRF enforced by default** — `CsrfMiddleware` is in the default web stack; all state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`) require a valid `_ion_token` field or `X-CSRF-TOKEN` header (HTTP 419 otherwise).
 - **Query-filter allow-listing** — `QueryBuilder::allowFilters()` now enforces a strict allow-list; unrecognised filter columns throw `InvalidFilterQuery`; passing a non-array argument throws `TypeError` (fail-closed).
 
-[Unreleased]: https://github.com/tahadeveloper/ions.core/compare/3.0.0...HEAD
+[Unreleased]: https://github.com/tahadeveloper/ions.core/compare/4.0.0...HEAD
+[4.0.0]: https://github.com/tahadeveloper/ions.core/compare/3.0.0...4.0.0
 [3.0.0]: https://github.com/tahadeveloper/ions.core/releases/tag/3.0.0
