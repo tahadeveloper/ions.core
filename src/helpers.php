@@ -255,12 +255,19 @@ if (!function_exists('signedRoute')) {
     /**
      * Generate a signed absolute URL for a named route.
      *
-     * The route is resolved from Kernel::RouteCollection() via Symfony's
-     * UrlGenerator (context mirrors the current request, like the kernel's
-     * matcher). $params fill route placeholders; leftovers become query
-     * params. The absolute URL is built from config('app.app_url') — the same
-     * value the kernel's host gate enforces — so signed links always target
-     * the canonical host.
+     * The route is resolved via Symfony's UrlGenerator. $params fill route
+     * placeholders; leftovers become query params. The absolute URL is built
+     * from config('app.app_url') — the same value the kernel's host gate
+     * enforces — so signed links always target the canonical host.
+     *
+     * Name lookup precedence: a name declared in several collections resolves
+     * shared (Kernel::RouteCollection(), e.g. App\Booting/tests) → 'web'
+     * group → 'api' group; the first hit wins.
+     *
+     * URL generation deliberately uses a bare RequestContext (not one derived
+     * from the current request): app_url already contains any APP_FOLDER
+     * subfolder, and a request-derived context would contribute its baseUrl
+     * too, doubling the folder on subfolder deployments.
      *
      * @param string $name Route name (4th param of Route::get(), or attribute route name).
      * @param array<string, mixed> $params Placeholder + extra query parameters.
@@ -284,8 +291,9 @@ if (!function_exists('signedRoute')) {
             }
         }
 
+        // Bare context: the absolute base (host + any APP_FOLDER) comes from
+        // app_url below — request-derived baseUrl must not be prepended again.
         $context = new \Symfony\Component\Routing\RequestContext();
-        $context->fromRequest(Kernel::request());
 
         $generator = new \Symfony\Component\Routing\Generator\UrlGenerator($routes, $context);
         $path = $generator->generate($name, $params, \Symfony\Component\Routing\Generator\UrlGeneratorInterface::ABSOLUTE_PATH);

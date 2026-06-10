@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use Ions\Bundles\Route;
 use Ions\Foundation\Kernel;
 use Ions\Security\Encrypter;
 use Ions\Security\UrlSigner;
 use Ions\Support\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 beforeEach(fn () => bootFixtureKernel());
 
@@ -102,6 +104,112 @@ test('query param reordering does not break verification end-to-end', function (
     $response = Kernel::handle(Request::create($reordered));
 
     expect($response->getStatusCode())->toBe(200);
+});
+
+// ---------------------------------------------------------------------------
+// Fail-closed regressions: a signed route must NEVER serve an unsigned request,
+// even when the middleware itself cannot come up (broken key / missing alias).
+// ---------------------------------------------------------------------------
+
+test('a short APP_KEY fails closed in production: unsigned request to a signed route returns 500, never 200', function () {
+    $snapshot = [
+        'key_env' => $_ENV['APP_KEY'] ?? null,
+        'key_server' => $_SERVER['APP_KEY'] ?? null,
+        'key_getenv' => getenv('APP_KEY'),
+        'debug_getenv' => getenv('APP_DEBUG'),
+        'debug_env' => $_ENV['APP_DEBUG'] ?? null,
+    ];
+
+    putenv('APP_KEY=short');
+    $_ENV['APP_KEY'] = 'short';
+    $_SERVER['APP_KEY'] = 'short';
+    putenv('APP_DEBUG=false');
+    $_ENV['APP_DEBUG'] = 'false';
+
+    try {
+        $response = Kernel::handle(Request::create('/signed/welcome'));
+
+        expect($response->getStatusCode())->not->toBe(200)
+            ->and($response->getStatusCode())->toBe(500);
+    } finally {
+        $snapshot['key_getenv'] === false ? putenv('APP_KEY') : putenv('APP_KEY=' . $snapshot['key_getenv']);
+        if ($snapshot['key_env'] === null) {
+            unset($_ENV['APP_KEY']);
+        } else {
+            $_ENV['APP_KEY'] = $snapshot['key_env'];
+        }
+        if ($snapshot['key_server'] === null) {
+            unset($_SERVER['APP_KEY']);
+        } else {
+            $_SERVER['APP_KEY'] = $snapshot['key_server'];
+        }
+        $snapshot['debug_getenv'] === false ? putenv('APP_DEBUG') : putenv('APP_DEBUG=' . $snapshot['debug_getenv']);
+        if ($snapshot['debug_env'] === null) {
+            unset($_ENV['APP_DEBUG']);
+        } else {
+            $_ENV['APP_DEBUG'] = $snapshot['debug_env'];
+        }
+    }
+});
+
+test("a missing 'signed' alias fails closed in production: the route 500s instead of running unprotected", function () {
+    $aliasesSnapshot = config('app.middleware_aliases', []);
+    $debugSnapshot = ['getenv' => getenv('APP_DEBUG'), 'env' => $_ENV['APP_DEBUG'] ?? null];
+
+    // Host config override that forgot (or removed) the 'signed' alias while
+    // routes still declare ->middleware(['signed']).
+    $aliases = (array) $aliasesSnapshot;
+    unset($aliases['signed']);
+    config(['app.middleware_aliases' => $aliases]);
+
+    putenv('APP_DEBUG=false');
+    $_ENV['APP_DEBUG'] = 'false';
+
+    try {
+        $response = Kernel::handle(Request::create('/signed/welcome'));
+
+        expect($response->getStatusCode())->not->toBe(200)
+            ->and($response->getStatusCode())->toBe(500);
+    } finally {
+        config(['app.middleware_aliases' => $aliasesSnapshot]);
+        $debugSnapshot['getenv'] === false ? putenv('APP_DEBUG') : putenv('APP_DEBUG=' . $debugSnapshot['getenv']);
+        if ($debugSnapshot['env'] === null) {
+            unset($_ENV['APP_DEBUG']);
+        } else {
+            $_ENV['APP_DEBUG'] = $debugSnapshot['env'];
+        }
+    }
+});
+
+// ---------------------------------------------------------------------------
+// APP_FOLDER / subfolder deployments: app.app_url already contains the folder,
+// so signedRoute() must not let the request baseUrl double it.
+// ---------------------------------------------------------------------------
+
+test('signedRoute emits the app folder exactly once when deployed under a subfolder', function () {
+    config(['app.app_url' => 'http://localhost/myapp']);
+
+    Route::get('/gen-link', fn () => new Response(signedRoute('signed.welcome')));
+
+    // SCRIPT_NAME/SCRIPT_FILENAME make Symfony derive baseUrl '/myapp'
+    // (front controller at /myapp/index.php), like a real subfolder deploy.
+    $request = Request::create('http://localhost/myapp/gen-link', 'GET', [], [], [], [
+        'SCRIPT_NAME' => '/myapp/index.php',
+        'SCRIPT_FILENAME' => '/myapp/index.php',
+        'PHP_SELF' => '/myapp/index.php',
+    ]);
+    expect($request->getBaseUrl())->toBe('/myapp');
+
+    $response = Kernel::handle($request);
+    $url = (string) $response->getContent();
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and($url)->toStartWith('http://localhost/myapp/signed/welcome?')
+        ->and(substr_count($url, '/myapp/'))->toBe(1);
+
+    /** @var UrlSigner $signer */
+    $signer = Kernel::app()->get('url.signer');
+    expect($signer->verify($url))->toBeTrue();
 });
 
 test('resolving the security services without a valid APP_KEY throws a RuntimeException naming APP_KEY', function () {

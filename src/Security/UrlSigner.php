@@ -10,7 +10,11 @@ namespace Ions\Security;
  *
  * The signature covers the canonical form of the URL: path + '?' + the query
  * parameters sorted by key (excluding 'signature' itself), so verification is
- * independent of parameter order. Scheme and host are intentionally excluded —
+ * independent of parameter order. Order independence applies to TOP-LEVEL
+ * parameters only: canonicalization sorts the first level, so reordering keys
+ * inside a nested array parameter (a[x]=1&a[y]=2 vs a[y]=2&a[x]=1) changes the
+ * canonical string and the URL fails verification — fails closed, never open.
+ * Scheme and host are intentionally excluded —
  * the same link verifies behind proxies or when the request URI is relative —
  * host integrity is already enforced by the kernel's host gate / TrustedHost.
  *
@@ -63,6 +67,9 @@ final class UrlSigner
      *
      * Appends an 'expires' epoch parameter when $expiresAt is given, then a
      * 'signature' parameter. Any pre-existing 'signature' param is discarded.
+     * URL fragments (#...) are dropped from the result: fragments are never
+     * sent to servers, so they cannot be covered by — or verified against —
+     * the signature.
      */
     public function sign(string $url, \DateTimeInterface|int|null $expiresAt = null): string
     {

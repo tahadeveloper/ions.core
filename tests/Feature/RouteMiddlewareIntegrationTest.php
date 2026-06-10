@@ -26,7 +26,9 @@ test('route-level middleware runs in the pipeline for that route', function () {
 });
 
 // ---------------------------------------------------------------------------
-// Finding 3 — resolveMiddleware fail-open fix
+// resolveMiddleware policy — per-route middleware FAILS CLOSED in every mode.
+// An explicitly attached middleware (->middleware([...])) is usually a security
+// gate; dropping it would serve the route unprotected.
 // ---------------------------------------------------------------------------
 
 test('resolveMiddleware returns 500 with error detail in debug mode when middleware class does not exist', function () {
@@ -46,7 +48,7 @@ test('resolveMiddleware returns 500 with error detail in debug mode when middlew
     }
 });
 
-test('resolveMiddleware silently drops and logs in production mode when class does not exist', function () {
+test('unresolvable per-route middleware fails closed with 500 in production (never silently dropped)', function () {
     $originalDebug = getenv('APP_DEBUG');
     putenv('APP_DEBUG=false');
     $_ENV['APP_DEBUG'] = 'false';
@@ -54,9 +56,12 @@ test('resolveMiddleware silently drops and logs in production mode when class do
     try {
         // Register the route with an unresolvable middleware name.
         Route::get('/mw-prod-fail', fn () => new Response('ok'))->middleware(['NoSuchMiddlewareClass']);
-        // Must NOT throw — the route should be reachable (middleware is dropped).
+        // The route must NOT be reachable: serving it without its declared
+        // middleware would fail open. Expect a 500 with a generic body (no
+        // class-name leak in production).
         $response = Kernel::handle(Request::create('/mw-prod-fail'));
-        expect($response->getContent())->toBe('ok');
+        expect($response->getStatusCode())->toBe(500)
+            ->and($response->getContent())->not->toContain('NoSuchMiddlewareClass');
     } finally {
         if ($originalDebug === false) {
             putenv('APP_DEBUG');

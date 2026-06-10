@@ -92,7 +92,14 @@ test('a stripped or tampered expires param fails verification', function () {
     // Pushing the expiry forward must break the HMAC.
     $extended = preg_replace('/expires=\d+/', 'expires=' . (time() + 999999), $signed);
 
-    expect($signer->verify((string) $extended))->toBeFalse();
+    // Stripping the expiry entirely must also break the HMAC — 'expires' is
+    // part of the signed data, so removal cannot promote the link to eternal.
+    $stripped = preg_replace('/expires=\d+&/', '', $signed);
+
+    expect($extended)->not->toBe($signed)
+        ->and($signer->verify((string) $extended))->toBeFalse()
+        ->and($stripped)->not->toContain('expires=')
+        ->and($signer->verify((string) $stripped))->toBeFalse();
 });
 
 test('a signature from a different key fails verification', function () {

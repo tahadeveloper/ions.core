@@ -59,8 +59,11 @@ $url = signedRoute('unsubscribe', ['user' => $user->id], time() + 3600); // epoc
 - `signedUrl(string $url, $expiresAt = null)` signs an arbitrary URL string.
 - The signature is an HMAC-SHA256 over the path plus the **sorted** query
   params (excluding `signature` itself), so query-param reordering does not
-  break verification. Expiry rides in an `expires` epoch param that is part
-  of the signed data — stripping or extending it invalidates the signature.
+  break verification. Order independence applies to **top-level** params only:
+  reordering keys inside a nested array param changes the canonical string and
+  the URL fails verification (fails closed). Expiry rides in an `expires`
+  epoch param that is part of the signed data — stripping or extending it
+  invalidates the signature.
 
 ### The `signed` middleware
 
@@ -75,7 +78,13 @@ the standard exception handler. Register the alias in `config/app.php`:
 ```
 
 then attach `->middleware(['signed'])` per route (the skeleton ships the
-alias commented).
+alias active out of the box).
+
+The middleware fails **closed**: the signer is resolved lazily inside
+`handle()`, so a missing/short `APP_KEY` — or a removed `signed` alias —
+produces a 500 on the signed route instead of the request slipping through
+unverified. Unresolvable per-route middleware in general is never silently
+dropped.
 
 ### Typical uses
 

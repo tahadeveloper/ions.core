@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ions\Providers;
 
 use Ions\Container\ServiceProvider;
+use Ions\Http\Middleware\ValidateSignatureMiddleware;
 use Ions\Security\Encrypter;
 use Ions\Security\UrlSigner;
 
@@ -18,7 +19,12 @@ use Ions\Security\UrlSigner;
  * (≥ 32 bytes) throws a RuntimeException naming APP_KEY.
  *
  * Class-name aliases let the container constructor-inject Encrypter/UrlSigner
- * (e.g. into ValidateSignatureMiddleware) while sharing the same singletons.
+ * while sharing the same singletons.
+ *
+ * ValidateSignatureMiddleware is bound WITHOUT constructor injection on
+ * purpose: instantiating it must never touch APP_KEY, so a broken key fails
+ * inside handle() on the signed route (500, fail closed) rather than failing
+ * middleware construction.
  */
 final class SecurityProvider extends ServiceProvider
 {
@@ -36,6 +42,13 @@ final class SecurityProvider extends ServiceProvider
                 return UrlSigner::fromAppKey((string) env('APP_KEY', ''));
             });
             $this->container->alias('url.signer', UrlSigner::class);
+        }
+
+        if (!$this->container->bound(ValidateSignatureMiddleware::class)) {
+            $this->container->bind(
+                ValidateSignatureMiddleware::class,
+                static fn (): ValidateSignatureMiddleware => new ValidateSignatureMiddleware()
+            );
         }
     }
 }
