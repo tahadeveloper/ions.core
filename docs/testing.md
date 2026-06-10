@@ -9,6 +9,9 @@ security headers), no web server. Every request returns an
 The framework's own suite uses the exact same machinery
 (`tests/Feature/Testing/TestCaseTest.php` is a working reference).
 
+For building model test data (definitions, `make()`/`create()`, states), see
+[model factories](factories.md).
+
 ## Subclassing `TestCase`
 
 Set the protected `$basePath` property to your application root — the

@@ -1,0 +1,31 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Factories;
+
+use Ions\Database\Factory;
+
+/**
+ * @extends Factory<\{{ model }}>
+ */
+class {{ class }} extends Factory
+{
+    protected string $model = \{{ model }}::class;
+
+    /**
+     * The model's default attribute values.
+     *
+     * Values may be closures evaluated per instance; they receive the
+     * partially-built attributes array. $this->faker is available when
+     * fakerphp/faker is installed (require-dev).
+     *
+     * @return array<string, mixed>
+     */
+    protected function definition(): array
+    {
+        return [
+            //
+        ];
+    }
+}

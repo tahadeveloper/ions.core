@@ -49,6 +49,7 @@ class Kernel
         \MakeEventCommand::class,
         \MakeListenerCommand::class,
         \MakeTestCommand::class,
+        \MakeFactoryCommand::class,
         \ControllerCommand::class,
         \MigrateCommand::class,
         \RollBackCommand::class,

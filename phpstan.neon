@@ -5,6 +5,9 @@ parameters:
     level: 5
     paths:
         - src
+        # Fixture models give HasIonsFactory a concrete usage so phpstan
+        # analyses the trait (it is otherwise only consumed by host apps).
+        - tests/fixtures/app/src/Models
     excludePaths:
         - src/commands/stubs/*
     treatPhpDocTypesAsCertain: false

@@ -3,8 +3,8 @@
 /**
  * Generator command tests — Phase 8.4d.
  *
- * Covers the six DX generators (make:resource / make:request / make:job /
- * make:event / make:listener / make:test): registration on the console Kernel,
+ * Covers the DX generators (make:resource / make:request / make:job /
+ * make:event / make:listener / make:test / make:factory): registration on the console Kernel,
  * file creation at the right host path, stub content, flag variants, the
  * existing-file refusal + --force overwrite, and a php -l syntax sanity check
  * on at least one generated file per generator.
@@ -31,7 +31,7 @@ function cleanGeneratedArtifacts(): void
 {
     $fixture = realpath(__DIR__ . '/../../fixtures/app');
 
-    foreach (['src/Http', 'src/Jobs', 'src/Events', 'src/Listeners', 'tests'] as $dir) {
+    foreach (['src/Http', 'src/Jobs', 'src/Events', 'src/Listeners', 'src/Factories', 'tests'] as $dir) {
         $path = $fixture . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $dir);
         if (is_dir($path)) {
             File::deleteDirectory($path);
@@ -70,10 +70,10 @@ afterEach(function () {
 // Registration
 // ---------------------------------------------------------------------------
 
-test('all six generators are registered on the console kernel', function () {
+test('all seven generators are registered on the console kernel', function () {
     $app = makeGeneratorsApp();
 
-    foreach (['make:resource', 'make:request', 'make:job', 'make:event', 'make:listener', 'make:test'] as $name) {
+    foreach (['make:resource', 'make:request', 'make:job', 'make:event', 'make:listener', 'make:test', 'make:factory'] as $name) {
         expect($app->has($name))->toBeTrue();
     }
 });
@@ -458,6 +458,61 @@ test('make:test --unit writes a plain PHPUnit test without kernel boot', functio
         ->and($contents)->not->toContain('$basePath');
 
     expectLintOk($generated);
+});
+
+// ---------------------------------------------------------------------------
+// make:factory
+// ---------------------------------------------------------------------------
+
+test('make:factory writes a factory class inferring the model from the name', function () {
+    $app = makeGeneratorsApp();
+
+    $tester = new CommandTester($app->find('make:factory'));
+    $tester->execute(['name' => 'UserFactory']);
+
+    $generated = Path::src('Factories/UserFactory.php');
+
+    expect($tester->getStatusCode())->toBe(0)
+        ->and($tester->getDisplay())->toContain('Factory created successfully')
+        ->and(File::exists($generated))->toBeTrue();
+
+    $contents = File::get($generated);
+    expect($contents)
+        ->toContain('declare(strict_types=1);')
+        ->toContain('namespace App\\Factories;')
+        ->toContain('use Ions\\Database\\Factory;')
+        ->toContain('class UserFactory extends Factory')
+        ->toContain('protected string $model = \\App\\User::class;')
+        ->toContain('protected function definition(): array')
+        ->and($contents)->not->toContain('{{');
+
+    expectLintOk($generated);
+});
+
+test('make:factory --model overrides the inferred model FQCN', function () {
+    $app = makeGeneratorsApp();
+
+    $tester = new CommandTester($app->find('make:factory'));
+    $tester->execute(['name' => 'WidgetFactory', '--model' => 'IonsFixture\\Models\\Widget']);
+
+    $generated = Path::src('Factories/WidgetFactory.php');
+    expect($tester->getStatusCode())->toBe(0);
+
+    expect(File::get($generated))
+        ->toContain('protected string $model = \\IonsFixture\\Models\\Widget::class;');
+
+    expectLintOk($generated);
+});
+
+test('make:factory rejects an invalid --model value', function () {
+    $app = makeGeneratorsApp();
+
+    $tester = new CommandTester($app->find('make:factory'));
+    $tester->execute(['name' => 'WidgetFactory', '--model' => 'Bad Model;']);
+
+    expect($tester->getStatusCode())->toBe(1)
+        ->and($tester->getDisplay())->toContain('Invalid model class')
+        ->and(File::exists(Path::src('Factories/WidgetFactory.php')))->toBeFalse();
 });
 
 test('make:test refuses to overwrite an existing file without --force', function () {
