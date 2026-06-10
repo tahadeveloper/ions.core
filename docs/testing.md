@@ -299,10 +299,13 @@ objects; filter callables receive the message plus the recorded
 sender did not pass one).
 
 A class-string filter matches two ways: Symfony message classes by
-`instanceof`, and `Mailable` subclass FQCNs via the `X-Ions-Mailable` header
-every mailable stamps on the email it materializes (see
+`instanceof`, and `Mailable` FQCNs via the `X-Ions-Mailable` header every
+mailable stamps on the email it materializes (see
 [mail.md](mail.md#faking--assertions)) — so `Mail::assertSent(ResetPasswordMail::class)`
-works even though what the fake records is a Symfony `Email`.
+works even though what the fake records is a Symfony `Email`. The header
+match is inheritance-aware, like `instanceof`: asserting a base Mailable
+class also matches sends of its subclasses. Real (non-fake) sends strip the
+header before it reaches the transport, so it never ships to recipients.
 
 ```php
 use Ions\Support\Mail;
@@ -319,7 +322,7 @@ $mailer->assertSentCount(1);
 
 | Assertion | Verifies |
 |---|---|
-| `assertSent(string\|callable\|null $filter = null)` | At least one mail sent; a class-string requires an instance of that message class **or** a mail materialized by that `Mailable` subclass, a callable receives `($message, ?Envelope $envelope)` and must match at least one |
+| `assertSent(string\|callable\|null $filter = null)` | At least one mail sent; a class-string requires an instance of that message class **or** a mail materialized by that `Mailable` class (or one of its subclasses), a callable receives `($message, ?Envelope $envelope)` and must match at least one |
 | `assertSentCount(int $count)` | Exact number of sent mails |
 | `assertNothingSent()` | No mails were sent at all |
 

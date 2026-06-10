@@ -13,8 +13,11 @@ use Ions\Mail\Mailable;
  *
  * Constructor state is intentionally plain scalars: that is exactly what a
  * queued Mailable should carry (build() runs at SEND time, in the worker).
+ *
+ * Deliberately non-final: {@see VipWelcomeMailable} extends it to pin the
+ * inheritance-aware assertSent() matching.
  */
-final class WelcomeMailable extends Mailable
+class WelcomeMailable extends Mailable
 {
     public function __construct(
         private string $recipient,

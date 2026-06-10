@@ -112,8 +112,10 @@ Mail::send(new WelcomeMail($e, $n));      // Mailable overload (same as ->send()
 Mail::queue(new WelcomeMail($e, $n), 'database', 'emails');   // same as ->queue()
 ```
 
-The `?Envelope` second argument only applies to the RawMessage path; a
-mailable computes its envelope from the message itself.
+The `?Envelope` second argument only applies to the RawMessage path. A
+mailable computes its envelope from the message itself, so passing an
+`Envelope` together with a `Mailable` throws an `InvalidArgumentException`
+(rather than silently dropping it).
 
 ## Faking & assertions
 
@@ -124,7 +126,12 @@ hitting SMTP.
 Every email a mailable materializes is stamped with an
 **`X-Ions-Mailable: <FQCN>`** header (`Mailable::CLASS_HEADER`). That is how
 `assertSent()` matches mailable class-strings — no fake-side state, and the
-header is visible/testable on `toSymfonyEmail()` directly:
+header is visible/testable on `toSymfonyEmail()` directly. The header is
+**test-only metadata**: `send()` keeps it when the resolved mailer is the
+recording `MailFake` and strips it before any real mailer, so the class name
+never reaches actual recipients. Matching is inheritance-aware (like
+`instanceof`): `Mail::assertSent(BaseMail::class)` also matches a sent
+subclass of `BaseMail`.
 
 ```php
 Mail::fake();

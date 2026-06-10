@@ -145,6 +145,26 @@ test('view() renders the Twig template with its data at materialize time', funct
     }
 });
 
+test('view() takes precedence over html() regardless of call order', function () {
+    $template = 'ions_mailable_' . uniqid('', true) . '.twig';
+    file_put_contents(sys_get_temp_dir() . '/' . $template, 'view wins');
+
+    try {
+        $viewLast = mailableWith(function () use ($template): void {
+            $this->to('to@example.test')->html('<b>literal html</b>')->view($template);
+        })->toSymfonyEmail();
+
+        $viewFirst = mailableWith(function () use ($template): void {
+            $this->to('to@example.test')->view($template)->html('<b>literal html</b>');
+        })->toSymfonyEmail();
+
+        expect($viewLast->getHtmlBody())->toBe('view wins')
+            ->and($viewFirst->getHtmlBody())->toBe('view wins');
+    } finally {
+        @unlink(sys_get_temp_dir() . '/' . $template);
+    }
+});
+
 test('calling toSymfonyEmail twice does not duplicate state', function () {
     $mailable = mailableWith(function (): void {
         $this->to('to@example.test')->subject('Once')->html('body');

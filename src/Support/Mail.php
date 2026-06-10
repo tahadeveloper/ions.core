@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ions\Support;
 
+use InvalidArgumentException;
 use Ions\Foundation\Kernel;
 use Ions\Mail\Mailable;
 use Ions\Support\Concerns\ResolvesFake;
@@ -44,11 +45,22 @@ final class Mail
      *
      * A Mailable is built + materialized first (its view renders here); the
      * RawMessage path is unchanged. $envelope only applies to RawMessages —
-     * Mailables compute their envelope from the message itself.
+     * a Mailable computes its envelope from the message itself, so passing
+     * one alongside a Mailable throws (it would otherwise be silently
+     * dropped).
+     *
+     * @throws InvalidArgumentException when an Envelope is passed with a Mailable
      */
     public static function send(RawMessage|Mailable $message, ?Envelope $envelope = null): void
     {
         if ($message instanceof Mailable) {
+            if ($envelope !== null) {
+                throw new InvalidArgumentException(sprintf(
+                    'Mail::send() does not accept an Envelope with a Mailable [%s]: the envelope is computed from the materialized message. Pass the Envelope with a Symfony RawMessage instead.',
+                    $message::class
+                ));
+            }
+
             $message->send();
 
             return;

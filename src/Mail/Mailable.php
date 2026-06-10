@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ions\Mail;
 
 use Ions\Foundation\Kernel;
+use Ions\Testing\Fakes\MailFake;
 use Ions\View\ViewFactory;
 use RuntimeException;
 use Symfony\Component\Mime\Address;
@@ -40,7 +41,9 @@ use Symfony\Component\Mime\Email;
  * 'mailer', so Mail::fake() intercepts it. Every materialized email is
  * stamped with an 'X-Ions-Mailable: FQCN' header ({@see self::CLASS_HEADER})
  * which is what lets Mail::assertSent(WelcomeMail::class) match by Mailable
- * class without any fake-side state.
+ * class without any fake-side state. send() keeps that header only for the
+ * recording MailFake and strips it before any real mailer, so the class name
+ * never ships to actual recipients.
  *
  * If view() and html() are both called, the rendered view wins.
  */
@@ -92,10 +95,22 @@ abstract class Mailable
     /**
      * Build + render + hand the Symfony Email to the container 'mailer'
      * (so Mail::fake() intercepts it).
+     *
+     * The X-Ions-Mailable header is test-only metadata: it stays on the email
+     * when the resolved mailer is the recording {@see MailFake} (so
+     * Mail::assertSent(FQCN) can match), but is stripped before any real
+     * mailer so the Mailable class name never reaches actual recipients.
      */
     public function send(): void
     {
-        \Ions\Support\Mail::send($this->toSymfonyEmail());
+        $email = $this->toSymfonyEmail();
+        $mailer = \Ions\Support\Mail::mailer();
+
+        if (!$mailer instanceof MailFake) {
+            $email->getHeaders()->remove(self::CLASS_HEADER);
+        }
+
+        $mailer->send($email);
     }
 
     /**
@@ -129,6 +144,10 @@ abstract class Mailable
      * (explicit or MAIL_FROM_ADDRESS), and a body (view/html/text or at least
      * one attachment). The subject is optional. Repeated calls rebuild from a
      * clean slate, so state never accumulates across materializations.
+     *
+     * The returned email ALWAYS carries the X-Ions-Mailable FQCN header —
+     * tests assert against it directly. {@see send()} strips it before
+     * handing the email to a real (non-MailFake) mailer.
      *
      * @throws InvalidMailableException
      */

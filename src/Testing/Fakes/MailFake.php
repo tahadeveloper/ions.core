@@ -62,10 +62,11 @@ final class MailFake implements MailerInterface
     /**
      * Assert at least one message was sent. The optional filter narrows the
      * match: a class-string requires an instance of that message class — or,
-     * for an {@see \Ions\Mail\Mailable} subclass FQCN, a message stamped with
-     * that class in its X-Ions-Mailable header (Mailable::send() adds it) — a
-     * callable receives each message plus its recorded envelope (null when
-     * none was passed) and must return true for at least one.
+     * for an {@see \Ions\Mail\Mailable} FQCN, a message whose X-Ions-Mailable
+     * header carries that class or a subclass of it (inheritance-aware, like
+     * instanceof; Mailable sends keep the header when this fake is the
+     * mailer) — a callable receives each message plus its recorded envelope
+     * (null when none was passed) and must return true for at least one.
      *
      * @param class-string|callable(RawMessage, Envelope|null): bool|null $filter
      */
@@ -79,8 +80,17 @@ final class MailFake implements MailerInterface
 
         if (is_string($filter)) {
             $class = $filter;
-            $filter = static fn (RawMessage $message): bool => $message instanceof $class
-                || self::mailableClass($message) === $class;
+            $filter = static function (RawMessage $message) use ($class): bool {
+                if ($message instanceof $class) {
+                    return true;
+                }
+
+                // Inheritance-aware, like instanceof: assertSent(BaseMail::class)
+                // matches a subclass Mailable's send.
+                $mailableClass = self::mailableClass($message);
+
+                return $mailableClass !== null && is_a($mailableClass, $class, true);
+            };
             $failure = sprintf('Expected a sent mail of class [%s], but none matched.', $class);
         } else {
             $failure = 'Expected at least one sent mail to match the given filter, but none did.';
