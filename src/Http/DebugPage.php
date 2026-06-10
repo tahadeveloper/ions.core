@@ -19,8 +19,9 @@ use Throwable;
  *  - source excerpt around the throwing line (escaped, error line highlighted)
  *  - getPrevious() chain (capped)
  *  - stack trace with host-relative paths, vendor frames de-emphasized
- *  - request summary (method/URI/route/IP, headers and params) with the same
- *    key redaction as {@see RedactionProcessor} plus Cookie headers
+ *  - request summary (method/path/route/IP, headers and params) with the same
+ *    recursive key redaction as {@see RedactionProcessor} plus Cookie and
+ *    php-auth-* headers
  *
  * Deliberately NOT rendered, even in debug mode: env vars, config values,
  * server superglobals, frame arguments. Less surface, less leak.
@@ -42,14 +43,14 @@ final class DebugPage
 
     public function render(Throwable $e, Request $request, int $status): string
     {
-        $title = $this->section(fn (): string => $this->e($e::class) . ' — ' . $status, 'Error');
+        $title = $this->section(fn (): string => $this->e($e::class) . ' — ' . $status, fn (): string => 'Error');
 
-        $sections = $this->section(fn (): string => $this->header($e, $status), '<h1>Error</h1>')
+        $sections = $this->section(fn (): string => $this->header($e, $status), fn (): string => '<h1>Error</h1>')
             . $this->section(fn (): string => $this->sourceExcerpt($e))
             . $this->section(fn (): string => $this->previousChain($e))
             . $this->section(
                 fn (): string => $this->trace($e),
-                '<pre>' . $this->e($e->getTraceAsString()) . '</pre>',
+                fn (): string => '<pre>' . $this->e($e->getTraceAsString()) . '</pre>',
             )
             . $this->section(fn (): string => $this->requestSummary($request));
 
@@ -62,14 +63,20 @@ final class DebugPage
 
     /**
      * Run one section renderer; if it throws for ANY reason, fall back to the
-     * given minimal markup. A broken error page is worse than an ugly one.
+     * given minimal markup. The fallback is a callable so it is only built
+     * when needed and is itself guarded — a broken error page is worse than
+     * an ugly one.
      */
-    private function section(callable $renderer, string $fallback = ''): string
+    private function section(callable $renderer, ?callable $fallback = null): string
     {
         try {
             return (string) $renderer();
         } catch (Throwable) {
-            return $fallback;
+            try {
+                return $fallback === null ? '' : (string) $fallback();
+            } catch (Throwable) {
+                return '';
+            }
         }
     }
 
@@ -201,7 +208,7 @@ final class DebugPage
         // Method + path only — the query string may carry secrets, so query
         // params are shown exclusively through the redacting table below.
         $rows = '<tr><td>Method</td><td>' . $this->e($request->getMethod()) . '</td></tr>'
-            . '<tr><td>URI</td><td>' . $this->e($request->getPathInfo()) . '</td></tr>';
+            . '<tr><td>Path</td><td>' . $this->e($request->getPathInfo()) . '</td></tr>';
 
         $route = $request->attributes->get('_route');
         if (is_string($route) && $route !== '') {
@@ -245,11 +252,14 @@ final class DebugPage
             return '';
         }
 
+        // Recursive: nested params (e.g. user[password]) must be masked
+        // before stringify() json_encodes array values, or they leak raw.
+        $data = RedactionProcessor::redact($data, $this->isSensitiveKey(...));
+
         $rows = '';
         foreach ($data as $key => $value) {
-            $key = (string) $key;
-            $rows .= '<tr><td>' . $this->e($key) . '</td><td>'
-                . $this->e($this->isSensitiveKey($key) ? RedactionProcessor::MASK : $this->stringify($value))
+            $rows .= '<tr><td>' . $this->e((string) $key) . '</td><td>'
+                . $this->e($this->stringify($value))
                 . '</td></tr>';
         }
 
@@ -257,12 +267,14 @@ final class DebugPage
     }
 
     /**
-     * Same key patterns as log redaction, plus Cookie/Set-Cookie: the debug
-     * page must never print raw Authorization or Cookie header values.
+     * Same key patterns as log redaction, plus Cookie/Set-Cookie and the
+     * php-auth-* headers Symfony's ServerBag decodes Basic credentials into:
+     * the debug page must never print raw Authorization, Cookie or decoded
+     * Basic-auth values.
      */
     private function isSensitiveKey(string $key): bool
     {
-        return RedactionProcessor::isSensitiveKey($key) || preg_match('/cookie/i', $key) === 1;
+        return RedactionProcessor::isSensitiveKey($key) || preg_match('/cookie|^php-auth/i', $key) === 1;
     }
 
     private function stringify(mixed $value): string

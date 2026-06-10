@@ -24,6 +24,16 @@ afterEach(function () {
     unset($_ENV['APP_DEBUG']);
 });
 
+/**
+ * Drop the source-excerpt <pre> from rendered HTML. Direct-render tests throw
+ * from THIS file, so the excerpt would echo the test's own literals (secrets,
+ * expected markers) and corrupt contain/not-contain assertions.
+ */
+function stripSourceExcerpt(string $html): string
+{
+    return (string) preg_replace('/<pre class="excerpt">.*?<\/pre>/s', '', $html);
+}
+
 test('debug page shows exception class, message and status', function () {
     $response = Kernel::handle(Request::create('/boom'));
 
@@ -71,11 +81,77 @@ test('password query param is redacted on the debug page', function () {
         ->and($content)->toContain('ok');
 });
 
+test('nested sensitive body params are redacted on the debug page', function () {
+    // Reviewer probe (CRITICAL-1): top-level keys were redacted but array
+    // values were json_encoded raw, leaking user[password].
+    $request = Request::create('/boom', 'POST', [
+        'user' => ['password' => 'nested-secret-value', 'name' => 'visible-name'],
+    ]);
+
+    $html = stripSourceExcerpt((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
+
+    expect($html)->not->toContain('nested-secret-value')
+        ->and($html)->toContain('[REDACTED]')
+        ->and($html)->toContain('visible-name');
+});
+
+test('decoded basic-auth headers (php-auth-*) are redacted on the debug page', function () {
+    // Reviewer probe (CRITICAL-2): Symfony ServerBag decodes Basic credentials
+    // into php-auth-user / php-auth-pw headers, which were printed raw.
+    $request = Request::create('/boom', 'GET', [], [], [], [
+        'PHP_AUTH_USER' => 'basic-user-name',
+        'PHP_AUTH_PW' => 'basic-secret-pw',
+    ]);
+
+    $html = stripSourceExcerpt((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
+
+    expect($html)->not->toContain('basic-secret-pw')
+        ->and($html)->not->toContain('basic-user-name')
+        ->and($html)->toContain('[REDACTED]');
+});
+
 test('the getPrevious() chain is rendered', function () {
     $content = Kernel::handle(Request::create('/boom-chained'))->getContent();
 
     expect($content)->toContain('LogicException')
         ->and($content)->toContain('root cause detail');
+});
+
+test('the previous chain is capped at MAX_CHAIN entries', function () {
+    // Build a 7-deep getPrevious() chain: only the first 5 may render.
+    $e = null;
+    for ($i = 7; $i >= 1; $i--) {
+        $e = new \LogicException('chain-msg-' . $i, 0, $e);
+    }
+    $outer = new \RuntimeException('outer-top', 0, $e);
+
+    $html = stripSourceExcerpt((new DebugPage())->render($outer, Request::create('/x'), 500));
+
+    expect($html)->toContain('chain-msg-1')
+        ->and($html)->toContain('chain-msg-5')
+        ->and($html)->not->toContain('chain-msg-6')
+        ->and($html)->not->toContain('chain-msg-7');
+});
+
+test('the stack trace is capped at MAX_FRAMES with a truncation marker', function () {
+    $recurse = function (int $n) use (&$recurse): void {
+        if ($n <= 0) {
+            throw new \RuntimeException('deep-recursion');
+        }
+        $recurse($n - 1);
+    };
+
+    try {
+        $recurse(80); // > MAX_FRAMES (50)
+        $this->fail('expected throw');
+    } catch (\RuntimeException $caught) {
+    }
+
+    $html = stripSourceExcerpt((new DebugPage())->render($caught, Request::create('/x'), 500));
+
+    expect($html)->toContain('#49')          // last rendered frame index
+        ->and($html)->not->toContain('#50')  // capped
+        ->and($html)->toContain('more frames');
 });
 
 test('a missing source file does not break rendering', function () {
