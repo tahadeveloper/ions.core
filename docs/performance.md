@@ -107,7 +107,11 @@ your workload.
 ## Worker mode
 
 A persistent worker runtime (one boot, many requests — FrankenPHP/RoadRunner
-style) builds on these per-process caches and lands in Phase 8.2 with a
-`resetForRequest()` lifecycle. The per-process memoization introduced here is
-already worker-safe: re-booting the kernel clears every memoized collection
-and singleton.
+style) builds on these per-process caches. The mechanism shipped in Phase 8.2:
+`Kernel::resetForRequest()` clears all per-request state (request/response
+statics, the framework session + CSRF storage, the per-request Twig globals,
+the query log) while keeping every per-process cache above intact (config,
+container singletons, the route memo, the Twig Environment), and the
+experimental `Ions\Runtime\WorkerRunner` drives the reset-then-handle loop.
+See [worker-mode.md](worker-mode.md) for the per-request vs boot state table,
+usage, and a FrankenPHP example.

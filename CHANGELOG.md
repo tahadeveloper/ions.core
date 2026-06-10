@@ -9,6 +9,14 @@ For migration instructions see [UPGRADE-4.0.md](UPGRADE-4.0.md) (3.x → 4.0) an
 
 ## [Unreleased]
 
+### Added
+
+- **Worker-mode safety (EXPERIMENTAL)** — `Kernel::resetForRequest()` clears per-request state between sequential requests in one process (fresh `Request`/`Response`/legacy-session statics, `SessionManager::renew()` swaps in a brand-new inner session and re-points the shared `request_stack` so CSRF token storage follows, per-request Twig globals `_csrf_token`/`_trans`/`appUrl` re-evaluated via `ViewFactory::refreshRequestGlobals()`, query log flushed when enabled) while keeping boot state (config, container singletons, the route memo, the Twig Environment). `Ions\Runtime\WorkerRunner` (`@experimental`) drives a boot-once/handle-many loop over provider/emitter callables with optional `maxRequests` recycling. `Kernel::isBooted()`. See [docs/worker-mode.md](docs/worker-mode.md).
+
+### Changed
+
+- **`Kernel::handle()` syncs the shared request** — `Kernel::request()` now returns the request actually being handled instead of the boot-time capture (identical in classic FPM; essential for worker mode). See [UPGRADE-4.1.md](UPGRADE-4.1.md).
+
 ## [4.0.0] - 2026-06-10
 
 The headline breaking change is the **PHP 8.3 minimum** (was 8.2); everything else

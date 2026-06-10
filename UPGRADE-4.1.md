@@ -45,3 +45,29 @@ ions preload:generate   # opcache.preload file for the framework hot path
 All caches are ignored while `APP_DEBUG` is truthy. Closure-based routes or
 config values cannot be cached — the commands fail with the offending
 route/key named. See [docs/performance.md](docs/performance.md).
+
+## Worker mode (EXPERIMENTAL)
+
+4.1 adds a per-request reset lifecycle for persistent runtimes
+(FrankenPHP/RoadRunner-style: boot once, handle many requests in one
+process):
+
+- `Kernel::resetForRequest()` clears per-request state (request/response
+  statics, the framework session + CSRF token storage, the per-request Twig
+  globals `_csrf_token`/`_trans`/`appUrl`, the query log) while keeping boot
+  state (config, container singletons, route memo, the Twig Environment).
+- `Ions\Runtime\WorkerRunner` (experimental) drives the
+  reset-then-handle loop over provider/emitter callables, with optional
+  `maxRequests` recycling.
+
+See [docs/worker-mode.md](docs/worker-mode.md) for the state table, usage,
+a FrankenPHP example, and the known limitations.
+
+### Kernel::request() now tracks the handled request
+
+`Kernel::handle($request)` now points the shared `Kernel::request()` static at
+the request actually being handled (previously it stayed at the boot-time
+capture from superglobals). Classic FPM apps see no difference — the captured
+request *is* the handled request there — but code that compared
+`Kernel::request()` against a separately constructed request object should be
+reviewed.
