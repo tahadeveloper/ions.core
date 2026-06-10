@@ -15,6 +15,7 @@ parameters:
         - src/Events
         - src/Queue
         - src/Media
+        - src/Support
     scanFiles:
         - src/helpers.php
     # NO baseline — this code must be clean at level 8

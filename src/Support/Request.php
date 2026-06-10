@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Support;
 
 use Symfony\Component\HttpFoundation\Exception\SessionNotFoundException;
@@ -42,6 +44,9 @@ class Request extends \Illuminate\Http\Request
         return $session;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function inputs(): array
     {
         $input = collect($this->attributes->all())->filter(function ($single, $key) {
@@ -54,7 +59,12 @@ class Request extends \Illuminate\Http\Request
         return $input ?? [];
     }
 
-    public function validate($rules = [], $params = []): array
+    /**
+     * @param array<string, mixed> $rules
+     * @param array<string, mixed> $params
+     * @return array<string, mixed>
+     */
+    public function validate(array $rules = [], array $params = []): array
     {
         $params = $this->toArray() + $params;
         return validate($params, $rules);
