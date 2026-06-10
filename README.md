@@ -120,6 +120,7 @@ The framework resolves application paths relative to the host-app root (five dir
 - **Security headers** on every response; configurable CSP
 - **CSRF enforcement** on web routes (opt-out via `app.csrf.enabled = false`)
 - **Upload validation** — extension allow-list + hard-coded executable deny-list
+- **Encryption & signed URLs** — `Ions\Security\Encrypter` (XChaCha20-Poly1305 AEAD), `UrlSigner` + `signedRoute()` helper + `signed` middleware alias
 - **Rate limiting** — `RateLimitMiddleware` / `throttle` alias, 429 + `Retry-After`
 - **Exception handler** — `Ions\Http\ExceptionHandler`; JSON for API (incl. 422 validation), HTML for web; safe in production
 - **Generators** — `make:middleware`, `make:service-provider`, `make:command`
@@ -145,6 +146,7 @@ The framework resolves application paths relative to the host-app root (five dir
 | [docs/resources.md](docs/resources.md) | API resources, collections, form requests, `openapi:generate` |
 | [docs/media.md](docs/media.md) | Image processing over `intervention/image` v3 |
 | [docs/http-client.md](docs/http-client.md) | Outbound HTTP: `Http` facade over `symfony/http-client`, response wrapper, `Http::fake()` |
+| [docs/security.md](docs/security.md) | `Encrypter` (sodium AEAD), `UrlSigner`, `signedRoute()`/`signedUrl()`, `signed` middleware |
 | [docs/config.md](docs/config.md) | All `app.*`, `auth.*`, `filesystem.*`, `session.*`, `cache.*`, `queue.*`, `events.*`, `media.*` config keys |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 | [UPGRADE-4.0.md](UPGRADE-4.0.md) | Breaking changes and migration guide for 3.x → 4.0.0 |

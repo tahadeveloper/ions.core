@@ -22,6 +22,12 @@ Route::get('/boom-chained', function () {
 
 Route::post('/csrf-protected', fn () => new \Symfony\Component\HttpFoundation\Response('posted'));
 
+// --- Signed-URL fixtures (Phase 8.5) ---
+// Named routes guarded by the 'signed' middleware alias; exercised by
+// signedRoute() + ValidateSignatureMiddleware feature tests.
+Route::get('/signed/welcome', fn () => new Response('signed ok'), [], 'signed.welcome')->middleware(['signed']);
+Route::get('/signed/download/{id}', fn () => new Response('download ok'), [], 'signed.download')->middleware(['signed']);
+
 // --- Worker-mode isolation fixtures (Phase 8.2) ---
 
 // Mutates the SHARED kernel response and returns null, so the pipeline falls

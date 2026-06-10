@@ -328,6 +328,7 @@ class Kernel extends Singleton
             \Ions\Providers\AuthProvider::class,
             \Ions\Providers\MailProvider::class,
             \Ions\Providers\HttpClientProvider::class,
+            \Ions\Providers\SecurityProvider::class,
             \Ions\Providers\ViewProvider::class,
         ];
     }
@@ -851,6 +852,21 @@ class Kernel extends Singleton
     private static function routes(string $targetFolder): RouteCollection
     {
         return static::$routeCollections[$targetFolder] ??= self::buildRouteCollection($targetFolder);
+    }
+
+    /**
+     * Public accessor for the memoized per-group route collection ('web' or
+     * 'api'), capturing it on first use. URL generation (signedRoute()) needs
+     * this because routes declared in routes/{group}.php or via attributes
+     * only live in the group collections — the shared collection is restored
+     * to its pre-include snapshot after each group build.
+     *
+     * @param string $targetFolder 'web' or 'api'
+     * @return RouteCollection
+     */
+    public static function routesFor(string $targetFolder): RouteCollection
+    {
+        return self::routes($targetFolder);
     }
 
     /**

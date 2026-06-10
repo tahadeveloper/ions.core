@@ -21,9 +21,11 @@ return [
         'origins' => [],
     ],
 
-    // Per-route middleware aliases. 'throttle' rate-limits the login route.
+    // Per-route middleware aliases. 'throttle' rate-limits the login route;
+    // 'signed' validates URL signatures (signedRoute()).
     'middleware_aliases' => [
         'throttle' => \Ions\Http\Middleware\RateLimitMiddleware::class,
+        'signed' => \Ions\Http\Middleware\ValidateSignatureMiddleware::class,
     ],
 
     // Low limit so the rate-limit test can exceed the window quickly.
