@@ -13,12 +13,30 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class AuthMiddleware implements MiddlewareInterface
 {
-    public function __construct(private ?Jwt $jwt, private ?UserProvider $users = null)
-    {
+    /**
+     * @param list<string> $publicPaths Path prefixes that bypass authentication
+     *                                  (e.g. the login/refresh/forgot/reset
+     *                                  endpoints, which authenticate rather than
+     *                                  require a prior token). Matched as a prefix
+     *                                  against the request path.
+     */
+    public function __construct(
+        private ?Jwt $jwt,
+        private ?UserProvider $users = null,
+        private array $publicPaths = [],
+    ) {
     }
 
     public function handle(Request $request, callable $next): Response
     {
+        // Public endpoints (login, refresh, password reset, ...) are exempt:
+        // they establish a session rather than depend on one. This does not
+        // weaken the 401 semantics for protected routes — only the explicitly
+        // allowlisted prefixes bypass token verification.
+        if ($this->isPublic($request->getPathInfo())) {
+            return $next($request);
+        }
+
         if ($this->jwt === null) {
             return $this->unauthorized('No signing key configured');
         }
@@ -49,6 +67,17 @@ final class AuthMiddleware implements MiddlewareInterface
         }
 
         return $next($request);
+    }
+
+    private function isPublic(string $path): bool
+    {
+        foreach ($this->publicPaths as $prefix) {
+            if ($prefix !== '' && str_starts_with($path, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function unauthorized(string $message): Response

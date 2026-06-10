@@ -565,7 +565,7 @@ class Kernel extends Singleton
                 new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
                 new SecurityHeadersMiddleware(),
                 new CorsMiddleware((array) config('app.cors', [])),
-                new AuthMiddleware($jwt, $userProvider),
+                new AuthMiddleware($jwt, $userProvider, (array) config('app.auth.public_paths', [])),
             ],
         ];
     }

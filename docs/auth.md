@@ -86,10 +86,88 @@ Clock skew tolerance is set at construction time via `app.jwt.leeway` (seconds, 
 Kernel::app()->singleton('revocation_store', fn () => new MyRedisRevocationStore());
 ```
 
+## HTTP auth surface (`Ions\Auth\Http\AuthController`)
+
+The framework ships a ready-made controller exposing the login / refresh / logout /
+password-reset endpoints. It depends only on the container-bound `jwt` and
+`user_provider`, and every action returns a `Json` response.
+
+Issued **access tokens are bound to the authenticated user's id**
+(`Jwt::issue($user->getAuthIdentifier())`), so `AuthMiddleware` resolves the real
+user on protected routes — never an application id. (The legacy
+`AppKeys::createJWT()` defaults its subject to the app id for BC; always pass the
+user id, or use this controller / `Jwt` directly.)
+
+### Registering the routes
+
+Reference the actions from closures in `routes/api.php` (closures avoid the
+api-namespace controller-prefixing applied to bare controller strings):
+
+```php
+use Ions\Auth\Http\AuthController;
+use Ions\Bundles\Route;
+use Ions\Support\Request;
+
+Route::post('/api/auth/login', fn (Request $r) => (new AuthController())->login($r))
+    ->middleware(['throttle']); // rate-limited
+Route::post('/api/auth/refresh', fn (Request $r) => (new AuthController())->refresh($r));
+Route::post('/api/auth/logout', fn (Request $r) => (new AuthController())->logout($r));
+Route::post('/api/auth/password/forgot', fn (Request $r) => (new AuthController())->forgotPassword($r));
+Route::post('/api/auth/password/reset', fn (Request $r) => (new AuthController())->resetPassword($r));
+```
+
+Because these paths live under `/api`, the default `api` stack would otherwise apply
+`AuthMiddleware`. List the auth paths in `app.auth.public_paths` so they bypass
+authentication (they establish a session rather than depend on one):
+
+```php
+// config/app.php
+'auth' => [
+    'public_paths' => [
+        '/api/auth/login', '/api/auth/refresh', '/api/auth/logout',
+        '/api/auth/password/forgot', '/api/auth/password/reset',
+    ],
+],
+'middleware_aliases' => [
+    'throttle' => \Ions\Http\Middleware\RateLimitMiddleware::class,
+],
+```
+
+`public_paths` entries are matched as path **prefixes**; only the listed prefixes
+bypass token verification — the 401 semantics for every other route are unchanged.
+
+### Endpoints
+
+| Method & path | Body | Success (200) | Failure |
+|---|---|---|---|
+| `POST /api/auth/login` | `{ "email", "password" }` | `{ status:"success", data:{ access_token, refresh_token, token_type:"Bearer" } }` | `401` invalid credentials |
+| `POST /api/auth/refresh` | `{ "refresh_token" }` *(or Bearer)* | `{ data:{ access_token, token_type:"Bearer" } }` | `401` invalid/expired/revoked |
+| `POST /api/auth/logout` | — *(Bearer access token)* | `{ data:{ message:"logged out" } }` | — |
+| `POST /api/auth/password/forgot` | `{ "email" }` | `{ data:{ message } }` *(generic — no user enumeration)* | `501` provider lacks reset support |
+| `POST /api/auth/password/reset` | `{ "email", "code", "password" }` | `{ data:{ message:"password reset" } }` | `422` invalid code / missing fields; `501` unsupported |
+
+`login` runs `UserProvider::retrieveByCredentials()` + `validateCredentials()`,
+then issues an access **and** refresh token. `refresh` calls `Jwt::refresh()`,
+which rotates the refresh token (the presented one is immediately revoked) and
+returns a fresh access token. `logout` calls `Jwt::revoke()` on the access token,
+adding its `jti` to the `RevocationStore`.
+
+### Password reset
+
+The reset endpoints work when the bound `UserProvider` implements
+`Ions\Auth\Contracts\SupportsPasswordReset` (`createResetCode()` /
+`resetPassword()`). The default `SentinelUserProvider` implements it via Sentinel's
+reminder repository: `forgot` issues a reminder code (delivered out-of-band, never
+returned in the response), and `reset` completes the reminder with that code and the
+new password. Providers without this capability return `501`; the **Eloquent path is
+provider-dependent** — `EloquentUserProvider` does not ship a reset-token table, so
+apps using it must supply a provider that implements `SupportsPasswordReset`.
+
 ## AuthMiddleware
 
 `Ions\Http\Middleware\AuthMiddleware` is included in the default `api` middleware stack. It:
 
+0. Skips authentication entirely when the request path matches an `app.auth.public_paths` prefix (e.g. the login/refresh/reset endpoints).
 1. Reads the `Authorization` header and expects a `Bearer <token>` value.
 2. Calls `Jwt::verify()` on the token.
 3. Sets `auth_user_id` on `$request->attributes` (always, when valid).
