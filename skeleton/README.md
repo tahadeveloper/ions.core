@@ -8,7 +8,19 @@ A minimal host application for the [Ions PHP framework](https://github.com/tahad
 # Until the skeleton is published as ionzile/app
 # (then: composer create-project ionzile/app my-app), copy this directory:
 cp -R skeleton my-app && cd my-app
+```
 
+> **Pre-release note:** `composer.json` requires `ionzile/core:^4.1`, which is
+> not yet tagged on Packagist (only 4.0.0 is). Until 4.1.0 is released, the
+> `composer install` below will fail to resolve it — install from the VCS
+> repository instead:
+>
+> ```bash
+> composer config repositories.ions vcs https://github.com/tahadeveloper/ions.core
+> composer require "ionzile/core:dev-main"
+> ```
+
+```bash
 composer install
 cp .env.example .env
 # set APP_KEY in .env (64-char hex):
@@ -16,16 +28,6 @@ php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
 
 php -S localhost:8000 -t public
 ```
-
-> **Pre-release note:** `composer.json` requires `ionzile/core:^4.1`, which is
-> not yet tagged on Packagist (only 4.0.0 is). Until 4.1.0 is released,
-> `composer install` will fail to resolve it — install from the VCS repository
-> instead:
->
-> ```bash
-> composer config repositories.ions vcs https://github.com/tahadeveloper/ions.core
-> composer require "ionzile/core:dev-main"
-> ```
 
 Open <http://localhost:8000> — you should see the welcome page. `curl localhost:8000/api/ping` returns JSON.
 
@@ -49,6 +51,10 @@ Open <http://localhost:8000> — you should see the welcome page. `curl localhos
 Generators: `php bin/ions make:command|make:middleware|make:service-provider|make:resource|make:request|make:job|make:event|make:listener|make:test <Name>` scaffold the corresponding class into `src/` (or `tests/` for `make:test`) — see `docs/console.md` in `ionzile/core`.
 
 ## Testing
+
+The skeleton ships runnable test scaffolding: `pestphp/pest` in `require-dev`,
+a `phpunit.xml` pointing at `tests/`, and `tests/ExampleTest.php`. Run the
+suite with `vendor/bin/pest` (or `composer test`).
 
 The framework ships a host-app test kit: subclass `Ions\Testing\TestCase`,
 point `$basePath` at this directory, and drive the full HTTP stack in-process

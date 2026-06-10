@@ -29,6 +29,13 @@ abstract class AppTestCase extends \Ions\Testing\TestCase
 }
 ```
 
+> A shared base class like this must be **autoloadable**: the `namespace
+> Tests;` above relies on the `autoload-dev` PSR-4 mapping the skeleton ships
+> (`"Tests\\": "tests/"` in `composer.json`). Plain test files themselves
+> don't need it — PHPUnit includes every `*Test.php` directly, which is why
+> `make:test` generates namespace-free tests extending
+> `Ions\Testing\TestCase` (see `skeleton/tests/ExampleTest.php`).
+
 Override `protected function basePath(): string` instead when the path needs
 to be computed. An unset or non-existent path throws a `RuntimeException`
 explaining what to set.

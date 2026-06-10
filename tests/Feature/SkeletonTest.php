@@ -113,6 +113,24 @@ test('GET / renders the Twig welcome page', function () {
         ->and($response->headers->get('X-Content-Type-Options'))->toBe('nosniff');
 });
 
+test('the skeleton ships runnable test scaffolding', function () {
+    // phpunit.xml exists, is valid XML and points a testsuite at tests/.
+    $phpunitXml = skeletonPath() . '/phpunit.xml';
+    expect(is_file($phpunitXml))->toBeTrue();
+
+    $xml = @simplexml_load_string((string) file_get_contents($phpunitXml));
+    expect($xml)->not->toBeFalse();
+
+    // The example test exists, lints clean and uses the host-app test kit.
+    $exampleTest = skeletonPath() . '/tests/ExampleTest.php';
+    expect(is_file($exampleTest))->toBeTrue();
+
+    $lint = shell_exec(escapeshellarg(PHP_BINARY) . ' -l ' . escapeshellarg($exampleTest) . ' 2>&1');
+    expect($lint)->toContain('No syntax errors detected');
+
+    expect((string) file_get_contents($exampleTest))->toContain('Ions\Testing\TestCase');
+});
+
 test('GET /api/ping returns 200 JSON', function () {
     $response = Kernel::handle(Request::create('/api/ping'));
 

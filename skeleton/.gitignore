@@ -1,5 +1,6 @@
 /vendor/
 /.env
+/.phpunit.cache/
 /var/cache/*
 !/var/cache/.gitkeep
 /var/logs/*
