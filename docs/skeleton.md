@@ -14,9 +14,10 @@ php -S localhost:8000 -t public
 ```
 
 > **Pre-release note:** the skeleton's `composer.json` requires
-> `ionzile/core:^4.1`, which is not yet tagged on Packagist (only 4.0.0 is).
-> Until 4.1.0 is released, point a `vcs` repository at ions.core and require
-> the dev branch instead:
+> `ionzile/core:^4.2` (it uses 4.2 features — the `app/` layout,
+> `$this->view()`, the scheduler), which is not yet tagged (4.1.0 is the
+> latest release). Until 4.2.0 is tagged, point a `vcs` repository at
+> ions.core and require the dev branch instead:
 >
 > ```bash
 > composer config repositories.ions vcs https://github.com/tahadeveloper/ions.core

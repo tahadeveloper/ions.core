@@ -4,11 +4,43 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-For migration instructions see [UPGRADE-4.1.md](UPGRADE-4.1.md) (4.0 → 4.1),
+For migration instructions see [UPGRADE-4.2.md](UPGRADE-4.2.md) (4.1 → 4.2),
+[UPGRADE-4.1.md](UPGRADE-4.1.md) (4.0 → 4.1),
 [UPGRADE-4.0.md](UPGRADE-4.0.md) (3.x → 4.0) and
 [UPGRADE-3.0.md](UPGRADE-3.0.md) (2.1.x → 3.0).
 
 ## [Unreleased]
+
+## [4.2.0] - 2026-06-11
+
+The Phase 9 release: conventions & developer experience. The `app/` layout
+becomes the convention (the legacy `src/` fallback is fully preserved),
+actions return views and resources directly, controllers get real container
+DI plus a documented lifecycle, a fluent cron scheduler replaces hand-rolled
+cron plumbing, two frontend scaffolds wire Vite or plain assets into Twig,
+and the deploy story is documented end to end. No API removals; a handful of
+edge-case behavior changes are detailed in [UPGRADE-4.2.md](UPGRADE-4.2.md).
+One new dependency: `dragonmantank/cron-expression` `^3` (MIT,
+dependency-free — the ecosystem-standard cron parser).
+
+### Added
+
+- **`app/` host layout convention** — `Ions\Bundles\Path` resolves `{root}/app` before the legacy `{root}/src` for `Path::src()`/`api()`/`database()` and everything built on them (controller dispatch, attribute-route + provider/command discovery, migrations/seeders, every `make:*` generator). `src/`-only hosts are untouched — the fallback is preserved verbatim. The skeleton ships its code in `app/` (`"App\\": "app/"`), and `ions doctor` gained a `dual_app_dirs` WARN for hosts carrying both directories (where `app/` now wins). See [UPGRADE-4.2.md](UPGRADE-4.2.md).
+- **View returns: `view()` + `$this->view()` + namespaced roots** — `Ions\View\View` is a lazy renderable (template + data): return it from an action or closure route and the dispatcher renders it through the shared Twig environment into a 200 HTML response. The `view()` helper translates dots (`view('users.index')` → `views/users/index.twig`) and `@namespace` prefixes; `BaseController::view()` is controller-relative (`UsersController` → `views/users/`, nested controllers use their kebab-cased directory path; `protected string $viewPath` overrides). String keys in `app.twig.paths` now register named loader namespaces (`'admin' => 'views/admin'` → `@admin/...`), resolved from the host root with absolute paths kept (vendor packages can ship templates); missing namespace directories are skipped with a logged warning, never a boot failure. See [docs/views.md](docs/views.md).
+- **Controller DI + lifecycle hooks** — controllers are container-built (constructor injection; zero-arg controllers pinned byte-identical), and actions are method-injected via `Ions\Http\ActionArgumentResolver`: `Request` by type-hint, route placeholders by name (scalar hints cast), other object type-hints via `app()->make()`, defaults and nullables respected, clear exception naming the parameter otherwise. Four new duck-typed hooks (public methods only): `boot()` (method-injected, after `_loadedState`), `beforeAction(): ?Response` (short-circuits the action, `_endState` still runs), `afterAction(Request, Response): ?Response` (decorates/replaces the normalized response), and `middleware(): array` (per-controller middleware — aliases/FQCNs/instances, resolved **fail-closed** like per-route middleware, run as a sub-pipeline around the action phase). The legacy underscore hooks are untouched in name, order and signature. Closure routes share the same method injection and return normalization (`Ions\Http\ResponseNormalizer`) — closures can now return `Responsable`/`View` too. See [docs/controllers.md](docs/controllers.md).
+- **Cron scheduler** — `Ions\Schedule\Scheduler` + `Task`: define tasks in `App\Schedule::boot(Scheduler $schedule)` (class configurable via `app.schedule_class`) with `$schedule->command('emails:send', ['--force' => true])` / `$schedule->call($fn, 'name')` and fluent frequencies (`everyMinute`/`everyFiveMinutes`/`everyTenMinutes`/`everyThirtyMinutes`/`hourly`/`daily`/`dailyAt('03:00')`/`weekly`/`monthly`/raw `cron()`, validated immediately). `withoutOverlapping(int $ttl = 3600)` takes an owner-scoped cache lock (a run that outlives its TTL can never release a successor's lock); overlapping invocations are skipped, not queued. `schedule:run` executes the due tasks from one crontab line and exits non-zero when any task failed; `schedule:list` prints name/expression/next run; the built-in `/cron/schedule` route runs the same due tasks for hosts without system cron (JSON `{ran, failed, skipped}` summary) while zero-parameter legacy `boot()` hosts keep the exact pre-4.2 dispatch. Failures are isolated per task and logged to `var/logs/schedule.log`; the registry is lazy (zero hot-path cost) and `Ions\Support\Schedule` is the facade. New dependency: `dragonmantank/cron-expression` `^3`. See [docs/scheduler.md](docs/scheduler.md).
+- **Frontend scaffolds + Twig asset functions** — `ions install:vue` writes a Vue 3 + Vite starter (package.json, `vite.config.js` building to `public/build/` with a stable manifest path, `resources/js/app.js` + `App.vue`, idempotent `.gitignore` additions); `ions install:assets` writes plain CSS/JS starters into `public/assets/` (no node, no bundler). Both refuse to overwrite existing files unless `--force` (all-or-nothing: conflicts are listed and nothing is written). `Ions\View\AssetExtension` registers two Twig functions everywhere: `vite(entry)` (manifest-driven CSS links + hashed module script; dev-server HMR mode via a Laravel-style `public/hot` marker the scaffolded config maintains; missing build degrades to an HTML comment + logged warning, never a 500) and `asset(path)` (`app.app_url`-based URL with `?v=filemtime` cache-busting, never throws). The PHP test suite requires no node. See [docs/assets.md](docs/assets.md).
+- **Deploy configs** — the skeleton ships `public/.htaccess` (front-controller rewrite with existing-file passthrough, dotfile deny), and [docs/deploy.md](docs/deploy.md) documents the full production setup: hardened nginx server block and Apache vhost (root → `public/`, deny `var/`/`config/`/`.env`, static caching), PHP-FPM pool notes, the TLS-terminating-proxy caveat, the worker-mode pointer, and a deploy checklist ending in `ions optimize && ions doctor`.
+- **Best-practices guide** — [docs/best-practices.md](docs/best-practices.md): the opinionated guide to structuring an Ions app — `app/` layout, thin controllers (FormRequest + constructor DI + view/Resource returns), provider wiring, typed config accessors, events vs jobs vs notifications, the testing kit, and security/performance checklists. The README quick tour now shows the 4.2 ergonomics.
+
+### Changed
+
+- **`app/` is checked before `src/`** — hosts carrying **both** directories at the root now resolve to `app/` (previously `src/`); single-directory hosts are unaffected. `ions doctor` warns (`dual_app_dirs`). See [UPGRADE-4.2.md](UPGRADE-4.2.md).
+- **Action method injection — argument BC** — actions were previously always invoked with exactly `[$request]`. The placeholder-name match now beats the untyped-first-param legacy rule (`show($id)` on `/users/{id}` receives the placeholder value, not the request), and a variadic first parameter now receives nothing. Type-hint `Request` to keep the old behavior. Closure routes have the same edge: an untyped first parameter named after a placeholder now receives the placeholder value. See [UPGRADE-4.2.md](UPGRADE-4.2.md).
+- **Public methods named `boot`/`middleware`/`beforeAction`/`afterAction` are now lifecycle hooks** — duck-typed by name (public visibility required; protected/private helpers are ignored). A route action itself named `boot` (the legacy `App\Schedule::boot` contract) is dispatched once as the action — the hook never fires twice. See [UPGRADE-4.2.md](UPGRADE-4.2.md).
+- **`app.twig.paths` string keys now declare view namespaces** — previously array keys were ignored and every entry resolved via `Path::views()`. Plain numeric-key lists keep the old behavior verbatim. See [UPGRADE-4.2.md](UPGRADE-4.2.md).
+- **`/cron/schedule` targets a framework controller** — `Ions\Schedule\Http\WebCronController` inspects the host `boot()` signature at hit time: legacy zero-parameter hosts keep the exact old dispatch; `boot(Scheduler)` hosts get the new scheduler run. With no schedule class the route now answers **404** (previously a 500 from the failed controller resolution), and the request attributes report `_controller_name` `'WebCronController'`/`_method_name` `'run'` instead of `'Schedule'`/`'boot'`. See [UPGRADE-4.2.md](UPGRADE-4.2.md).
+- **`schedule:run` drives both registries and reports failure** — it runs the new scheduler's due tasks before the legacy `GO\Scheduler` `schedule.php` jobs (which keep working unchanged) and now exits non-zero when a task fails. Don't define the same job in both registries — it would run twice per tick.
 
 ## [4.1.0] - 2026-06-10
 
@@ -182,7 +214,8 @@ is additive. See [UPGRADE-4.0.md](UPGRADE-4.0.md).
 - **CSRF enforced by default** — `CsrfMiddleware` is in the default web stack; all state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`) require a valid `_ion_token` field or `X-CSRF-TOKEN` header (HTTP 419 otherwise).
 - **Query-filter allow-listing** — `QueryBuilder::allowFilters()` now enforces a strict allow-list; unrecognised filter columns throw `InvalidFilterQuery`; passing a non-array argument throws `TypeError` (fail-closed).
 
-[Unreleased]: https://github.com/tahadeveloper/ions.core/compare/4.1.0...HEAD
+[Unreleased]: https://github.com/tahadeveloper/ions.core/compare/4.2.0...HEAD
+[4.2.0]: https://github.com/tahadeveloper/ions.core/compare/4.1.0...4.2.0
 [4.1.0]: https://github.com/tahadeveloper/ions.core/compare/4.0.0...4.1.0
 [4.0.0]: https://github.com/tahadeveloper/ions.core/compare/3.0.0...4.0.0
 [3.0.0]: https://github.com/tahadeveloper/ions.core/releases/tag/3.0.0

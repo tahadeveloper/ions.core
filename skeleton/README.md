@@ -10,10 +10,11 @@ A minimal host application for the [Ions PHP framework](https://github.com/tahad
 cp -R skeleton my-app && cd my-app
 ```
 
-> **Pre-release note:** `composer.json` requires `ionzile/core:^4.1`, which is
-> not yet tagged on Packagist (only 4.0.0 is). Until 4.1.0 is released, the
-> `composer install` below will fail to resolve it — install from the VCS
-> repository instead:
+> **Pre-release note:** `composer.json` requires `ionzile/core:^4.2` (the
+> skeleton uses 4.2 features — the `app/` layout, `$this->view()`, the
+> scheduler), which is not yet tagged (4.1.0 is the latest release). Until
+> 4.2.0 is tagged, the `composer install` below will fail to resolve it —
+> install from the VCS repository instead:
 >
 > ```bash
 > composer config repositories.ions vcs https://github.com/tahadeveloper/ions.core
@@ -105,3 +106,4 @@ with assertion helpers (`assertDispatched`, `assertFired`, `assertStored`,
 - Set `APP_DEBUG=false` and run `php bin/ions optimize` (route + config caches).
 - CORS is deny-by-default; configure `app.cors.origins` when serving cross-origin traffic.
 - Review `UPGRADE-4.1.md` in `ionzile/core` for the 4.1 security defaults this skeleton embraces.
+- Growing the app? `docs/best-practices.md` in `ionzile/core` is the opinionated structure guide this layout follows.
