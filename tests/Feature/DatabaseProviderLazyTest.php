@@ -3,8 +3,9 @@
 /**
  * Proves that DatabaseProvider:
  *   1. Does NOT open a PDO connection at boot time (lazy connection).
- *   2. Gates query logging behind env('APP_DEBUG'), not config('app.app_debug').
- *   3. Re-booting with APP_DEBUG on enables query logging.
+ *   2. Gates query logging behind the EXPLICIT config('database.query_log')
+ *      flag — APP_DEBUG alone no longer enables it (the log accumulates
+ *      unbounded in memory; debuggers must opt in). See UPGRADE-4.1.
  */
 
 use Ions\Foundation\Kernel;
@@ -25,24 +26,23 @@ test('the database connection does not open a PDO until the first query', functi
     expect($connection->getRawPdo())->toBeInstanceOf(\PDO::class);
 });
 
-test('query logging is OFF by default when APP_DEBUG is not set', function () {
-    // The fixture .env has no APP_DEBUG key → env('APP_DEBUG') returns false → logging stays off.
+test('query logging is OFF by default', function () {
     DB::connection()->select('select 1 as one');
     expect(DB::connection()->logging())->toBeFalse();
 });
 
-test('query logging is ON when APP_DEBUG is set to a truthy value', function () {
+test('APP_DEBUG alone does NOT enable query logging (behavior change in 4.1)', function () {
     $originalDebug = getenv('APP_DEBUG');
 
     putenv('APP_DEBUG=1');
     $_ENV['APP_DEBUG'] = '1';
 
     try {
-        // Re-boot so DatabaseProvider::boot() runs again and reads the updated env.
+        // Re-boot so DatabaseProvider::boot() runs again under APP_DEBUG.
         bootFixtureKernel();
 
         DB::connection()->select('select 1 as one');
-        expect(DB::connection()->logging())->toBeTrue();
+        expect(DB::connection()->logging())->toBeFalse();
     } finally {
         // Restore the original APP_DEBUG value to avoid leaking state.
         if ($originalDebug === false) {
@@ -53,4 +53,14 @@ test('query logging is ON when APP_DEBUG is set to a truthy value', function () 
             $_ENV['APP_DEBUG'] = $originalDebug;
         }
     }
+});
+
+test('query logging is ON when config database.query_log is explicitly true', function () {
+    config(['database.query_log' => true]);
+
+    // Re-run the provider boot so it re-reads the flag (idempotent bindings).
+    (new \Ions\Providers\DatabaseProvider(Kernel::app()))->boot();
+
+    DB::connection()->select('select 1 as one');
+    expect(DB::connection()->logging())->toBeTrue();
 });

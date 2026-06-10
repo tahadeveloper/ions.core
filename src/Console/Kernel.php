@@ -52,6 +52,13 @@ class Kernel
         \ScheduleRunCommand::class,
         \QueueWorkCommand::class,
         \OpenApiCommand::class,
+        \Ions\commands\RouteCacheCommand::class,
+        \Ions\commands\RouteClearCommand::class,
+        \Ions\commands\ConfigCacheCommand::class,
+        \Ions\commands\ConfigClearCommand::class,
+        \Ions\commands\OptimizeCommand::class,
+        \Ions\commands\OptimizeClearCommand::class,
+        \Ions\commands\PreloadGenerateCommand::class,
     ];
 
     private function __construct(ConsoleApplication $application)
