@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Ions\Support;
 
+use InvalidArgumentException;
 use Ions\Foundation\Kernel;
+use Ions\Mail\Mailable;
+use Ions\Support\Concerns\ResolvesFake;
 use Ions\Testing\Fakes\MailFake;
-use RuntimeException;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\RawMessage;
@@ -24,6 +26,8 @@ use Symfony\Component\Mime\RawMessage;
  */
 final class Mail
 {
+    use ResolvesFake;
+
     /**
      * The container-bound mailer (the fake, once installed).
      */
@@ -37,11 +41,43 @@ final class Mail
 
     /**
      * Send a Symfony message (usually a {@see \Symfony\Component\Mime\Email})
-     * through the container-bound mailer.
+     * or an Ions {@see Mailable} through the container-bound mailer.
+     *
+     * A Mailable is built + materialized first (its view renders here); the
+     * RawMessage path is unchanged. $envelope only applies to RawMessages —
+     * a Mailable computes its envelope from the message itself, so passing
+     * one alongside a Mailable throws (it would otherwise be silently
+     * dropped).
+     *
+     * @throws InvalidArgumentException when an Envelope is passed with a Mailable
      */
-    public static function send(RawMessage $message, ?Envelope $envelope = null): void
+    public static function send(RawMessage|Mailable $message, ?Envelope $envelope = null): void
     {
+        if ($message instanceof Mailable) {
+            if ($envelope !== null) {
+                throw new InvalidArgumentException(sprintf(
+                    'Mail::send() does not accept an Envelope with a Mailable [%s]: the envelope is computed from the materialized message. Pass the Envelope with a Symfony RawMessage instead.',
+                    $message::class
+                ));
+            }
+
+            $message->send();
+
+            return;
+        }
+
         self::mailer()->send($message, $envelope);
+    }
+
+    /**
+     * Queue a {@see Mailable} (passthrough to {@see Mailable::queue()}):
+     * wraps it in a SendMailableJob and dispatches via the 'queue' binding.
+     *
+     * @return mixed The driver's push result (database job id; 0 on sync).
+     */
+    public static function queue(Mailable $mailable, ?string $connection = null, ?string $queue = null): mixed
+    {
+        return $mailable->queue($connection, $queue);
     }
 
     /**
@@ -49,14 +85,13 @@ final class Mail
      */
     public static function fake(): MailFake
     {
-        $fake = new MailFake();
-
-        Kernel::app()->instance('mailer', $fake);
-
-        return $fake;
+        return self::installFake('mailer', new MailFake());
     }
 
     /**
+     * A class-string filter matches Symfony message classes (instanceof) and
+     * Mailable subclasses (via the X-Ions-Mailable header their send() stamps).
+     *
      * @param class-string|callable(RawMessage, Envelope|null): bool|null $filter
      *
      * @see MailFake::assertSent()
@@ -84,22 +119,10 @@ final class Mail
 
     /**
      * The fake currently bound as 'mailer', or a hard failure pointing at the
-     * missing Mail::fake() call.
+     * missing Mail::fake() call (without lazily building the SMTP transport).
      */
     private static function installedFake(): MailFake
     {
-        $app = Kernel::app();
-
-        // resolved() is checked first so a missing fake fails with the message
-        // below instead of lazily building the real SMTP transport.
-        $mailer = $app->resolved('mailer') ? $app->get('mailer') : null;
-
-        if (!$mailer instanceof MailFake) {
-            throw new RuntimeException(
-                'Mail assertions require the fake: call Mail::fake() in your test before sending mail.'
-            );
-        }
-
-        return $mailer;
+        return self::resolveInstalledFake('mailer', MailFake::class, 'Mail');
     }
 }

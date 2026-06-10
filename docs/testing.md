@@ -9,6 +9,9 @@ security headers), no web server. Every request returns an
 The framework's own suite uses the exact same machinery
 (`tests/Feature/Testing/TestCaseTest.php` is a working reference).
 
+For building model test data (definitions, `make()`/`create()`, states), see
+[model factories](factories.md).
+
 ## Subclassing `TestCase`
 
 Set the protected `$basePath` property to your application root — the
@@ -180,12 +183,12 @@ Accessors: `status()`, `content()`, `headers()`,
 when absent or not JSON), and the public `baseResponse` property — the
 underlying Symfony response, as an escape hatch.
 
-## Fakes: Queue, Event, Storage, Mail
+## Fakes: Queue, Event, Storage, Mail, Notifications, Http
 
 Each framework service can be swapped for a recording fake with a single
 static call. `::fake()` rebinds the service in the container and returns the
-fake; assertions work on the returned instance **and** (for Queue/Event/Mail)
-as static passthroughs on the same facade. Because every test boots a fresh
+fake; assertions work on the returned instance **and** (for
+Queue/Event/Mail/Notifications/Http) as static passthroughs on the same facade. Because every test boots a fresh
 container, an installed fake never leaks into the next test — there is
 nothing to tear down.
 
@@ -291,11 +294,21 @@ $disk->assertMissing('avatars/8.png');
 ### `Ions\Support\Mail::fake()`
 
 Replaces the `mailer` binding (Symfony Mailer) with a recorder implementing
-the same `MailerInterface`, so anything sending through the container — the
-`newMailerDsn()` helper included — records instead of opening an SMTP
-connection. Hosts send Symfony `Email` objects; filter callables receive the
-message plus the recorded `Symfony\Component\Mailer\Envelope` as a second
-argument (`null` when the sender did not pass one).
+the same `MailerInterface`, so anything sending through the container —
+`Ions\Mail\Mailable::send()` and the `newMailerDsn()` helper included —
+records instead of opening an SMTP connection. Hosts send Symfony `Email`
+objects; filter callables receive the message plus the recorded
+`Symfony\Component\Mailer\Envelope` as a second argument (`null` when the
+sender did not pass one).
+
+A class-string filter matches two ways: Symfony message classes by
+`instanceof`, and `Mailable` FQCNs via the `X-Ions-Mailable` header every
+mailable stamps on the email it materializes (see
+[mail.md](mail.md#faking--assertions)) — so `Mail::assertSent(ResetPasswordMail::class)`
+works even though what the fake records is a Symfony `Email`. The header
+match is inheritance-aware, like `instanceof`: asserting a base Mailable
+class also matches sends of its subclasses. Real (non-fake) sends strip the
+header before it reaches the transport, so it never ships to recipients.
 
 ```php
 use Ions\Support\Mail;
@@ -305,19 +318,92 @@ $mailer = Mail::fake();
 
 $this->post('/password/forgot', ['email' => 'ion@example.test'])->assertOk();
 
+Mail::assertSent(ResetPasswordMail::class);   // Mailable FQCN (header match)
 Mail::assertSent(fn (Email $email) => $email->getSubject() === 'Reset your password');
 $mailer->assertSentCount(1);
 ```
 
 | Assertion | Verifies |
 |---|---|
-| `assertSent(string\|callable\|null $filter = null)` | At least one mail sent; a class-string requires an instance of it, a callable receives `($message, ?Envelope $envelope)` and must match at least one |
+| `assertSent(string\|callable\|null $filter = null)` | At least one mail sent; a class-string requires an instance of that message class **or** a mail materialized by that `Mailable` class (or one of its subclasses), a callable receives `($message, ?Envelope $envelope)` and must match at least one |
 | `assertSentCount(int $count)` | Exact number of sent mails |
 | `assertNothingSent()` | No mails were sent at all |
 
 `$mailer->sent()` returns every recorded message in send order;
 `$mailer->sentEnvelopes()` returns the index-aligned list of envelopes
 (`null` entries where no explicit envelope was passed).
+
+### `Ions\Support\Notifications::fake()`
+
+Replaces the `notifications` binding (the
+[notification dispatcher](notifications.md)) with a recorder implementing the
+same `Ions\Notifications\Contracts\Dispatcher` contract, so `notify()` and
+`Notifications::send()` record instead of running any channel — no mail is
+materialized and no database row is inserted (note the channel side: with only
+`Mail::fake()` installed, a mail notification still runs the channel and is
+asserted via `Mail::assertSent(TheMailable::class)`; with
+`Notifications::fake()` the channel never runs).
+
+Class-string matching is inheritance-aware, like `instanceof`. Notifiable
+matching accepts a different instance than the one notified: two notifiables
+match when they are the same object, or the same class and the same identity —
+compared via `Authenticatable::getAuthIdentifier()`, a duck-typed `getKey()`
+(Eloquent/Sentinel models), or a readable `->id`, in that order.
+
+```php
+use Ions\Support\Notifications;
+
+$fake = Notifications::fake();
+
+notify($user, new OrderShipped(1001));
+
+Notifications::assertSentTo($user, OrderShipped::class);
+Notifications::assertSentTo($user, OrderShipped::class,
+    fn (OrderShipped $n, object $notifiable) => $notifiable === $user);
+$fake->assertSentToTimes($user, OrderShipped::class, 1);
+```
+
+| Assertion | Verifies |
+|---|---|
+| `assertSentTo(object $notifiable, string $class, ?callable $filter = null)` | At least one `$class` notification sent to `$notifiable`; the filter receives `(Notification, object $notifiable)` and must match at least one |
+| `assertSentToTimes(object $notifiable, string $class, int $times)` | Exact per-notifiable, per-class send count |
+| `assertNothingSent()` | No notifications were sent at all |
+
+`$fake->sent()` returns every recorded
+`['notifiable' => object, 'notification' => Notification]` pair in send order.
+
+### `Ions\Support\Http::fake(callable|array|null $responses = null)`
+
+Replaces the `http` binding (Symfony HttpClient) with a recorder built on
+Symfony's own `MockHttpClient`, so nothing leaves the process. With no
+argument every request answers 200 with an empty body; pass an associative
+array of URL patterns (`*` wildcards) to responses, a sequential list, or a
+`MockHttpClient` factory callable. Requests are recorded with the fully
+resolved URL and Symfony's processed options.
+
+```php
+use Ions\Support\Http;
+use Symfony\Component\HttpClient\Response\MockResponse;
+
+$fake = Http::fake([
+    'https://api.example.test/*' => new MockResponse('{"id":7}', ['http_code' => 201]),
+]);
+
+Http::withToken('secret')->json('https://api.example.test/users', ['name' => 'Amr']);
+
+Http::assertSent('https://api.example.test/*');
+$fake->assertSentCount(1);
+```
+
+| Assertion | Verifies |
+|---|---|
+| `assertSent(string\|callable $urlOrFilter)` | At least one request matches; a string is a URL pattern (`*` wildcards), a callable receives `(string $method, string $url, array $options)` |
+| `assertSentCount(int $count)` | Exact number of requests sent |
+| `assertNothingSent()` | No requests were sent at all |
+
+`$fake->sent()` returns every recorded request in order as
+`['method' => ..., 'url' => ..., 'options' => ...]`. Full client and fake
+reference: [docs/http-client.md](http-client.md).
 
 ## Complete example (skeleton layout)
 

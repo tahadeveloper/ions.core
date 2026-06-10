@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Ions\Testing\Fakes;
 
+use Ions\Mail\Mailable;
 use PHPUnit\Framework\Assert;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Message;
 use Symfony\Component\Mime\RawMessage;
 
 /**
@@ -59,9 +61,12 @@ final class MailFake implements MailerInterface
 
     /**
      * Assert at least one message was sent. The optional filter narrows the
-     * match: a class-string requires an instance of that message class, a
-     * callable receives each message plus its recorded envelope (null when
-     * none was passed) and must return true for at least one.
+     * match: a class-string requires an instance of that message class — or,
+     * for an {@see \Ions\Mail\Mailable} FQCN, a message whose X-Ions-Mailable
+     * header carries that class or a subclass of it (inheritance-aware, like
+     * instanceof; Mailable sends keep the header when this fake is the
+     * mailer) — a callable receives each message plus its recorded envelope
+     * (null when none was passed) and must return true for at least one.
      *
      * @param class-string|callable(RawMessage, Envelope|null): bool|null $filter
      */
@@ -75,7 +80,17 @@ final class MailFake implements MailerInterface
 
         if (is_string($filter)) {
             $class = $filter;
-            $filter = static fn (RawMessage $message): bool => $message instanceof $class;
+            $filter = static function (RawMessage $message) use ($class): bool {
+                if ($message instanceof $class) {
+                    return true;
+                }
+
+                // Inheritance-aware, like instanceof: assertSent(BaseMail::class)
+                // matches a subclass Mailable's send.
+                $mailableClass = self::mailableClass($message);
+
+                return $mailableClass !== null && is_a($mailableClass, $class, true);
+            };
             $failure = sprintf('Expected a sent mail of class [%s], but none matched.', $class);
         } else {
             $failure = 'Expected at least one sent mail to match the given filter, but none did.';
@@ -106,6 +121,22 @@ final class MailFake implements MailerInterface
         );
 
         return $this;
+    }
+
+    /**
+     * The Mailable FQCN a message was materialized from (the X-Ions-Mailable
+     * header {@see Mailable::toSymfonyEmail()} stamps), or null for messages
+     * not sent via a Mailable.
+     */
+    private static function mailableClass(RawMessage $message): ?string
+    {
+        if (!$message instanceof Message) {
+            return null;
+        }
+
+        $header = $message->getHeaders()->get(Mailable::CLASS_HEADER);
+
+        return $header?->getBodyAsString();
     }
 
     /**

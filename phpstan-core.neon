@@ -12,12 +12,18 @@ parameters:
         - src/Session
         - src/View
         - src/Console
+        - src/Database
         - src/Events
+        - src/Mail
+        - src/Notifications
         - src/Queue
         - src/Media
         - src/Support
         - src/Runtime
         - src/Testing
+        # Fixture models give HasIonsFactory a concrete usage so phpstan
+        # analyses the trait (it is otherwise only consumed by host apps).
+        - tests/fixtures/app/src/Models
     scanFiles:
         - src/helpers.php
     # NO baseline — this code must be clean at level 8

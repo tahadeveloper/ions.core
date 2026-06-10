@@ -32,8 +32,11 @@ return [
     ],
 
     // Per-route middleware aliases, usable as ->middleware(['throttle']).
+    // 'signed' rejects requests whose URL lacks a valid signedRoute()/
+    // signedUrl() signature (403) — see docs/security.md.
     'middleware_aliases' => [
         'throttle' => \Ions\Http\Middleware\RateLimitMiddleware::class,
+        'signed' => \Ions\Http\Middleware\ValidateSignatureMiddleware::class,
     ],
 
     // Rate-limit window for the 'throttle' alias (defaults shown).

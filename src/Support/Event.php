@@ -6,8 +6,8 @@ namespace Ions\Support;
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Ions\Foundation\Kernel;
+use Ions\Support\Concerns\ResolvesFake;
 use Ions\Testing\Fakes\EventFake;
-use RuntimeException;
 
 /**
  * Thin static facade over the container-bound event dispatcher ('events',
@@ -22,6 +22,8 @@ use RuntimeException;
  */
 final class Event
 {
+    use ResolvesFake;
+
     /**
      * The container-bound event dispatcher (the fake, once installed).
      */
@@ -46,9 +48,7 @@ final class Event
     {
         $fake = new EventFake(self::dispatcher(), $eventsToFake ?? []);
 
-        Kernel::app()->instance('events', $fake);
-
-        return $fake;
+        return self::installFake('events', $fake);
     }
 
     /**
@@ -91,18 +91,10 @@ final class Event
 
     /**
      * The fake currently bound as 'events', or a hard failure pointing at the
-     * missing Event::fake() call.
+     * missing Event::fake() call (without lazily building the real dispatcher).
      */
     private static function installedFake(): EventFake
     {
-        $events = Kernel::app()->get('events');
-
-        if (!$events instanceof EventFake) {
-            throw new RuntimeException(
-                'Event assertions require the fake: call Event::fake() in your test before firing events.'
-            );
-        }
-
-        return $events;
+        return self::resolveInstalledFake('events', EventFake::class, 'Event');
     }
 }

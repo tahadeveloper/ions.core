@@ -23,6 +23,7 @@
   "require": {
     "php": "^8.3",
     "ext-openssl": "*",
+    "ext-sodium": "*",
     "ext-zip": "*",
     "cartalyst/sentinel": "^9.0",
     "illuminate/cache": "^12.0",
@@ -48,6 +49,7 @@
     "peppeocchi/php-cron-scheduler": "^4.0",
     "psr/container": "^2.0",
     "symfony/config": "^7.0",
+    "symfony/http-client": "^7.0",
     "symfony/mailer": "^7.0",
     "symfony/routing": "^7.0",
     "symfony/security-csrf": "^7.0",
@@ -64,6 +66,7 @@
   },
   "require-dev": {
     "driftingly/rector-laravel": "^2.5",
+    "fakerphp/faker": "^1.24",
     "friendsofphp/php-cs-fixer": "^3.64",
     "jetbrains/phpstorm-attributes": "^1.0",
     "pestphp/pest": "^3.0",

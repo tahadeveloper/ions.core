@@ -120,6 +120,7 @@ The framework resolves application paths relative to the host-app root (five dir
 - **Security headers** on every response; configurable CSP
 - **CSRF enforcement** on web routes (opt-out via `app.csrf.enabled = false`)
 - **Upload validation** — extension allow-list + hard-coded executable deny-list
+- **Encryption & signed URLs** — `Ions\Security\Encrypter` (XChaCha20-Poly1305 AEAD), `UrlSigner` + `signedRoute()` helper + `signed` middleware alias
 - **Rate limiting** — `RateLimitMiddleware` / `throttle` alias, 429 + `Retry-After`
 - **Exception handler** — `Ions\Http\ExceptionHandler`; JSON for API (incl. 422 validation), HTML for web; safe in production
 - **Generators** — `make:middleware`, `make:service-provider`, `make:command`
@@ -134,6 +135,7 @@ The framework resolves application paths relative to the host-app root (five dir
 |---|---|
 | [docs/skeleton.md](docs/skeleton.md) | Host-app skeleton (`skeleton/`): layout, quick-start, secure defaults |
 | [docs/testing.md](docs/testing.md) | Host-app test kit: `Ions\Testing\TestCase`, verb helpers, `actingAs()` (real JWT), `TestResponse` assertions |
+| [docs/factories.md](docs/factories.md) | Minimal model factories: `Ions\Database\Factory`, `make()`/`create()`/`count()`/`state()`, `HasIonsFactory`, `make:factory` |
 | [docs/lifecycle.md](docs/lifecycle.md) | Boot sequence, request pipeline, response dispatch |
 | [docs/routing.md](docs/routing.md) | Route registration, prefixes, groups, middleware, attributes |
 | [docs/middleware.md](docs/middleware.md) | `MiddlewareInterface`, pipeline, default stacks, writing middleware |
@@ -141,10 +143,14 @@ The framework resolves application paths relative to the host-app root (five dir
 | [docs/filesystem.md](docs/filesystem.md) | Multi-driver disks, `Storage`, `FilesystemManager`, uploads |
 | [docs/session.md](docs/session.md) | `SessionManager`, `session()`, `StartSessionMiddleware`, CSRF |
 | [docs/cache-queue-events.md](docs/cache-queue-events.md) | `cache()` / `dispatch()` / `event()`+`listen()`, jobs, `queue:work` |
+| [docs/mail.md](docs/mail.md) | `Mailable` classes (build/send/queue, Twig views), `Mail` facade, `Mail::fake()` FQCN assertions, `newMailerDsn()` |
+| [docs/notifications.md](docs/notifications.md) | `Notification` classes (`via()`/`toMail()`/`toDatabase()`), mail recipient routing, notifications table stub, custom channels, `notify()`, `Notifications::fake()` |
 | [docs/console.md](docs/console.md) | Console Kernel, `bin/ions`, command discovery, `make:command` |
 | [docs/resources.md](docs/resources.md) | API resources, collections, form requests, `openapi:generate` |
 | [docs/media.md](docs/media.md) | Image processing over `intervention/image` v3 |
-| [docs/config.md](docs/config.md) | All `app.*`, `auth.*`, `filesystem.*`, `session.*`, `cache.*`, `queue.*`, `events.*`, `media.*` config keys |
+| [docs/http-client.md](docs/http-client.md) | Outbound HTTP: `Http` facade over `symfony/http-client`, response wrapper, `Http::fake()` |
+| [docs/security.md](docs/security.md) | `Encrypter` (sodium AEAD), `UrlSigner`, `signedRoute()`/`signedUrl()`, `signed` middleware |
+| [docs/config.md](docs/config.md) | All `app.*`, `auth.*`, `filesystem.*`, `session.*`, `cache.*`, `queue.*`, `events.*`, `media.*`, `notifications.*` config keys |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 | [UPGRADE-4.0.md](UPGRADE-4.0.md) | Breaking changes and migration guide for 3.x → 4.0.0 |
 | [UPGRADE-3.0.md](UPGRADE-3.0.md) | Breaking changes and migration guide for 2.1.x → 3.0.0 |

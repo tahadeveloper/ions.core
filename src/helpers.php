@@ -233,6 +233,77 @@ if (!function_exists('abort')) {
     }
 }
 
+if (!function_exists('signedUrl')) {
+    /**
+     * Sign an arbitrary URL (relative or absolute) with the container's
+     * UrlSigner ('url.signer'). Requires a valid APP_KEY (≥ 32 bytes).
+     *
+     * @param string $url
+     * @param DateTimeInterface|int|null $expiresAt Epoch seconds or a DateTime; null = no expiry.
+     * @return string
+     */
+    function signedUrl(string $url, DateTimeInterface|int|null $expiresAt = null): string
+    {
+        /** @var \Ions\Security\UrlSigner $signer */
+        $signer = Kernel::app()->make('url.signer');
+
+        return $signer->sign($url, $expiresAt);
+    }
+}
+
+if (!function_exists('signedRoute')) {
+    /**
+     * Generate a signed absolute URL for a named route.
+     *
+     * The route is resolved via Symfony's UrlGenerator. $params fill route
+     * placeholders; leftovers become query params. The absolute URL is built
+     * from config('app.app_url') — the same value the kernel's host gate
+     * enforces — so signed links always target the canonical host.
+     *
+     * Name lookup precedence: a name declared in several collections resolves
+     * shared (Kernel::RouteCollection(), e.g. App\Booting/tests) → 'web'
+     * group → 'api' group; the first hit wins.
+     *
+     * URL generation deliberately uses a bare RequestContext (not one derived
+     * from the current request): app_url already contains any APP_FOLDER
+     * subfolder, and a request-derived context would contribute its baseUrl
+     * too, doubling the folder on subfolder deployments.
+     *
+     * @param string $name Route name (4th param of Route::get(), or attribute route name).
+     * @param array<string, mixed> $params Placeholder + extra query parameters.
+     * @param DateTimeInterface|int|null $expiresAt Epoch seconds or a DateTime; null = no expiry.
+     * @return string
+     * @throws \Symfony\Component\Routing\Exception\RouteNotFoundException when the route name is unknown.
+     */
+    function signedRoute(string $name, array $params = [], DateTimeInterface|int|null $expiresAt = null): string
+    {
+        // The shared collection only holds routes registered outside route
+        // files (App\Booting, tests). Routes from routes/{web|api}.php and
+        // attributes live in the per-group captures — search those next.
+        $routes = Kernel::RouteCollection();
+        if ($routes->get($name) === null) {
+            foreach (['web', 'api'] as $group) {
+                $candidate = Kernel::routesFor($group);
+                if ($candidate->get($name) !== null) {
+                    $routes = $candidate;
+                    break;
+                }
+            }
+        }
+
+        // Bare context: the absolute base (host + any APP_FOLDER) comes from
+        // app_url below — request-derived baseUrl must not be prepended again.
+        $context = new \Symfony\Component\Routing\RequestContext();
+
+        $generator = new \Symfony\Component\Routing\Generator\UrlGenerator($routes, $context);
+        $path = $generator->generate($name, $params, \Symfony\Component\Routing\Generator\UrlGeneratorInterface::ABSOLUTE_PATH);
+
+        $base = rtrim((string) config('app.app_url', ''), '/');
+
+        return signedUrl($base . $path, $expiresAt);
+    }
+}
+
 if (!function_exists('toObject')) {
     /**
      * @param array $unhandled
@@ -457,6 +528,24 @@ if (!function_exists('dispatch')) {
 
         return $manager->connection(is_string($connection) ? $connection : null)
             ->push($job, '', is_string($queue) ? $queue : null);
+    }
+}
+
+if (!function_exists('notify')) {
+    /**
+     * Send a notification to a notifiable (usually a user) on every channel
+     * its via() names — synchronously, through the container-bound
+     * 'notifications' dispatcher, so Notifications::fake() intercepts it.
+     *
+     * Deferred delivery rides the Mailable (toMail() + Mailable::queue())
+     * or a host job wrapping notify(); see docs/notifications.md.
+     */
+    function notify(object $notifiable, \Ions\Notifications\Notification $notification): void
+    {
+        /** @var \Ions\Notifications\Contracts\Dispatcher $dispatcher */
+        $dispatcher = Kernel::app()->get('notifications');
+
+        $dispatcher->send($notifiable, $notification);
     }
 }
 

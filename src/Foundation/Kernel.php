@@ -327,6 +327,9 @@ class Kernel extends Singleton
             \Ions\Providers\QueueProvider::class,
             \Ions\Providers\AuthProvider::class,
             \Ions\Providers\MailProvider::class,
+            \Ions\Providers\NotificationProvider::class,
+            \Ions\Providers\HttpClientProvider::class,
+            \Ions\Providers\SecurityProvider::class,
             \Ions\Providers\ViewProvider::class,
         ];
     }
@@ -578,12 +581,12 @@ class Kernel extends Singleton
             $stack = config('app.middleware', self::defaultMiddleware())[$targetFolder] ?? [];
 
             // Append per-route middleware (runs closest to the controller).
+            // resolveMiddleware() fails closed: an unresolvable name throws
+            // (rendered as a 500) — explicitly attached middleware is never
+            // silently dropped.
             $routeMiddleware = [];
             foreach ($routeMiddlewareNames as $name) {
-                $resolved = self::resolveMiddleware((string) $name);
-                if ($resolved !== null) {
-                    $routeMiddleware[] = $resolved;
-                }
+                $routeMiddleware[] = self::resolveMiddleware((string) $name);
             }
             $stack = array_merge($stack, $routeMiddleware);
 
@@ -781,59 +784,69 @@ class Kernel extends Singleton
     }
 
     /**
-     * Resolve a middleware name (FQCN or alias) to a MiddlewareInterface instance.
+     * Resolve a PER-ROUTE middleware name (FQCN or alias) to a MiddlewareInterface
+     * instance.
      *
      * Resolution order:
      *   1. If $name exists in config('app.middleware_aliases'), use the mapped class-string.
      *   2. Otherwise treat $name itself as a class-string.
      *   3. Instantiate via the container; verify it implements MiddlewareInterface.
      *
-     * Failure policy:
-     *   - In debug mode (APP_DEBUG=true): throws InvalidArgumentException immediately,
-     *     so a renamed/removed alias is caught during development.
-     *   - In production: logs a warning via the framework logger and returns null so
-     *     a bad alias never crashes a live request — but the issue is surfaced in logs.
+     * Failure policy — FAIL CLOSED, in both debug and production:
+     *   Per-route middleware is attached explicitly (->middleware([...]) or the
+     *   '_middleware' route option) and is almost always a security gate
+     *   ('signed', 'throttle', auth). Silently dropping an unresolvable entry
+     *   would serve the route UNPROTECTED — an unsigned request would get a 200.
+     *   So an unresolvable name always throws InvalidArgumentException, which
+     *   Kernel::handle() routes through the ExceptionHandler as a 500 (generic
+     *   body in production, full detail in debug). The cause is additionally
+     *   logged in production since the generic error page hides it.
+     *
+     *   Note on group stacks: the per-group middleware stacks
+     *   (config('app.middleware') / defaultMiddleware()) are arrays of
+     *   already-constructed MiddlewareInterface instances and never pass
+     *   through this resolver — there is no name-resolution step to fail for
+     *   them, so this policy governs per-route middleware only.
      *
      * @param string $name FQCN or alias string.
-     * @return \Ions\Http\Middleware\MiddlewareInterface|null
-     * @throws \InvalidArgumentException in debug mode when the middleware cannot be resolved.
+     * @return \Ions\Http\Middleware\MiddlewareInterface
+     * @throws \InvalidArgumentException when the middleware cannot be resolved.
      */
-    private static function resolveMiddleware(string $name): ?\Ions\Http\Middleware\MiddlewareInterface
+    private static function resolveMiddleware(string $name): \Ions\Http\Middleware\MiddlewareInterface
     {
         /** @var array<string,string> $aliases */
         $aliases = (array) config('app.middleware_aliases', []);
         $class = $aliases[$name] ?? $name;
 
-        $unresolvable = static function (string $reason) use ($name): null {
+        $unresolvable = static function (string $reason) use ($name): never {
             $message = "Middleware '{$name}' could not be resolved: {$reason}. "
                 . "Check 'app.middleware_aliases' or verify the class exists and implements MiddlewareInterface.";
 
-            if (env('APP_DEBUG', false)) {
-                throw new \InvalidArgumentException($message);
+            if (!env('APP_DEBUG', false)) {
+                // Production renders a generic 500 page — surface the cause in
+                // the logs so operators can see why the route is failing.
+                try {
+                    \Ions\Bundles\Logs::create('app.log')->error($message);
+                } catch (\Throwable) {
+                    // Ignore logging failures — never let them mask the original issue.
+                }
             }
 
-            // Production: log and silently drop so requests are not broken.
-            try {
-                \Ions\Bundles\Logs::create('app.log')->warning($message);
-            } catch (\Throwable) {
-                // Ignore logging failures — never let them mask the original issue.
-            }
-
-            return null;
+            throw new \InvalidArgumentException($message);
         };
 
         if (!class_exists($class)) {
-            return $unresolvable("class '{$class}' does not exist");
+            $unresolvable("class '{$class}' does not exist");
         }
 
         try {
             $instance = static::$app->make($class);
         } catch (\Throwable $e) {
-            return $unresolvable("container could not instantiate '{$class}': " . $e->getMessage());
+            $unresolvable("container could not instantiate '{$class}': " . $e->getMessage());
         }
 
         if (!($instance instanceof \Ions\Http\Middleware\MiddlewareInterface)) {
-            return $unresolvable("'{$class}' does not implement MiddlewareInterface");
+            $unresolvable("'{$class}' does not implement MiddlewareInterface");
         }
 
         return $instance;
@@ -850,6 +863,21 @@ class Kernel extends Singleton
     private static function routes(string $targetFolder): RouteCollection
     {
         return static::$routeCollections[$targetFolder] ??= self::buildRouteCollection($targetFolder);
+    }
+
+    /**
+     * Public accessor for the memoized per-group route collection ('web' or
+     * 'api'), capturing it on first use. URL generation (signedRoute()) needs
+     * this because routes declared in routes/{group}.php or via attributes
+     * only live in the group collections — the shared collection is restored
+     * to its pre-include snapshot after each group build.
+     *
+     * @param string $targetFolder 'web' or 'api'
+     * @return RouteCollection
+     */
+    public static function routesFor(string $targetFolder): RouteCollection
+    {
+        return self::routes($targetFolder);
     }
 
     /**

@@ -168,3 +168,9 @@ test('static assertions without an installed fake throw a helpful error', functi
     expect(fn () => Queue::assertDispatched(RecordingJob::class))
         ->toThrow(RuntimeException::class, 'Queue::fake()');
 });
+
+test('a missing-fake failure does not lazily build the real queue manager', function () {
+    expect(fn () => Queue::assertDispatched(RecordingJob::class))
+        ->toThrow(RuntimeException::class, 'Queue::fake()')
+        ->and(Kernel::app()->resolved('queue'))->toBeFalse();
+});
