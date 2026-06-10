@@ -173,6 +173,120 @@ Accessors: `status()`, `content()`, `headers()`,
 when absent or not JSON), and the public `baseResponse` property — the
 underlying Symfony response, as an escape hatch.
 
+## Fakes: Queue, Event, Storage, Mail
+
+Each framework service can be swapped for a recording fake with a single
+static call. `::fake()` rebinds the service in the container and returns the
+fake; assertions work on the returned instance **and** (for Queue/Event/Mail)
+as static passthroughs on the same facade. Because every test boots a fresh
+container, an installed fake never leaks into the next test — there is
+nothing to tear down.
+
+Calling a static assertion without having installed the fake first throws a
+`RuntimeException` telling you to call `::fake()`.
+
+### `Ions\Support\Queue::fake()`
+
+Jobs dispatched through the `dispatch()` helper are recorded instead of run.
+
+```php
+use Ions\Support\Queue;
+
+Queue::fake();                 // optional: Queue::fake([OnlyThisJob::class])
+
+dispatch(new SendWelcomeEmail($user));
+
+Queue::assertDispatched(SendWelcomeEmail::class);
+```
+
+| Assertion | Verifies |
+|---|---|
+| `assertDispatched(string $job, callable\|int\|null $filterOrCount = null)` | Job class was dispatched; with a callable, at least one dispatched job satisfies it; with an int, the exact count |
+| `assertDispatchedTimes(string $job, int $times = 1)` | Exact dispatch count |
+| `assertNotDispatched(string $job, ?callable $filter = null)` | Job class was not dispatched (or none matching the filter) |
+| `assertNothingDispatched()` | No jobs were dispatched at all |
+
+The fake extends Illuminate's `QueueFake`, so its native `assertPushed*`
+family is available too.
+
+### `Ions\Support\Event::fake(?array $eventsToFake = null)`
+
+Events are recorded instead of reaching their listeners. With a list of
+event names, only those are intercepted — every other event still fires
+normally. The kernel's own lifecycle events (e.g.
+`Ions\Events\RequestHandled`) are intercepted like any other.
+
+```php
+use Ions\Support\Event;
+
+$events = Event::fake();
+
+$this->post('/orders', [...])->assertCreated();
+
+$events->assertFired(OrderPlaced::class, fn (OrderPlaced $e) => $e->order->total === 99);
+Event::assertNotFired(OrderCancelled::class);
+```
+
+| Assertion | Verifies |
+|---|---|
+| `assertFired(string $event, ?callable $filter = null)` | Event fired (filter receives the event object) |
+| `assertNotFired(string $event, ?callable $filter = null)` | Event did not fire (or none matching the filter) |
+| `assertNothingFired()` | No events were recorded at all |
+
+### `Ions\Filesystem\Storage::fake(?string $disk = null)`
+
+Swaps the named disk (default: `config('filesystem.default')`) for a fresh
+**in-memory** disk — forced regardless of the configured driver, so a disk
+configured as `s3` or `local` never sees test writes. Files written through
+normal `Storage` calls land in the fake; assertions live on the returned
+handle.
+
+```php
+use Ions\Filesystem\Storage;
+
+$disk = Storage::fake();           // or Storage::fake('s3')
+
+Storage::put('avatars/7.png', $bytes);
+
+$disk->assertStored('avatars/7.png');
+$disk->assertMissing('avatars/8.png');
+```
+
+| Assertion | Verifies |
+|---|---|
+| `assertStored(string $path)` / `assertExists(string $path)` | File exists on the fake disk |
+| `assertMissing(string $path)` | File does not exist on the fake disk |
+
+`$disk->disk()` exposes the underlying Flysystem instance (the same one
+`Storage::disk()` now resolves) for direct inspection.
+
+### `Ions\Support\Mail::fake()`
+
+Replaces the `mailer` binding (Symfony Mailer) with a recorder implementing
+the same `MailerInterface`, so anything sending through the container — the
+`newMailerDsn()` helper included — records instead of opening an SMTP
+connection. Hosts send Symfony `Email` objects; filters receive the message.
+
+```php
+use Ions\Support\Mail;
+use Symfony\Component\Mime\Email;
+
+$mailer = Mail::fake();
+
+$this->post('/password/forgot', ['email' => 'ion@example.test'])->assertOk();
+
+Mail::assertSent(fn (Email $email) => $email->getSubject() === 'Reset your password');
+$mailer->assertSentCount(1);
+```
+
+| Assertion | Verifies |
+|---|---|
+| `assertSent(string\|callable\|null $filter = null)` | At least one mail sent; a class-string requires an instance of it, a callable must match at least one message |
+| `assertSentCount(int $count)` | Exact number of sent mails |
+| `assertNothingSent()` | No mails were sent at all |
+
+`$mailer->sent()` returns every recorded message in send order.
+
 ## Complete example (skeleton layout)
 
 ```php

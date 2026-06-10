@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Ions\Filesystem;
 
 use Ions\Foundation\Kernel;
+use Ions\Testing\Fakes\StorageFake;
 use League\Flysystem\Filesystem;
+use League\Flysystem\InMemory\InMemoryFilesystemAdapter;
 
 /**
  * Thin static facade over the container-bound {@see FilesystemManager}.
@@ -32,6 +34,28 @@ final class Storage
     public static function disk(?string $name = null): Filesystem
     {
         return self::manager()->disk($name);
+    }
+
+    /**
+     * Swap the named disk (default: config('filesystem.default')) for a
+     * fresh in-memory disk and return a {@see StorageFake} handle with
+     * assertion helpers.
+     *
+     * The memory adapter is forced regardless of the disk's configured
+     * driver (local, s3, …), so files written through normal Storage calls
+     * during a test never touch the real disk. The swap lives in the
+     * container's FilesystemManager and is discarded with the container on
+     * the next test boot.
+     */
+    public static function fake(?string $disk = null): StorageFake
+    {
+        $manager = self::manager();
+        $name = $disk ?? $manager->getDefaultDriver();
+
+        $filesystem = new Filesystem(new InMemoryFilesystemAdapter());
+        $manager->set($name, $filesystem);
+
+        return new StorageFake($name, $filesystem);
     }
 
     /**

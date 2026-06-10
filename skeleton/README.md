@@ -69,6 +69,11 @@ final class PingTest extends \Ions\Testing\TestCase
 `actingAs($userIdOrUser)` issues a real JWT for protected `/api` routes —
 it requires `APP_KEY` (≥ 32 bytes) in the `.env` used by your tests.
 
+Test fakes ship with the kit: `Queue::fake()`, `Event::fake()`,
+`Storage::fake()` and `Mail::fake()` swap the real service for a recorder
+with assertion helpers (`assertDispatched`, `assertFired`, `assertStored`,
+`assertSent`, …) — see the Fakes section of `docs/testing.md`.
+
 ## Production notes
 
 - Set `APP_DEBUG=false` and run `php bin/ions optimize` (route + config caches).
