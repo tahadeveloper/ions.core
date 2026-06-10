@@ -89,6 +89,48 @@ rebuilt whenever the kernel re-boots.
 no longer enables it — the log grows unboundedly in memory. See
 [config.md](config.md#databasequery_log) and UPGRADE-4.1.
 
+## N+1 query detector (debug-only)
+
+When `APP_DEBUG` is truthy **and** `database.query_log` is on,
+`DatabaseProvider::boot()` automatically attaches
+`Ions\Database\Listeners\DetectNPlusOne` to the kernel's `RequestHandled`
+event. At the end of each request it runs `Ions\Database\NPlusOneDetector`
+over the bounded query log and writes **one warning per offending pattern** to
+`var/logs/performance.log`:
+
+```
+ions.WARNING: Possible N+1 query: pattern executed 26 times (12.40 ms total) during /orders — fix with eager loading (->with(...)) or one WHERE ... IN (...) query. Pattern: select * from products where id = ? {"pattern":"select * from products where id = ?","count":26,"total_time_ms":12.4,"path":"/orders"}
+```
+
+### How it works (and the honest limitation)
+
+Each `SELECT` in the query log is normalized into a shape-pattern — lowercased,
+whitespace collapsed, string/numeric literals replaced with `?`,
+`IN (?, ?, …)` lists collapsed to `in (...)` — and any **WHERE-carrying
+pattern repeated >= threshold times** (default 5) within one request is
+flagged.
+
+This is a **log-based heuristic**, not ORM-level lazy-load detection (compare
+Laravel's `Model::preventLazyLoading()`, which hooks relation loading itself).
+The query log cannot show *where* a query came from — only that the same
+single-row-shaped `SELECT` ran many times in one request, which is exactly the
+N+1 signature. Expect occasional false positives from intentional query loops;
+fix real offenders with eager loading (`->with('relation')`) or one
+`WHERE … IN (...)` query.
+
+### Config keys
+
+| Key | Default | Effect |
+| --- | --- | --- |
+| `database.query_log` | `false` | Prerequisite — without the query log there is nothing to analyze. |
+| `database.nplusone.enabled` | `true` | Escape hatch: `false` prevents the listener from ever attaching. |
+| `database.nplusone.threshold` | `5` | Repetitions of one pattern that trigger the warning. |
+
+Production is untouched: with `APP_DEBUG` off (or `query_log` off, or
+`enabled => false`) **no listener is attached at all** — zero hot-path cost.
+The listener itself never throws; diagnostics failures are swallowed so they
+cannot break a response.
+
 ## opcache preload (optional)
 
 `ions preload:generate` emits a curated `opcache_compile_file()` list (kernel,

@@ -511,6 +511,23 @@ connection so `debugQuery()` returns the executed statements.
 > now strictly opt-in. Debuggers that relied on `APP_DEBUG` must set
 > `'query_log' => true` in `config/database.php`.
 
+### `database.nplusone.enabled`
+
+**Type:** `bool` — **Default:** `true`
+
+Escape hatch for the debug-only N+1 query detector. The detector only ever
+runs when `APP_DEBUG` is truthy **and** `database.query_log` is `true`;
+setting this to `false` prevents `DatabaseProvider::boot()` from attaching the
+`DetectNPlusOne` listener even then. Warnings go to
+`var/logs/performance.log`. See [performance.md](performance.md#n1-query-detector-debug-only).
+
+### `database.nplusone.threshold`
+
+**Type:** `int` — **Default:** `5`
+
+How many times one normalized SELECT pattern must repeat within a single
+request before the N+1 warning fires.
+
 ---
 
 ## Session config (`config/session.php`)

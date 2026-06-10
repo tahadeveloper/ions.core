@@ -8,6 +8,11 @@ return [
     // Query logging is opt-in (4.1): it buffers every statement in memory,
     // so enable it only while debugging. 'query_log' => true,
 
+    // With APP_DEBUG + query_log on, the N+1 detector warns in
+    // var/logs/performance.log when one SELECT pattern repeats >= threshold
+    // times per request (see docs/performance.md). Tune or disable with:
+    // 'nplusone' => ['enabled' => true, 'threshold' => 5],
+
     'connections' => [
         'mysql' => [
             'driver' => 'mysql',
