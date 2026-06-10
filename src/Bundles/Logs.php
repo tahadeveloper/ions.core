@@ -31,6 +31,10 @@ class Logs extends Singleton
         $logger = new Logger('ions');
         $logger->pushHandler($stream);
 
+        // Mask secret-bearing context values (password/token/secret/
+        // authorization/api_key, recursive) before anything hits the file.
+        $logger->pushProcessor(new RedactionProcessor());
+
         return $logger;
     }
 

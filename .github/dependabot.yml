@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # Composer dependencies — weekly advisory/update PRs.
+  - package-ecosystem: composer
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+
+  # Keep the CI workflow's actions fresh too.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

@@ -15,6 +15,8 @@ jobs:
           extensions: openssl, zip, pdo_sqlite
           coverage: none
       - run: composer install --no-interaction --prefer-dist
+      # Fail the build on known security advisories in locked dependencies.
+      - run: composer audit --locked
       - run: composer cs
       - run: composer stan
       - run: composer stan:core

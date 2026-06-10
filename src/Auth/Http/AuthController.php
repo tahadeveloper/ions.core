@@ -41,7 +41,8 @@ class AuthController
      */
     public function login(Request $request): JsonResponse
     {
-        if ($this->jwt === null) {
+        $jwt = $this->jwt;
+        if ($jwt === null) {
             return Json::error('Auth unavailable', 503);
         }
         if ($this->users === null) {
@@ -64,8 +65,8 @@ class AuthController
         $this->regenerateSession();
 
         return Json::ok([
-            'access_token'  => $this->jwt->issue($userId),
-            'refresh_token' => $this->jwt->issueRefresh($userId),
+            'access_token'  => $jwt->issue($userId),
+            'refresh_token' => $jwt->issueRefresh($userId),
             'token_type'    => 'Bearer',
         ]);
     }

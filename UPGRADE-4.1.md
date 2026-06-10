@@ -86,6 +86,14 @@ extensions absent from the map are accepted on the extension gate alone. See
 receive **429** with a generic message and a `Retry-After` header — the same
 shape as the route-level `throttle` middleware, and still enumeration-safe.
 
+### Log context redaction
+
+Loggers built by `Logs::create()` now run `Ions\Bundles\RedactionProcessor`:
+context keys matching *password / passwd / token / secret / authorization /
+api_key* (case-insensitive, recursive through nested arrays) are masked to
+`[REDACTED]` before reaching the log file. If you intentionally log such
+values, build a bare Monolog `Logger` yourself.
+
 ## Behavior changes
 
 ### Query logging is no longer implied by APP_DEBUG
