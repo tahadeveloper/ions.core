@@ -139,8 +139,11 @@ test('the skeleton ships an Apache front-controller .htaccess', function () {
     expect($contents)->toContain('RewriteEngine')
         // Everything that is not an existing file/directory hits the front controller…
         ->and($contents)->toContain('index.php')
-        // …and dotfiles (.env, .git, …) are denied outright.
-        ->and($contents)->toContain('(^|/)\.');
+        // …dotfiles (.env, .git, …) are denied outright…
+        ->and($contents)->toContain('(^|/)\.')
+        // …and the Authorization header survives mod_proxy_fcgi (Bearer API auth).
+        ->and($contents)->toContain('E=HTTP_AUTHORIZATION:%{HTTP:Authorization}')
+        ->and($contents)->toContain('-MultiViews');
 });
 
 test('GET /api/ping returns 200 JSON', function () {

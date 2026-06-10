@@ -25,9 +25,22 @@ my-app/
 > config, or you will fight the app's per-route overrides
 > (`app.security.csp` / `app.security.hsts` / `app.security.permissions_policy`).
 
+> **Host headers:** set `config('app.trusted_hosts')` in production so the
+> framework rejects requests with forged `Host` headers (`php bin/ions doctor`
+> warns when it is empty) — see [config.md](config.md). Defense-in-depth at the
+> server level: only answer for hostnames you actually serve, as the catch-all
+> blocks below do.
+
 ## nginx
 
 ```nginx
+# Catch-all: drop requests whose Host matches no server_name (444 closes the
+# connection without a response) so host-header probes never reach the app.
+server {
+    listen 80 default_server;
+    return 444;
+}
+
 server {
     listen 80;
     server_name example.com;
@@ -40,8 +53,15 @@ server {
     client_max_body_size 20m;
 
     # Front controller: serve existing files, route everything else to PHP.
+    # No `$uri/` on purpose — a front-controller app has no directory indexes.
     location / {
         try_files $uri /index.php?$query_string;
+    }
+
+    # Never execute PHP under uploads/ — defense-in-depth alongside the
+    # framework's upload magic-byte validation. Must sit above the php location.
+    location ~ ^/uploads/.*\.php$ {
+        return 404;
     }
 
     location ~ \.php$ {
@@ -49,6 +69,8 @@ server {
         try_files $uri =404;
         include fastcgi_params;
         fastcgi_pass unix:/run/php/php8.3-fpm.sock;   # or 127.0.0.1:9000
+        # Use $realpath_root instead of $document_root for symlink-swap deploys
+        # (opcache caches by real path, so a swapped symlink serves stale code).
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
     }
 
@@ -75,7 +97,8 @@ accidentally copied *into* `public/`.
 ## Apache
 
 The skeleton ships `public/.htaccess` with the rewrite (existing-file
-passthrough → `index.php`, dotfiles denied, `Options -Indexes`). The vhost
+passthrough → `index.php`, dotfiles denied, `Options -MultiViews -Indexes`,
+and the `Authorization`-header passthrough for php-fpm). The vhost
 just needs `DocumentRoot` on `public/` and `AllowOverride All` so the
 `.htaccess` applies:
 
@@ -87,6 +110,21 @@ just needs `DocumentRoot` on `public/` and `AllowOverride All` so the
     <Directory /var/www/my-app/public>
         AllowOverride All
         Require all granted
+
+        # mod_proxy_fcgi strips the Authorization header by default, which
+        # breaks Bearer-token API auth. The skeleton .htaccess also ships the
+        # rewrite-based workaround, so either one suffices.
+        CGIPassAuth On
+    </Directory>
+
+    # Never execute PHP under uploads/ — defense-in-depth alongside the
+    # framework's upload magic-byte validation. (Under mod_php,
+    # `php_admin_flag engine off` or `RemoveHandler .php` in this Directory
+    # block works too; the Require rule covers both mod_php and php-fpm.)
+    <Directory /var/www/my-app/public/uploads>
+        <FilesMatch \.php$>
+            Require all denied
+        </FilesMatch>
     </Directory>
 
     # php-fpm via mod_proxy_fcgi (or use mod_php):
