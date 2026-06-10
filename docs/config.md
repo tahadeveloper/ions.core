@@ -29,7 +29,7 @@ config()->integer('app.workers');
 
 Rules:
 
-- **No coercion.** `'1'` is not an int, `0`/`1` are not bools, and an int is not a float. A wrongly-typed `.env`-sourced value fails loudly at the read site instead of silently mis-behaving downstream — this kills a whole class of config bugs.
+- **No coercion.** `'1'` is not an int, `0`/`1` are not bools, and an int is not a float. A wrongly-typed `.env`-sourced value fails loudly at the read site instead of silently mis-behaving downstream — this kills a whole class of config bugs. (Tip: for `float()` keys write `30.0` in the config file, or use `integer()` if the key is conceptually an int.)
 - **Missing key + typed default** → the default is returned: `config()->string('app.name', 'Ions')`.
 - **Missing key without a default** resolves to `null`, which is a type mismatch → throws. This is deliberate: either pass an explicit default or guarantee the key exists.
 - A stored `null` value likewise throws.
