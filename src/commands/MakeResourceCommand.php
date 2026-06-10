@@ -1,62 +1,62 @@
 <?php
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Ions\Bundles\Path;
-use Ions\Support\File;
+use Ions\Console\GeneratorCommand;
 
-class MakeResourceCommand extends Command
+class MakeResourceCommand extends GeneratorCommand
 {
     protected $signature = 'make:resource {name} {--collection : Generate a ResourceCollection instead of a single Resource} {--force : Overwrite the file if it already exists}';
     protected $description = 'Create a new API resource class (Ions\Http\Resource / ResourceCollection).';
 
-    public function handle(): int
+    protected function type(): string
     {
-        $name = (string) $this->argument('name');
+        return 'Resource';
+    }
 
-        if (!File::exists(Path::src('Http/Resources'))) {
-            File::makeDirectory(Path::src('Http/Resources'), 0755, true, true);
-        }
+    protected function stubPath(): string
+    {
+        $stub = $this->option('collection') ? 'resource_collection.stub' : 'resource.stub';
 
-        $new_file = Path::src('Http/Resources/' . $name . '.php');
+        return Path::bin('commands/stubs/' . $stub);
+    }
 
-        if (File::exists($new_file)) {
-            if (!$this->option('force')) {
-                $this->error('Resource already exists: ' . $name . ' (use --force to overwrite)');
-                return self::FAILURE;
-            }
-            File::delete($new_file);
-        }
+    protected function targetPath(string $name): string
+    {
+        return Path::src('Http/Resources/' . $name . '.php');
+    }
 
+    protected function prepare(string $name): ?int
+    {
         if ($this->option('collection')) {
-            // UserCollection -> UserResource, Users -> UsersResource
-            $resource = Str::replaceLast('Collection', '', $name);
-            if (!Str::endsWith($resource, 'Resource')) {
-                $resource .= 'Resource';
-            }
-
-            Storage::copy(Path::bin('commands/stubs/resource_collection.stub'), $new_file);
-
-            $replace = Str::replace(
-                ['{{ class }}', '{{ resource }}'],
-                [$name, $resource],
-                Storage::get($new_file)
-            );
-        } else {
-            Storage::copy(Path::bin('commands/stubs/resource.stub'), $new_file);
-
-            $replace = Str::replace(
-                ['{{ class }}'],
-                [$name],
-                Storage::get($new_file)
-            );
+            // Surface the derived resource class so the assumption is visible.
+            $this->info('Wiring collection to ' . $this->resourceClassFor($name) . '::class — create it with make:resource if missing.');
         }
 
-        Storage::put($new_file, $replace);
+        return null;
+    }
 
-        $this->info('Resource created successfully: ' . $name);
+    protected function replacements(string $name): array
+    {
+        if (!$this->option('collection')) {
+            return parent::replacements($name);
+        }
 
-        return self::SUCCESS;
+        return [
+            '{{ class }}' => $name,
+            '{{ resource }}' => $this->resourceClassFor($name),
+        ];
+    }
+
+    /** UserCollection -> UserResource, Users -> UsersResource */
+    private function resourceClassFor(string $name): string
+    {
+        $resource = Str::replaceLast('Collection', '', $name);
+
+        if (!Str::endsWith($resource, 'Resource')) {
+            $resource .= 'Resource';
+        }
+
+        return $resource;
     }
 }

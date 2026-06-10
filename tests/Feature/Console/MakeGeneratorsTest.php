@@ -37,12 +37,23 @@ function cleanGeneratedArtifacts(): void
             File::deleteDirectory($path);
         }
     }
+
+    // Files a path-traversal name could have escaped to (hostile-input tests).
+    foreach ([$fixture . '/Escaped.php', dirname($fixture) . '/Escaped.php', dirname($fixture, 2) . '/Escaped.php'] as $escaped) {
+        if (is_file($escaped)) {
+            File::delete($escaped);
+        }
+    }
 }
 
 /** Assert a generated file passes php -l. */
 function expectLintOk(string $file): void
 {
     $lint = shell_exec(escapeshellarg(PHP_BINARY) . ' -l ' . escapeshellarg($file) . ' 2>&1');
+
+    // shell_exec returns null on failure / no output — surface that as its own
+    // failure instead of a confusing string assertion on null.
+    expect($lint)->toBeString();
     expect((string) $lint)->toContain('No syntax errors');
 }
 
@@ -68,6 +79,72 @@ test('all six generators are registered on the console kernel', function () {
 });
 
 // ---------------------------------------------------------------------------
+// Hostile input — name/option validation
+// ---------------------------------------------------------------------------
+
+test('make:job rejects a class name with spaces and punctuation', function () {
+    $app = makeGeneratorsApp();
+
+    $tester = new CommandTester($app->find('make:job'));
+    $tester->execute(['name' => 'Invalid Name!']);
+
+    expect($tester->getStatusCode())->toBe(1)
+        ->and($tester->getDisplay())->toContain('Invalid class name')
+        ->and(File::exists(Path::src('Jobs/Invalid Name!.php')))->toBeFalse()
+        ->and(is_dir(Path::src('Jobs')) ? File::files(Path::src('Jobs')) : [])->toBe([]);
+});
+
+test('make:event rejects a path-traversal name and writes nothing outside the host', function () {
+    $app = makeGeneratorsApp();
+    $fixture = realpath(__DIR__ . '/../../fixtures/app');
+
+    $tester = new CommandTester($app->find('make:event'));
+    $tester->execute(['name' => '../../Escaped']);
+
+    expect($tester->getStatusCode())->toBe(1)
+        ->and($tester->getDisplay())->toContain('Invalid class name')
+        ->and(File::exists($fixture . '/Escaped.php'))->toBeFalse()
+        ->and(File::exists($fixture . '/src/Escaped.php'))->toBeFalse()
+        ->and(File::exists(dirname($fixture) . '/Escaped.php'))->toBeFalse()
+        ->and(File::exists(dirname($fixture, 2) . '/Escaped.php'))->toBeFalse()
+        ->and(File::exists(Path::src('Events/../../Escaped.php')))->toBeFalse();
+});
+
+test('make:resource rejects a name with a slash via the validation error, not an exception', function () {
+    $app = makeGeneratorsApp();
+
+    $tester = new CommandTester($app->find('make:resource'));
+    $tester->execute(['name' => 'foo/bar']);
+
+    expect($tester->getStatusCode())->toBe(1)
+        ->and($tester->getDisplay())->toContain('Invalid class name')
+        ->and(File::exists(Path::src('Http/Resources/foo/bar.php')))->toBeFalse();
+});
+
+test('make:test rejects a name carrying a file extension', function () {
+    $app = makeGeneratorsApp();
+
+    $tester = new CommandTester($app->find('make:test'));
+    $tester->execute(['name' => 'pingTest.php']);
+
+    expect($tester->getStatusCode())->toBe(1)
+        ->and($tester->getDisplay())->toContain('Invalid class name')
+        ->and(File::exists(Path::tests('pingTest.php')))->toBeFalse()
+        ->and(File::exists(Path::tests('pingTest.php.php')))->toBeFalse();
+});
+
+test('make:listener rejects a code-injection --event value', function () {
+    $app = makeGeneratorsApp();
+
+    $tester = new CommandTester($app->find('make:listener'));
+    $tester->execute(['name' => 'X', '--event' => 'Foo; }']);
+
+    expect($tester->getStatusCode())->toBe(1)
+        ->and($tester->getDisplay())->toContain('Invalid event class')
+        ->and(File::exists(Path::src('Listeners/X.php')))->toBeFalse();
+});
+
+// ---------------------------------------------------------------------------
 // make:resource
 // ---------------------------------------------------------------------------
 
@@ -85,6 +162,7 @@ test('make:resource writes a Resource class', function () {
 
     $contents = File::get($generated);
     expect($contents)
+        ->toContain('declare(strict_types=1);')
         ->toContain('namespace App\\Http\\Resources;')
         ->toContain('use Ions\\Http\\Resource;')
         ->toContain('class UserResource extends Resource')
@@ -103,10 +181,12 @@ test('make:resource --collection writes a ResourceCollection class wired to its 
     $generated = Path::src('Http/Resources/UserCollection.php');
 
     expect($tester->getStatusCode())->toBe(0)
+        ->and($tester->getDisplay())->toContain('Wiring collection to UserResource::class')
         ->and(File::exists($generated))->toBeTrue();
 
     $contents = File::get($generated);
     expect($contents)
+        ->toContain('declare(strict_types=1);')
         ->toContain('namespace App\\Http\\Resources;')
         ->toContain('use Ions\\Http\\ResourceCollection;')
         ->toContain('class UserCollection extends ResourceCollection')
@@ -157,6 +237,7 @@ test('make:request writes a FormRequest class with rules and authorize', functio
 
     $contents = File::get($generated);
     expect($contents)
+        ->toContain('declare(strict_types=1);')
         ->toContain('namespace App\\Http\\Requests;')
         ->toContain('use Ions\\Http\\FormRequest;')
         ->toContain('class StoreUserRequest extends FormRequest')
@@ -197,6 +278,7 @@ test('make:job writes a Job class extending Ions\\Queue\\Job', function () {
 
     $contents = File::get($generated);
     expect($contents)
+        ->toContain('declare(strict_types=1);')
         ->toContain('namespace App\\Jobs;')
         ->toContain('use Ions\\Queue\\Job;')
         ->toContain('class SendWelcomeJob extends Job')
@@ -236,6 +318,7 @@ test('make:event writes a plain event class with a constructor', function () {
 
     $contents = File::get($generated);
     expect($contents)
+        ->toContain('declare(strict_types=1);')
         ->toContain('namespace App\\Events;')
         ->toContain('class UserRegistered')
         ->toContain('public function __construct(')
@@ -275,6 +358,7 @@ test('make:listener writes a listener with an untyped handle by default', functi
 
     $contents = File::get($generated);
     expect($contents)
+        ->toContain('declare(strict_types=1);')
         ->toContain('namespace App\\Listeners;')
         ->toContain('class SendWelcomeEmail')
         ->toContain('public function handle(object $event): void');
@@ -345,6 +429,7 @@ test('make:test writes a feature test extending Ions\\Testing\\TestCase into hos
 
     $contents = File::get($generated);
     expect($contents)
+        ->toContain('declare(strict_types=1);')
         ->toContain('use Ions\\Testing\\TestCase;')
         ->toContain('class PingTest extends TestCase')
         ->toContain("protected string \$basePath = __DIR__ . '/..';")
@@ -366,6 +451,7 @@ test('make:test --unit writes a plain PHPUnit test without kernel boot', functio
 
     $contents = File::get($generated);
     expect($contents)
+        ->toContain('declare(strict_types=1);')
         ->toContain('use PHPUnit\\Framework\\TestCase;')
         ->toContain('class MathTest extends TestCase')
         ->and($contents)->not->toContain('Ions\\Testing')

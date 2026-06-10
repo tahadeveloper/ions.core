@@ -1,46 +1,25 @@
 <?php
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Ions\Bundles\Path;
-use Ions\Support\File;
+use Ions\Console\GeneratorCommand;
 
-class MakeEventCommand extends Command
+class MakeEventCommand extends GeneratorCommand
 {
     protected $signature = 'make:event {name} {--force : Overwrite the file if it already exists}';
     protected $description = 'Create a new event class (plain immutable payload object).';
 
-    public function handle(): int
+    protected function type(): string
     {
-        $name = (string) $this->argument('name');
+        return 'Event';
+    }
 
-        if (!File::exists(Path::src('Events'))) {
-            File::makeDirectory(Path::src('Events'), 0755, true, true);
-        }
+    protected function stubPath(): string
+    {
+        return Path::bin('commands/stubs/event.stub');
+    }
 
-        $new_file = Path::src('Events/' . $name . '.php');
-
-        if (File::exists($new_file)) {
-            if (!$this->option('force')) {
-                $this->error('Event already exists: ' . $name . ' (use --force to overwrite)');
-                return self::FAILURE;
-            }
-            File::delete($new_file);
-        }
-
-        Storage::copy(Path::bin('commands/stubs/event.stub'), $new_file);
-
-        $replace = Str::replace(
-            ['{{ class }}'],
-            [$name],
-            Storage::get($new_file)
-        );
-
-        Storage::put($new_file, $replace);
-
-        $this->info('Event created successfully: ' . $name);
-
-        return self::SUCCESS;
+    protected function targetPath(string $name): string
+    {
+        return Path::src('Events/' . $name . '.php');
     }
 }

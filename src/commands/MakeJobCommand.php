@@ -1,46 +1,25 @@
 <?php
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Ions\Bundles\Path;
-use Ions\Support\File;
+use Ions\Console\GeneratorCommand;
 
-class MakeJobCommand extends Command
+class MakeJobCommand extends GeneratorCommand
 {
     protected $signature = 'make:job {name} {--force : Overwrite the file if it already exists}';
     protected $description = 'Create a new queue job class (Ions\Queue\Job).';
 
-    public function handle(): int
+    protected function type(): string
     {
-        $name = (string) $this->argument('name');
+        return 'Job';
+    }
 
-        if (!File::exists(Path::src('Jobs'))) {
-            File::makeDirectory(Path::src('Jobs'), 0755, true, true);
-        }
+    protected function stubPath(): string
+    {
+        return Path::bin('commands/stubs/job.stub');
+    }
 
-        $new_file = Path::src('Jobs/' . $name . '.php');
-
-        if (File::exists($new_file)) {
-            if (!$this->option('force')) {
-                $this->error('Job already exists: ' . $name . ' (use --force to overwrite)');
-                return self::FAILURE;
-            }
-            File::delete($new_file);
-        }
-
-        Storage::copy(Path::bin('commands/stubs/job.stub'), $new_file);
-
-        $replace = Str::replace(
-            ['{{ class }}'],
-            [$name],
-            Storage::get($new_file)
-        );
-
-        Storage::put($new_file, $replace);
-
-        $this->info('Job created successfully: ' . $name);
-
-        return self::SUCCESS;
+    protected function targetPath(string $name): string
+    {
+        return Path::src('Jobs/' . $name . '.php');
     }
 }

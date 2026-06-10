@@ -1,59 +1,68 @@
 <?php
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Ions\Bundles\Path;
-use Ions\Support\File;
+use Ions\Console\GeneratorCommand;
 
-class MakeListenerCommand extends Command
+class MakeListenerCommand extends GeneratorCommand
 {
     protected $signature = 'make:listener {name} {--event= : The event class to type-hint in handle() (short name resolves to App\Events\…)} {--force : Overwrite the file if it already exists}';
     protected $description = 'Create a new event listener class with a handle($event) method.';
 
-    public function handle(): int
+    protected function type(): string
     {
-        $name = (string) $this->argument('name');
+        return 'Listener';
+    }
 
-        if (!File::exists(Path::src('Listeners'))) {
-            File::makeDirectory(Path::src('Listeners'), 0755, true, true);
+    protected function stubPath(): string
+    {
+        return Path::bin('commands/stubs/listener.stub');
+    }
+
+    protected function targetPath(string $name): string
+    {
+        return Path::src('Listeners/' . $name . '.php');
+    }
+
+    protected function prepare(string $name): ?int
+    {
+        $event = $this->eventOption();
+
+        if ($event !== null && !$this->isValidClassReference($event)) {
+            $this->error('Invalid event class: ' . $event . ' (expected a class name or FQCN)');
+
+            return self::FAILURE;
         }
 
-        $new_file = Path::src('Listeners/' . $name . '.php');
+        return null;
+    }
 
-        if (File::exists($new_file)) {
-            if (!$this->option('force')) {
-                $this->error('Listener already exists: ' . $name . ' (use --force to overwrite)');
-                return self::FAILURE;
-            }
-            File::delete($new_file);
-        }
-
+    protected function replacements(string $name): array
+    {
         // Default: untyped handle(object $event). With --event the event class
         // is imported and type-hinted; a bare name resolves to App\Events\…
         $imports = '';
         $eventType = 'object';
 
-        $event = $this->option('event');
-        if (is_string($event) && $event !== '') {
+        $event = $this->eventOption();
+        if ($event !== null) {
             $event = trim($event, '\\');
             $fqcn = Str::contains($event, '\\') ? $event : 'App\\Events\\' . $event;
             $eventType = Str::afterLast($fqcn, '\\');
             $imports = 'use ' . $fqcn . ';' . PHP_EOL . PHP_EOL;
         }
 
-        Storage::copy(Path::bin('commands/stubs/listener.stub'), $new_file);
+        return [
+            '{{ class }}' => $name,
+            '{{ imports }}' => $imports,
+            '{{ event }}' => $eventType,
+        ];
+    }
 
-        $replace = Str::replace(
-            ['{{ class }}', '{{ imports }}', '{{ event }}'],
-            [$name, $imports, $eventType],
-            Storage::get($new_file)
-        );
+    private function eventOption(): ?string
+    {
+        $event = $this->option('event');
 
-        Storage::put($new_file, $replace);
-
-        $this->info('Listener created successfully: ' . $name);
-
-        return self::SUCCESS;
+        return is_string($event) && $event !== '' ? $event : null;
     }
 }
