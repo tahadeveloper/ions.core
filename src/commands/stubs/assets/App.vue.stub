@@ -1,0 +1,13 @@
+<script setup>
+import { ref } from 'vue';
+
+const count = ref(0);
+</script>
+
+<template>
+    <main>
+        <h1>Ions + Vue</h1>
+        <p>Edit <code>resources/js/App.vue</code> to get started.</p>
+        <button type="button" @click="count++">Count: {{ count }}</button>
+    </main>
+</template>

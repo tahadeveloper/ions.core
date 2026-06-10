@@ -1,0 +1,24 @@
+/*
+ * Ions starter stylesheet — installed by `php bin/ions install:assets`.
+ * Link it from a Twig layout (asset() adds a filemtime cache-buster):
+ *
+ *   <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
+ */
+
+:root {
+    --ions-accent: #4f46e5;
+    --ions-text: #1f2937;
+    --ions-bg: #ffffff;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    color: var(--ions-text);
+    background: var(--ions-bg);
+}
+
+a {
+    color: var(--ions-accent);
+}

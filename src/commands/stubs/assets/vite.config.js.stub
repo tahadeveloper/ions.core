@@ -1,0 +1,63 @@
+import fs from 'node:fs';
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+
+const hotFile = 'public/hot';
+
+// Dev mode: write the dev-server origin to public/hot so the Ions vite()
+// Twig function emits dev-server + HMR client URLs (a Laravel-style hot
+// file, without needing laravel-vite-plugin). Removed again on shutdown.
+function ionsHot() {
+    return {
+        name: 'ions-hot',
+        apply: 'serve',
+        configureServer(server) {
+            server.httpServer?.once('listening', () => {
+                const address = server.httpServer.address();
+                if (address === null || typeof address === 'string') {
+                    return;
+                }
+                const protocol = server.config.server.https ? 'https' : 'http';
+                const host = ['::', '0.0.0.0', '::1'].includes(address.address)
+                    ? 'localhost'
+                    : address.address;
+                fs.writeFileSync(hotFile, `${protocol}://${host}:${address.port}`);
+            });
+
+            const removeHotFile = () => {
+                if (fs.existsSync(hotFile)) {
+                    fs.rmSync(hotFile);
+                }
+            };
+            process.once('exit', removeHotFile);
+            process.once('SIGINT', () => process.exit());
+            process.once('SIGTERM', () => process.exit());
+        },
+    };
+}
+
+// Build mode: a stale hot file would make vite() keep emitting dev URLs
+// in production, so every build removes it up front.
+function ionsHotClean() {
+    return {
+        name: 'ions-hot-clean',
+        apply: 'build',
+        buildStart() {
+            if (fs.existsSync(hotFile)) {
+                fs.rmSync(hotFile);
+            }
+        },
+    };
+}
+
+export default defineConfig({
+    plugins: [vue(), ionsHot(), ionsHotClean()],
+    build: {
+        outDir: 'public/build',
+        manifest: true,
+        emptyOutDir: true,
+        rollupOptions: {
+            input: 'resources/js/app.js',
+        },
+    },
+});
