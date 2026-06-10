@@ -1,12 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Support;
 
 use JsonException;
 
 class Response extends \Illuminate\Http\Response
 {
-    public function json($data, $status = 200, array $headers = [], $options = 0): Response
+    /**
+     * @param mixed                 $data
+     * @param array<string, mixed>  $headers
+     */
+    public function json(mixed $data, int $status = 200, array $headers = [], int $options = 0): Response
     {
         try {
             $jsonData = json_encode($data, JSON_THROW_ON_ERROR | $options);

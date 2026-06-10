@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Foundation;
 
 use App\Booting;
@@ -80,12 +82,12 @@ class Kernel extends Singleton
                 static::$environmentPath = realpath(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..') . DIRECTORY_SEPARATOR;
             }
 
-            static::structureBone();
+            self::structureBone();
 
             (Dotenv::createImmutable(realpath(static::$environmentPath), static::$envName))->safeLoad();
 
-            static::Container();
-            static::captureConfig();
+            self::Container();
+            self::captureConfig();
 
             static::$collection = new RouteCollection();
 
@@ -99,7 +101,7 @@ class Kernel extends Singleton
             self::bootProviders();
 
         } catch (Throwable $e) {
-            static::failBoot($e, 'Booting ions failed');
+            self::failBoot($e, 'Booting ions failed');
         }
 
         if (class_exists(Booting::class)) {
@@ -108,7 +110,7 @@ class Kernel extends Singleton
 
         date_default_timezone_set(env('TIME_ZONE', 'Africa/Cairo'));
 
-        static::preloads();
+        self::preloads();
     }
 
     /**
@@ -280,7 +282,7 @@ class Kernel extends Singleton
      */
     private static function structureBone(): void
     {
-        if (empty(static::$session) && !static::$session instanceof Session) {
+        if (static::$session === null) {
             // Under the CLI SAPI (e.g. Pest/PHPUnit) native session storage
             // cannot start without warnings ("headers already sent").  Use an
             // in-memory MockArraySessionStorage in that environment so the
@@ -298,11 +300,11 @@ class Kernel extends Singleton
             }
         }
 
-        if (empty(static::$request) && !static::$request instanceof Request) {
-            static::$request = static::capture();
+        if (static::$request === null) {
+            static::$request = self::capture();
         }
 
-        if (empty(static::$response) && !static::$response instanceof Response) {
+        if (static::$response === null) {
             static::$response = new Response();
         }
     }
@@ -387,7 +389,7 @@ class Kernel extends Singleton
         }
 
         try {
-            $routes = static::captureRoute($targetFolder);
+            $routes = self::captureRoute($targetFolder);
             $context = new RequestContext();
             $context->fromRequest($request);
             $matcher = new UrlMatcher($routes, $context);

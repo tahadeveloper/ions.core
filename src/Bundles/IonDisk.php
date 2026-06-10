@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Bundles;
 
+use Aws\Exception\AwsException;
 use Aws\S3\S3Client;
 use Exception;
 use InvalidArgumentException;
@@ -167,7 +170,7 @@ class IonDisk
         }
     }
 
-    public static function disk($type): static
+    public static function disk($type): self
     {
         // type get from config/filesystem.php
         $defType = config('filesystem.disks.default', 'local');
@@ -490,7 +493,6 @@ class IonDisk
             $disk->createDirectory($path);
         } catch (FilesystemException $e) {
             throw new RuntimeException('Failed to create directory: ' . $e->getMessage());
-            return false;
         }
         return true;
     }
@@ -574,7 +576,6 @@ class IonDisk
             }
         } catch (FilesystemException $e) {
             throw new RuntimeException('Failed to copy file: ' . $e->getMessage());
-            return false;
         }
         return true;
     }
@@ -634,7 +635,6 @@ class IonDisk
             }
         } catch (FilesystemException $e) {
             throw new RuntimeException('Failed to move file: ' . $e->getMessage());
-            return false;
         }
         return true;
     }

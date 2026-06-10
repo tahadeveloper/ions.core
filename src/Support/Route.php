@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Support;
 
 use Symfony\Component\Routing\Attribute\Route as BaseRoute;

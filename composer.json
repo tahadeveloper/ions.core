@@ -36,6 +36,7 @@
     "illuminate/queue": "^12",
     "illuminate/support": "^12.0",
     "illuminate/validation": "^12.0",
+    "intervention/image": "^3",
     "lcobucci/clock": "^3.3",
     "lcobucci/jwt": "^5.0",
     "league/flysystem": "^3.29.1",
@@ -63,6 +64,7 @@
   "require-dev": {
     "driftingly/rector-laravel": "^2.5",
     "friendsofphp/php-cs-fixer": "^3.64",
+    "jetbrains/phpstorm-attributes": "^1.0",
     "pestphp/pest": "^3.0",
     "phpstan/phpstan": "^2.0",
     "rector/rector": "^2.0"

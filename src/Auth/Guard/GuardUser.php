@@ -144,7 +144,6 @@ class GuardUser extends Singleton
 
     /**
      * @param string $language
-     * @param int $limit
      * @return object|null
      */
     public static function all(string $language = 'en'): object|null

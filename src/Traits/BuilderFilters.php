@@ -3,7 +3,6 @@
 namespace Ions\Traits;
 
 use Illuminate\Support\Collection;
-use Ions\Builders\QueryBuilder;
 use Ions\Exceptions\InvalidFilterQuery;
 use Ions\Support\Str;
 
@@ -40,7 +39,7 @@ trait BuilderFilters
      *
      * @param array $filters   Column names to allow, e.g. ['name', 'email'].
      * @param bool  $allow_all Set to true to disable allow-list enforcement.
-     * @return BuilderFilters|QueryBuilder
+     * @return self
      */
     public function allowFilters(array $filters = [], bool $allow_all = false): self
     {

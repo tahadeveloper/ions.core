@@ -345,9 +345,9 @@ class RouteListCommand extends Command
      */
     public static function getTerminalWidth()
     {
-        return is_null(static::$terminalWidthResolver)
+        return is_null(self::$terminalWidthResolver)
             ? (new Terminal())->getWidth()
-            : call_user_func(static::$terminalWidthResolver);
+            : call_user_func(self::$terminalWidthResolver);
     }
 
     /**
@@ -358,7 +358,7 @@ class RouteListCommand extends Command
      */
     public static function resolveTerminalWidthUsing($resolver)
     {
-        static::$terminalWidthResolver = $resolver;
+        self::$terminalWidthResolver = $resolver;
     }
 
     /**

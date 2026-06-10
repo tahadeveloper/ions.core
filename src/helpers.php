@@ -252,9 +252,9 @@ if (!function_exists('toJson')) {
     /**
      * @param array $unhandled
      * @param bool $sec_level
-     * @return object|null
+     * @return string
      */
-    function toJson(array $unhandled, bool $sec_level = false): string|null
+    function toJson(array $unhandled, bool $sec_level = false): string
     {
         $handle_arr = [];
         foreach ($unhandled as $key => $value) {
@@ -466,11 +466,11 @@ if (!function_exists('trans')) {
      * @param array $replace
      * @param string|null $domain
      * @param string|null $locale
-     * @return Translator|bool|string
+     * @return Translator|string
      */
-    function trans(string|null $key = null, array $replace = [], string|null $domain = null, string|null $locale = null): Translator|bool|string
+    function trans(string|null $key = null, array $replace = [], string|null $domain = null, string|null $locale = null): Translator|string
     {
-        if (Localization::$localization === null) {
+        if (!isset(Localization::$localization)) {
             abort(501, 'Must add folder and option in config before use it.');
         }
 

@@ -20,11 +20,11 @@ class QueryBuilderRequest extends Request
 
     public static function setArrayValueDelimiter(string $delimiter): void
     {
-        static::$filterArrayValueDelimiter = $delimiter;
-        static::$includesArrayValueDelimiter = $delimiter;
-        static::$appendsArrayValueDelimiter = $delimiter;
-        static::$fieldsArrayValueDelimiter = $delimiter;
-        static::$sortsArrayValueDelimiter = $delimiter;
+        self::$filterArrayValueDelimiter = $delimiter;
+        self::$includesArrayValueDelimiter = $delimiter;
+        self::$appendsArrayValueDelimiter = $delimiter;
+        self::$fieldsArrayValueDelimiter = $delimiter;
+        self::$sortsArrayValueDelimiter = $delimiter;
     }
 
     public static function fromRequest(Request $request): self
@@ -158,52 +158,52 @@ class QueryBuilderRequest extends Request
 
     public static function setIncludesArrayValueDelimiter(string $includesArrayValueDelimiter): void
     {
-        static::$includesArrayValueDelimiter = $includesArrayValueDelimiter;
+        self::$includesArrayValueDelimiter = $includesArrayValueDelimiter;
     }
 
     public static function setAppendsArrayValueDelimiter(string $appendsArrayValueDelimiter): void
     {
-        static::$appendsArrayValueDelimiter = $appendsArrayValueDelimiter;
+        self::$appendsArrayValueDelimiter = $appendsArrayValueDelimiter;
     }
 
     public static function setFieldsArrayValueDelimiter(string $fieldsArrayValueDelimiter): void
     {
-        static::$fieldsArrayValueDelimiter = $fieldsArrayValueDelimiter;
+        self::$fieldsArrayValueDelimiter = $fieldsArrayValueDelimiter;
     }
 
     public static function setSortsArrayValueDelimiter(string $sortsArrayValueDelimiter): void
     {
-        static::$sortsArrayValueDelimiter = $sortsArrayValueDelimiter;
+        self::$sortsArrayValueDelimiter = $sortsArrayValueDelimiter;
     }
 
     public static function setFilterArrayValueDelimiter(string $filterArrayValueDelimiter): void
     {
-        static::$filterArrayValueDelimiter = $filterArrayValueDelimiter;
+        self::$filterArrayValueDelimiter = $filterArrayValueDelimiter;
     }
 
     public static function getIncludesArrayValueDelimiter(): string
     {
-        return static::$includesArrayValueDelimiter;
+        return self::$includesArrayValueDelimiter;
     }
 
     public static function getAppendsArrayValueDelimiter(): string
     {
-        return static::$appendsArrayValueDelimiter;
+        return self::$appendsArrayValueDelimiter;
     }
 
     public static function getFieldsArrayValueDelimiter(): string
     {
-        return static::$fieldsArrayValueDelimiter;
+        return self::$fieldsArrayValueDelimiter;
     }
 
     public static function getSortsArrayValueDelimiter(): string
     {
-        return static::$sortsArrayValueDelimiter;
+        return self::$sortsArrayValueDelimiter;
     }
 
     public static function getFilterArrayValueDelimiter(): string
     {
-        return static::$filterArrayValueDelimiter;
+        return self::$filterArrayValueDelimiter;
     }
 
     public static function resetDelimiters(): void

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 // Cache.php
 
 namespace Ions\Bundles;
@@ -74,7 +76,7 @@ class Cache implements CacheInterface
         return self::$cache->get($key);
     }
 
-    public static function set(string $key, $value, int $ttl = null): void
+    public static function set(string $key, $value, ?int $ttl = null): void
     {
         self::ensureInitialized();
         self::$cache->put($key, $value, $ttl);

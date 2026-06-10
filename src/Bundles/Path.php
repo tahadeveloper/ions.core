@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Bundles;
 
 use Ions\Foundation\Singleton;
@@ -152,7 +154,7 @@ class Path extends Singleton
      * @param string|null $folder_name
      * @return string
      */
-    public static function rootFolder(string $file, string $folder_name = null): string
+    public static function rootFolder(string $file, ?string $folder_name = null): string
     {
         if ($folder_name) {
             return env('APP_URL') . '/' . $folder_name . '/' . $file;

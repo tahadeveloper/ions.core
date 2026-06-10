@@ -1,9 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ions\Bundles;
 
 use Ions\Foundation\Kernel;
 use Ions\Foundation\Singleton;
+use Ions\Media\Image;
+use Ions\Media\ImageException;
 use Ions\Security\UploadValidator;
 use Ions\Support\Storage;
 use Ions\Support\Str;
@@ -14,10 +18,10 @@ class IonUpload extends Singleton
 {
     private static mixed $output;
 
-    public static function store(mixed $file, string $path, array $options = []): static
+    public static function store(mixed $file, string $path, array $options = []): self
     {
         if (!($file instanceof UploadedFile) || !$file->isValid()) {
-            static::$output = ['error' => 1, 'message' => 'No file to upload'];
+            self::$output = ['error' => 1, 'message' => 'No file to upload'];
             return new self();
         }
 
@@ -27,9 +31,15 @@ class IonUpload extends Singleton
 
         $originalName = $file->getClientOriginalName();
         if (!$validator->isAllowed($originalName)) {
-            static::$output = ['error' => 1, 'message' => 'File extension not allowed'];
+            self::$output = ['error' => 1, 'message' => 'File extension not allowed'];
             return new self();
         }
+
+        // Optional image post-processing. When an `image` option is supplied,
+        // the stored file is run through Ions\Media\Image after the move. This
+        // is entirely opt-in — non-image uploads never touch the media stack.
+        $image = $options['image'] ?? null;
+        unset($options['image']);
 
         $ext = $validator->safeExtension($originalName);
         $randomName = Str::random(15);
@@ -37,20 +47,23 @@ class IonUpload extends Singleton
 
         try {
             $file->move($path, $storeName);
-            static::$output = [
+            if (is_callable($image)) {
+                $image(Image::read($path . '/' . $storeName), $path . '/' . $storeName);
+            }
+            self::$output = [
                 'error' => 0,
                 'message' => 'file uploaded',
                 'original_name' => $originalName,
                 'store_name' => $storeName,
             ];
-        } catch (FileException $e) {
-            static::$output = ['error' => 1, 'message' => $e->getMessage()];
+        } catch (FileException | ImageException $e) {
+            self::$output = ['error' => 1, 'message' => $e->getMessage()];
         }
 
         return new self();
     }
 
-    public static function remove(string $fileName, string $path): static
+    public static function remove(string $fileName, string $path): self
     {
         if (file_exists($path . '/' . $fileName)) {
             unlink($path . '/' . $fileName);
@@ -59,7 +72,7 @@ class IonUpload extends Singleton
         return new self();
     }
 
-    public static function moveUrl(string $image_url, string $destination, $old_destination = 'dump'): static
+    public static function moveUrl(string $image_url, string $destination, $old_destination = 'dump'): self
     {
         $image_ext = null;
         if ($image_url) {
@@ -74,28 +87,28 @@ class IonUpload extends Singleton
                 $image_ext = $url_array[$count_url_array - 1];
             }
         }
-        static::$output = $image_ext;
+        self::$output = $image_ext;
 
         return new self();
     }
 
-    public static function moveLocal($from, $to, $file_name, $new_name = null): static
+    public static function moveLocal($from, $to, $file_name, $new_name = null): self
     {
         $result = false;
         if (Storage::exists(Path::files($from . '/' . $file_name))) {
-            $result = Storage::move(Path::files($from . '/' . $file_name), Path::files($to . '/' . $file_name ?? $new_name));
+            $result = Storage::move(Path::files($from . '/' . $file_name), Path::files($to . '/' . ($new_name ?? $file_name)));
         }
-        static::$output = $result;
+        self::$output = $result;
 
         return new self();
     }
 
-    public static function update($file_name, $file_original_name, $file, $path, array $options = []): static
+    public static function update($file_name, $file_original_name, $file, $path, array $options = []): self
     {
         $request = Kernel::request();
         $image_name = $request->get($file_name);
         $original_name = $request->get($file_original_name);
-        static::$output['error'] = 0;
+        self::$output['error'] = 0;
         if ($file) {
             $upload_file = static::store($file, $path, $options);
             $upload_result = $upload_file::$output;
@@ -107,14 +120,14 @@ class IonUpload extends Singleton
                 $original_name = $upload_result['original_name'];
             }
         }
-        static::$output['store_name'] = $image_name;
-        static::$output['original_name'] = $original_name;
+        self::$output['store_name'] = $image_name;
+        self::$output['original_name'] = $original_name;
         return new self();
     }
 
     public function response()
     {
-        return static::$output;
+        return self::$output;
     }
 
 }
