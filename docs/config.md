@@ -341,6 +341,26 @@ config, so `Storage::url()` works for disks that declare a `public_url`.
 
 ---
 
+## Database config (`config/database.php`)
+
+`default` names the default connection; `connections` maps connection names to
+Illuminate connection arrays (driver, host, database, …). See `DatabaseProvider`.
+
+### `database.query_log`
+
+**Type:** `bool` — **Default:** `false`
+
+When `true`, `DatabaseProvider::boot()` calls `enableQueryLog()` on the default
+connection so `debugQuery()` returns the executed statements.
+
+> **Changed in 4.1:** previously the query log was enabled implicitly whenever
+> `APP_DEBUG` was truthy. The log buffers every statement in memory for the
+> lifetime of the process (unbounded growth in workers/long requests), so it is
+> now strictly opt-in. Debuggers that relied on `APP_DEBUG` must set
+> `'query_log' => true` in `config/database.php`.
+
+---
+
 ## Session config (`config/session.php`)
 
 `Ions\Session\SessionManager` wraps a Symfony `Session` with a config-driven

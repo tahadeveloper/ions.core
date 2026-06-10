@@ -72,7 +72,11 @@ final class DatabaseProvider extends ServiceProvider
                 abort(500, 'No database class connect');
             }
 
-            if (env('APP_DEBUG', false)) {
+            // Query logging is opt-in via config('database.query_log') — the
+            // log accumulates every statement in memory for the lifetime of
+            // the process, so APP_DEBUG alone no longer enables it (4.1
+            // behavior change; see UPGRADE-4.1).
+            if (config('database.query_log', false)) {
                 DB::connection()->enableQueryLog();
             }
         }

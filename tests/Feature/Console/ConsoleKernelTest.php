@@ -24,7 +24,14 @@ test('the console kernel registers the framework commands', function () {
         ->and($app->has('make:service-provider'))->toBeTrue()
         ->and($app->has('route:list'))->toBeTrue()
         ->and($app->has('migrate'))->toBeTrue()
-        ->and($app->has('queue:work'))->toBeTrue();
+        ->and($app->has('queue:work'))->toBeTrue()
+        ->and($app->has('route:cache'))->toBeTrue()
+        ->and($app->has('route:clear'))->toBeTrue()
+        ->and($app->has('config:cache'))->toBeTrue()
+        ->and($app->has('config:clear'))->toBeTrue()
+        ->and($app->has('optimize'))->toBeTrue()
+        ->and($app->has('optimize:clear'))->toBeTrue()
+        ->and($app->has('preload:generate'))->toBeTrue();
 });
 
 test('a command runs through the kernel and returns exit code 0', function () {

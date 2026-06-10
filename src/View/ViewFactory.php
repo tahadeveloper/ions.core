@@ -19,13 +19,59 @@ final class ViewFactory
     public array $loaderErrors = [];
 
     /**
-     * Build a fully configured Twig Environment.
+     * Return a fully configured Twig Environment.
+     *
+     * A no-override call reuses the shared per-process Environment bound as
+     * 'view.env' (registered by ViewProvider) — building a Twig Environment
+     * (FilesystemLoader + function/global registration) per render is wasted
+     * work. Explicit overrides, or the container being absent, always build
+     * a fresh instance.
      *
      * @param string|null            $source  Template source directory (defaults to app.twig.source).
      * @param array<int,string>      $paths   Additional named namespace paths.
      * @param string|null            $cache   Cache directory (defaults to app.twig.cache).
      */
     public function make(?string $source = null, array $paths = [], ?string $cache = null): Environment
+    {
+        if ($source === null && $paths === [] && $cache === null) {
+            $shared = $this->sharedEnvironment();
+            if ($shared !== null) {
+                return $shared;
+            }
+        }
+
+        return $this->build($source, $paths, $cache);
+    }
+
+    /**
+     * Resolve the shared 'view.env' singleton from the booted container, or
+     * null when no container/binding is available (isolated scripts, tests
+     * that construct the factory directly).
+     */
+    private function sharedEnvironment(): ?Environment
+    {
+        try {
+            $container = \Ions\Foundation\Kernel::app();
+            if ($container->bound('view.env')) {
+                $env = $container->get('view.env');
+
+                return $env instanceof Environment ? $env : null;
+            }
+        } catch (\Throwable) {
+            // Container not booted — fall through to a fresh build.
+        }
+
+        return null;
+    }
+
+    /**
+     * Always build a fresh, fully configured Twig Environment.
+     *
+     * @param string|null            $source  Template source directory (defaults to app.twig.source).
+     * @param array<int,string>      $paths   Additional named namespace paths.
+     * @param string|null            $cache   Cache directory (defaults to app.twig.cache).
+     */
+    public function build(?string $source = null, array $paths = [], ?string $cache = null): Environment
     {
         $this->loaderErrors = [];
 
@@ -80,11 +126,11 @@ final class ViewFactory
         // _csrf_token: csrfToken() uses NativeSessionTokenStorage which can fail in CLI/test SAPI.
         // A narrow try/catch is required here; unlike _trans there is no cheap precondition we can
         // check, so we log any failure (making it visible in production) before falling back to ''.
-        // Use the CsrfMiddleware web token id ('web') as the default so the rendered
-        // _csrf_token matches the pipeline; never pass null (csrfToken() expects a string).
-        $tokenId = (string) (config('app.app_name') ?: 'web');
+        // Always use the CsrfMiddleware token id ('web') so the rendered _csrf_token
+        // validates in the pipeline. Using app_name here would issue tokens under an id
+        // the middleware never checks (419 on every form for hosts that set app_name).
         try {
-            $csrf = csrfToken($tokenId);
+            $csrf = csrfToken('web');
         } catch (\Throwable $e) {
             Logs::create('view.log')->warning('csrfToken() failed building _csrf_token global: ' . $e->getMessage());
             $csrf = '';
