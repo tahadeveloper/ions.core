@@ -9,10 +9,13 @@ return [
     'templates' => [],
     'localization' => ['locale' => 'en'],
 
-    // Twig defaults so ViewFactory::make() (no overrides) resolves without a views/ dir.
+    // Twig defaults so ViewFactory::make() (no overrides) resolves without a
+    // real source dir (MailableTest writes its templates into the temp dir).
+    // 'paths' registers the @admin namespace, host-root relative (9.2).
     'twig' => [
         'source' => sys_get_temp_dir(),
         'cache' => false,
+        'paths' => ['admin' => 'views/admin'],
     ],
 
     // CORS is deny-by-default since 4.1 (D8-1): no origins => no CORS headers.

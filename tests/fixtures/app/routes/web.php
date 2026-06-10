@@ -43,6 +43,16 @@ Route::get('/shared-response', function () {
     \Ions\Foundation\Kernel::response()->setContent('shared');
 });
 
+// --- View-return fixtures (Phase 9.2) ---
+// Templates live in tests/fixtures/app/views/; the @admin namespace comes
+// from config('app.twig.paths'). ViewRenderingTest points app.twig.source
+// at the committed views/ dir before each request.
+Route::get('/views/helper', fn () => view('@admin.users.index', ['who' => 'helper']));
+Route::get('/views/dotted', \IonsFixture\Http\Controllers\PagesController::class . '::dotted');
+Route::get('/views/controller-root', \IonsFixture\Http\Controllers\PagesController::class . '::index');
+Route::get('/views/controller-nested', \IonsFixture\Http\Controllers\Admin\UserReports\HomeController::class . '::index');
+Route::get('/views/controller-custom', \IonsFixture\Http\Controllers\CustomPathController::class . '::index');
+
 // Session write/read pair used by the WorkerRunner isolation test.
 Route::get('/session-write', function () {
     session(['leak' => 'r1']);

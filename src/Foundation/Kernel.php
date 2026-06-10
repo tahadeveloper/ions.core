@@ -713,6 +713,12 @@ class Kernel extends Singleton
             return $result;
         }
 
+        // `return view('users.index')` from a closure route (9.2): render to
+        // a 200 HTML Response, same bridge as ControllerDispatcher actions.
+        if ($result instanceof \Ions\View\View) {
+            return ControllerDispatcher::viewResponse($result);
+        }
+
         return static::$response;
     }
 

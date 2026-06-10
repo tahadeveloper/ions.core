@@ -398,9 +398,36 @@ Compiled template cache directory.
 
 ### `app.twig.paths`
 
-**Type:** `string[]`  **Default:** `[]`
+**Type:** `array<string, string>`  **Default:** `[]`
 
-Additional named namespace paths added to the Twig `FilesystemLoader`.
+Named Twig namespaces, registered once on the shared environment's
+`FilesystemLoader` when it is first built. Keys are namespace names,
+values are template directories:
+
+```php
+'twig' => [
+    'source' => Path::views(''),
+    'cache'  => Path::templates(''),
+    'paths'  => [
+        'admin' => 'views/admin',                      // relative => host root
+        'mail'  => 'views/mail',
+        'pkg'   => '/abs/path/vendor/acme/pkg/views',  // absolute kept as-is
+    ],
+],
+```
+
+Templates address a namespace as `@admin/users/index.twig`; the `view()`
+helper accepts the dotted form too (`view('@admin.users.index')`). Relative
+directories resolve from the **host root**; absolute paths (e.g. vendor
+packages) are used untouched. A missing directory never breaks boot: the
+namespace is skipped, recorded in `ViewFactory::$loaderErrors` and logged
+to `view.log`.
+
+Pre-4.2 list entries (`'paths' => ['admin']`) keep their legacy behavior:
+the value is both the namespace name and a folder under `views/`.
+
+See [views.md](views.md) for the full view layer (helper, controller-relative
+resolution, dispatcher bridge).
 
 ---
 

@@ -657,3 +657,36 @@ if (!function_exists('render')) {
         }
     }
 }
+
+if (!function_exists('view')) {
+    /**
+     * Build a lazily-rendered View for a Twig template (rendered by the
+     * dispatcher when returned from an action, or via ->render()).
+     *
+     * Pure name translation — NO filesystem checks (Twig errors at render
+     * time are clear enough):
+     *   view('users.index')         -> users/index.twig
+     *   view('@admin.users.index')  -> @admin/users/index.twig
+     *   view('emails/welcome.twig') -> emails/welcome.twig (extension kept)
+     *
+     * @param string               $template Template name: dots or slashes, optional '@namespace' prefix.
+     * @param array<string, mixed> $data     Variables passed to the template.
+     */
+    function view(string $template, array $data = []): \Ions\View\View
+    {
+        // Split off a leading '@namespace' (terminated by '.' or '/').
+        $namespace = '';
+        if (str_starts_with($template, '@')) {
+            $length = strcspn($template, './');
+            $namespace = substr($template, 0, $length) . '/';
+            $template = substr($template, min($length + 1, strlen($template)));
+        }
+
+        // Keep an explicit .twig extension out of the dot translation.
+        if (str_ends_with($template, '.twig')) {
+            $template = substr($template, 0, -strlen('.twig'));
+        }
+
+        return new \Ions\View\View($namespace . str_replace('.', '/', $template) . '.twig', $data);
+    }
+}
