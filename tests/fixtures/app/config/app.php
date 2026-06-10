@@ -7,6 +7,12 @@ return [
     'templates' => [],
     'localization' => ['locale' => 'en'],
 
+    // Twig defaults so ViewFactory::make() (no overrides) resolves without a views/ dir.
+    'twig' => [
+        'source' => sys_get_temp_dir(),
+        'cache' => false,
+    ],
+
     // Per-route middleware aliases. 'throttle' rate-limits the login route.
     'middleware_aliases' => [
         'throttle' => \Ions\Http\Middleware\RateLimitMiddleware::class,
