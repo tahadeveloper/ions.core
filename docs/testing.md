@@ -291,11 +291,18 @@ $disk->assertMissing('avatars/8.png');
 ### `Ions\Support\Mail::fake()`
 
 Replaces the `mailer` binding (Symfony Mailer) with a recorder implementing
-the same `MailerInterface`, so anything sending through the container — the
-`newMailerDsn()` helper included — records instead of opening an SMTP
-connection. Hosts send Symfony `Email` objects; filter callables receive the
-message plus the recorded `Symfony\Component\Mailer\Envelope` as a second
-argument (`null` when the sender did not pass one).
+the same `MailerInterface`, so anything sending through the container —
+`Ions\Mail\Mailable::send()` and the `newMailerDsn()` helper included —
+records instead of opening an SMTP connection. Hosts send Symfony `Email`
+objects; filter callables receive the message plus the recorded
+`Symfony\Component\Mailer\Envelope` as a second argument (`null` when the
+sender did not pass one).
+
+A class-string filter matches two ways: Symfony message classes by
+`instanceof`, and `Mailable` subclass FQCNs via the `X-Ions-Mailable` header
+every mailable stamps on the email it materializes (see
+[mail.md](mail.md#faking--assertions)) — so `Mail::assertSent(ResetPasswordMail::class)`
+works even though what the fake records is a Symfony `Email`.
 
 ```php
 use Ions\Support\Mail;
@@ -305,13 +312,14 @@ $mailer = Mail::fake();
 
 $this->post('/password/forgot', ['email' => 'ion@example.test'])->assertOk();
 
+Mail::assertSent(ResetPasswordMail::class);   // Mailable FQCN (header match)
 Mail::assertSent(fn (Email $email) => $email->getSubject() === 'Reset your password');
 $mailer->assertSentCount(1);
 ```
 
 | Assertion | Verifies |
 |---|---|
-| `assertSent(string\|callable\|null $filter = null)` | At least one mail sent; a class-string requires an instance of it, a callable receives `($message, ?Envelope $envelope)` and must match at least one |
+| `assertSent(string\|callable\|null $filter = null)` | At least one mail sent; a class-string requires an instance of that message class **or** a mail materialized by that `Mailable` subclass, a callable receives `($message, ?Envelope $envelope)` and must match at least one |
 | `assertSentCount(int $count)` | Exact number of sent mails |
 | `assertNothingSent()` | No mails were sent at all |
 

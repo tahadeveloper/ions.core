@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Ions\Testing\Fakes;
 
+use Ions\Mail\Mailable;
 use PHPUnit\Framework\Assert;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Message;
 use Symfony\Component\Mime\RawMessage;
 
 /**
@@ -59,7 +61,9 @@ final class MailFake implements MailerInterface
 
     /**
      * Assert at least one message was sent. The optional filter narrows the
-     * match: a class-string requires an instance of that message class, a
+     * match: a class-string requires an instance of that message class — or,
+     * for an {@see \Ions\Mail\Mailable} subclass FQCN, a message stamped with
+     * that class in its X-Ions-Mailable header (Mailable::send() adds it) — a
      * callable receives each message plus its recorded envelope (null when
      * none was passed) and must return true for at least one.
      *
@@ -75,7 +79,8 @@ final class MailFake implements MailerInterface
 
         if (is_string($filter)) {
             $class = $filter;
-            $filter = static fn (RawMessage $message): bool => $message instanceof $class;
+            $filter = static fn (RawMessage $message): bool => $message instanceof $class
+                || self::mailableClass($message) === $class;
             $failure = sprintf('Expected a sent mail of class [%s], but none matched.', $class);
         } else {
             $failure = 'Expected at least one sent mail to match the given filter, but none did.';
@@ -106,6 +111,22 @@ final class MailFake implements MailerInterface
         );
 
         return $this;
+    }
+
+    /**
+     * The Mailable FQCN a message was materialized from (the X-Ions-Mailable
+     * header {@see Mailable::toSymfonyEmail()} stamps), or null for messages
+     * not sent via a Mailable.
+     */
+    private static function mailableClass(RawMessage $message): ?string
+    {
+        if (!$message instanceof Message) {
+            return null;
+        }
+
+        $header = $message->getHeaders()->get(Mailable::CLASS_HEADER);
+
+        return $header?->getBodyAsString();
     }
 
     /**

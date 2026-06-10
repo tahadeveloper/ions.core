@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ions\Support;
 
 use Ions\Foundation\Kernel;
+use Ions\Mail\Mailable;
 use Ions\Support\Concerns\ResolvesFake;
 use Ions\Testing\Fakes\MailFake;
 use Symfony\Component\Mailer\Envelope;
@@ -39,11 +40,32 @@ final class Mail
 
     /**
      * Send a Symfony message (usually a {@see \Symfony\Component\Mime\Email})
-     * through the container-bound mailer.
+     * or an Ions {@see Mailable} through the container-bound mailer.
+     *
+     * A Mailable is built + materialized first (its view renders here); the
+     * RawMessage path is unchanged. $envelope only applies to RawMessages —
+     * Mailables compute their envelope from the message itself.
      */
-    public static function send(RawMessage $message, ?Envelope $envelope = null): void
+    public static function send(RawMessage|Mailable $message, ?Envelope $envelope = null): void
     {
+        if ($message instanceof Mailable) {
+            $message->send();
+
+            return;
+        }
+
         self::mailer()->send($message, $envelope);
+    }
+
+    /**
+     * Queue a {@see Mailable} (passthrough to {@see Mailable::queue()}):
+     * wraps it in a SendMailableJob and dispatches via the 'queue' binding.
+     *
+     * @return mixed The driver's push result (database job id; 0 on sync).
+     */
+    public static function queue(Mailable $mailable, ?string $connection = null, ?string $queue = null): mixed
+    {
+        return $mailable->queue($connection, $queue);
     }
 
     /**
@@ -55,6 +77,9 @@ final class Mail
     }
 
     /**
+     * A class-string filter matches Symfony message classes (instanceof) and
+     * Mailable subclasses (via the X-Ions-Mailable header their send() stamps).
+     *
      * @param class-string|callable(RawMessage, Envelope|null): bool|null $filter
      *
      * @see MailFake::assertSent()

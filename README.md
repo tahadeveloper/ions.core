@@ -142,6 +142,7 @@ The framework resolves application paths relative to the host-app root (five dir
 | [docs/filesystem.md](docs/filesystem.md) | Multi-driver disks, `Storage`, `FilesystemManager`, uploads |
 | [docs/session.md](docs/session.md) | `SessionManager`, `session()`, `StartSessionMiddleware`, CSRF |
 | [docs/cache-queue-events.md](docs/cache-queue-events.md) | `cache()` / `dispatch()` / `event()`+`listen()`, jobs, `queue:work` |
+| [docs/mail.md](docs/mail.md) | `Mailable` classes (build/send/queue, Twig views), `Mail` facade, `Mail::fake()` FQCN assertions, `newMailerDsn()` |
 | [docs/console.md](docs/console.md) | Console Kernel, `bin/ions`, command discovery, `make:command` |
 | [docs/resources.md](docs/resources.md) | API resources, collections, form requests, `openapi:generate` |
 | [docs/media.md](docs/media.md) | Image processing over `intervention/image` v3 |
