@@ -53,16 +53,26 @@ Maps short alias names to middleware FQCNs for use in `Route::middleware([...])`
 
 ## `app.cors`
 
-**Type:** `array`  **Default:** `[]`
+**Type:** `array`  **Default:** `[]` — **deny-by-default since 4.1 (D8-1)**
 
-Passed to `CorsMiddleware`. Recognised keys:
+Passed to `CorsMiddleware`. With no `origins` configured, no CORS headers are
+emitted at all (cross-origin browser requests are denied; preflights get a
+plain 204). Recognised keys:
 
 | Key | Description |
 |---|---|
-| `origins` | Allowed origin pattern(s) |
+| `origins` | Allowed origins (exact strings), or `['*']` for a public wildcard. Default `[]` = deny |
 | `methods` | Allowed HTTP methods |
 | `headers` | Allowed request headers |
 | `max_age` | Preflight cache duration (seconds) |
+| `credentials` | Emit `Access-Control-Allow-Credentials: true`. Only honoured when explicitly `true` **and** `origins !== ['*']` (the Fetch spec forbids credentials with a wildcard) |
+
+```php
+'cors' => [
+    'origins' => ['https://app.example.com'],
+    'credentials' => true,
+],
+```
 
 ---
 

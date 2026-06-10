@@ -31,6 +31,29 @@ after a successful credential check **when a framework session is bound and
 started** (web-originated logins). Session data is preserved; only the id
 rotates. Stateless API logins without a started session are unaffected.
 
+### CORS is deny-by-default (D8-1)
+
+Before 4.1, `CorsMiddleware` defaulted to `origins = ['*']`: every response
+carried `Access-Control-Allow-Origin: *`. In 4.1 the default is `origins = []`
+(deny): with no configured origins **no CORS headers are emitted at all**, and
+preflight `OPTIONS` requests receive a plain `204` without `Access-Control-*`
+headers.
+
+**Action:** hosts that serve cross-origin traffic must now configure
+`config/app.php`:
+
+```php
+'cors' => [
+    'origins' => ['https://app.example.com'],  // or ['*'] for a public API
+    // 'credentials' => true,                  // see below
+],
+```
+
+`Access-Control-Allow-Credentials: true` is emitted only when
+`app.cors.credentials` is explicitly `true` **and** the origin list is not the
+`['*']` wildcard (the Fetch spec forbids credentials with a wildcard origin —
+that combination silently drops the credentials header).
+
 ### New response headers: HSTS + Permissions-Policy
 
 `SecurityHeaders::apply()` now also emits:

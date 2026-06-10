@@ -13,6 +13,12 @@ return [
         'cache' => false,
     ],
 
+    // CORS is deny-by-default since 4.1 (D8-1): no origins => no CORS headers.
+    // Kept EXPLICIT here so the fixture never depends on the middleware default.
+    'cors' => [
+        'origins' => [],
+    ],
+
     // Per-route middleware aliases. 'throttle' rate-limits the login route.
     'middleware_aliases' => [
         'throttle' => \Ions\Http\Middleware\RateLimitMiddleware::class,
