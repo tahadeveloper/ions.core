@@ -72,6 +72,74 @@ test('a non-matching Origin against an allow-list gets no CORS headers at all', 
         ->and($res->headers->has('Access-Control-Allow-Methods'))->toBeFalse();
 });
 
+// ── Vary: Origin on reflected origins ────────────────────────────────────────
+
+test('reflecting an allow-listed Origin adds Vary: Origin', function () {
+    $mw = new CorsMiddleware(['origins' => ['https://trusted.example']]);
+    $req = Request::create('/api', 'GET');
+    $req->headers->set('Origin', 'https://trusted.example');
+    $res = $mw->handle($req, fn ($r) => new Response('ok'));
+    expect($res->getVary())->toContain('Origin');
+});
+
+test('preflight reflection also adds Vary: Origin', function () {
+    $mw = new CorsMiddleware(['origins' => ['https://trusted.example']]);
+    $req = Request::create('/api', 'OPTIONS');
+    $req->headers->set('Origin', 'https://trusted.example');
+    $res = $mw->handle($req, fn ($r) => new Response('x'));
+    expect($res->getStatusCode())->toBe(204)
+        ->and($res->getVary())->toContain('Origin');
+});
+
+test('the wildcard origin does NOT add Vary: Origin', function () {
+    $mw = new CorsMiddleware(['origins' => ['*']]);
+    $req = Request::create('/api', 'GET');
+    $req->headers->set('Origin', 'https://anything.example');
+    $res = $mw->handle($req, fn ($r) => new Response('ok'));
+    expect($res->headers->get('Access-Control-Allow-Origin'))->toBe('*')
+        ->and($res->getVary())->not->toContain('Origin');
+});
+
+test('no Vary is added when no CORS headers are emitted', function () {
+    $denyAll = new CorsMiddleware();
+    $req = Request::create('/api', 'GET');
+    $req->headers->set('Origin', 'https://anything.example');
+    $res = $denyAll->handle($req, fn ($r) => new Response('ok'));
+    expect($res->getVary())->not->toContain('Origin');
+
+    $allowList = new CorsMiddleware(['origins' => ['https://trusted.example']]);
+    $req = Request::create('/api', 'GET');
+    $req->headers->set('Origin', 'https://evil.com');
+    $res = $allowList->handle($req, fn ($r) => new Response('ok'));
+    expect($res->getVary())->not->toContain('Origin');
+});
+
+test('an existing Vary header is appended to, not clobbered', function () {
+    $mw = new CorsMiddleware(['origins' => ['https://trusted.example']]);
+    $req = Request::create('/api', 'GET');
+    $req->headers->set('Origin', 'https://trusted.example');
+    $res = $mw->handle($req, function ($r) {
+        $downstream = new Response('ok');
+        $downstream->headers->set('Vary', 'Accept-Encoding');
+        return $downstream;
+    });
+    expect($res->getVary())->toContain('Accept-Encoding')
+        ->and($res->getVary())->toContain('Origin');
+});
+
+test('Origin is not duplicated when Vary already contains it', function () {
+    $mw = new CorsMiddleware(['origins' => ['https://trusted.example']]);
+    $req = Request::create('/api', 'GET');
+    $req->headers->set('Origin', 'https://trusted.example');
+    $res = $mw->handle($req, function ($r) {
+        $downstream = new Response('ok');
+        $downstream->headers->set('Vary', 'Accept-Encoding, Origin');
+        return $downstream;
+    });
+    $origins = array_filter($res->getVary(), fn ($v) => strcasecmp($v, 'Origin') === 0);
+    expect($origins)->toHaveCount(1);
+});
+
 // ── Credentials rules ────────────────────────────────────────────────────────
 
 test('credentials header is emitted only when explicitly enabled with a specific origin', function () {

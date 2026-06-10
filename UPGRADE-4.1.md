@@ -24,6 +24,14 @@ fails secure (`true`).
 `'cookie_secure' => false` (or `'auto'`) explicitly — otherwise browsers will
 not send the session cookie and logins/CSRF will fail.
 
+> **Caveat — TLS-terminating reverse proxies:** the framework has no
+> trusted-proxy support yet, so behind a proxy that terminates TLS and
+> forwards plain HTTP (nginx, a load balancer) `Request::isSecure()` is
+> `false` and `'auto'` resolves to an **insecure** cookie. Do not use
+> `'auto'` there — keep the default `true`. The same limitation applies to
+> HSTS via `app.security.hsts`, which is only emitted on requests the
+> framework sees as HTTPS.
+
 ### Login regenerates the session id (fixation hardening)
 
 `Ions\Auth\Http\AuthController::login` now calls `SessionManager::regenerate()`

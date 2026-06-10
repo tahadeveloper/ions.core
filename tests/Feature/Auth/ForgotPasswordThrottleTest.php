@@ -59,6 +59,46 @@ test('a different email is unaffected by another email being throttled', functio
     expect($other->getStatusCode())->toBe(200);
 });
 
+test('whitespace-padded email counts against the same throttle bucket', function () {
+    // MySQL pad-space collations resolve 'victim@x.com ' to the same account
+    // as 'victim@x.com'; the throttle key must collapse them too.
+    for ($i = 1; $i <= 3; $i++) {
+        expect(Kernel::handle(forgotPost('throttle-me@example.com'))->getStatusCode())->toBe(200);
+    }
+
+    $padded = Kernel::handle(forgotPost('  throttle-me@example.com  '));
+    expect($padded->getStatusCode())->toBe(429);
+});
+
+test('a hit whose add() loses the race is still counted', function () {
+    // Simulate a concurrent request that created the key a moment earlier:
+    // the local add() fails, but the hit must still be incremented (the old
+    // get -> add/increment pattern silently dropped it and never throttled).
+    $cache = Kernel::app()->get('cache')->store();
+    $key = 'forgot:' . sha1('throttle-me@example.com|127.0.0.1');
+    $cache->put($key, 0, 600);
+
+    for ($i = 1; $i <= 3; $i++) {
+        expect(Kernel::handle(forgotPost('throttle-me@example.com'))->getStatusCode())->toBe(200);
+    }
+
+    expect(Kernel::handle(forgotPost('throttle-me@example.com'))->getStatusCode())->toBe(429);
+});
+
+test('the throttle counter key always carries a TTL (never created forever)', function () {
+    // increment() on a missing key re-creates it with no expiry (forever) in
+    // Illuminate stores — which would permanently 429 the email+IP once the
+    // window key expires mid-flight. add() must establish the TTL first.
+    Kernel::handle(forgotPost('throttle-me@example.com'));
+
+    $store = Kernel::app()->get('cache')->store()->getStore(); // ArrayStore in tests
+    $key = 'forgot:' . sha1('throttle-me@example.com|127.0.0.1');
+    $storage = (new ReflectionProperty($store, 'storage'))->getValue($store);
+
+    expect($storage)->toHaveKey($key)
+        ->and($storage[$key]['expiresAt'])->toBeGreaterThan(0);
+});
+
 test('app.auth.forgot_throttle config overrides max attempts', function () {
     config(['app.auth.forgot_throttle' => ['max' => 1, 'decay' => 600]]);
 

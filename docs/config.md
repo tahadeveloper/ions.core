@@ -485,6 +485,12 @@ fails secure (`true`) when no request is available at session construction
 (CLI, pre-request worker boot). Plain-HTTP dev hosts must set
 `'cookie_secure' => false` (or `'auto'`) explicitly.
 
+> **Caveat:** behind a TLS-terminating reverse proxy the framework has no
+> trusted-proxy support yet, so `Request::isSecure()` is `false` and `'auto'`
+> resolves to an **insecure** cookie — do not use `'auto'` there; keep the
+> default `true`. HSTS via [`app.security.hsts`](#appsecurityhsts) likewise
+> depends on the request scheme and is never emitted behind such a proxy.
+
 ### The `session()` helper
 
 Mirrors the `config()` helper overloads:

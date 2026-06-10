@@ -79,7 +79,32 @@ final class CorsMiddleware implements MiddlewareInterface
             $response->headers->set('Access-Control-Allow-Credentials', 'true');
         }
 
+        // A reflected (per-origin) Allow-Origin is cacheable per Origin only:
+        // without Vary, a shared cache could serve origin A's headers to
+        // origin B. The '*' wildcard is origin-independent and needs no Vary.
+        if ($origin !== '*') {
+            $this->addVaryOrigin($response);
+        }
+
         return true;
+    }
+
+    /**
+     * Append `Origin` to the response's Vary header without clobbering
+     * existing values or duplicating an already-present Origin entry.
+     */
+    private function addVaryOrigin(Response $response): void
+    {
+        $vary = $response->getVary();
+
+        foreach ($vary as $value) {
+            if (strcasecmp($value, 'Origin') === 0) {
+                return;
+            }
+        }
+
+        $vary[] = 'Origin';
+        $response->headers->set('Vary', implode(', ', $vary));
     }
 
     private function resolveOrigin(Request $request): string

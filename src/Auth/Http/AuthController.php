@@ -226,22 +226,23 @@ class AuthController
             $manager = $app->get('cache');
             $cache = $manager->store();
 
-            $key = 'forgot:' . sha1(strtolower($email) . '|' . (string) $request->getClientIp());
-            $count = (int) $cache->get($key, 0);
+            // trim(): MySQL pad-space collations resolve 'a@x.com ' to the
+            // same account as 'a@x.com', so the key must collapse them too.
+            $key = 'forgot:' . sha1(strtolower(trim($email)) . '|' . (string) $request->getClientIp());
 
-            if ($count >= $max) {
+            // add() establishes the key with the TTL (window starts now); a
+            // losing concurrent add() is fine — the key then already exists.
+            // increment() is only ever called on an existing key, so the
+            // counter always carries a TTL (a bare increment() on a missing
+            // key would re-create it with no expiry = a permanent lock-out).
+            $cache->add($key, 0, $decay);
+            $hits = (int) $cache->increment($key);
+
+            if ($hits > $max) {
                 $response = Json::error('Too many requests', 429, ['retry_after' => $decay]);
                 $response->headers->set('Retry-After', (string) $decay);
 
                 return $response;
-            }
-
-            // First hit sets the key with the TTL (window starts now); later
-            // hits increment without resetting the TTL.
-            if ($count === 0) {
-                $cache->add($key, 1, $decay);
-            } else {
-                $cache->increment($key);
             }
         } catch (\Throwable) {
             // Never let throttling internals break the reset flow.
