@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace Ions\Http;
 
 use Ions\Support\Request;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Base API resource: shapes a single model/array into a typed response payload.
  *
  * Extend it and implement {@see toArray()} to declare the public shape of a
- * resource. The wrapped payload is rendered through {@see Json::ok()} so it
- * shares the framework's JSON envelope.
+ * resource. {@see toResponse()} emits a single-envelope JSON response whose
+ * top-level body is exactly the output of {@see wrap()} — no double-nesting.
  *
  * Usage:
  *   UserResource::make($user)              // single resource
@@ -112,6 +113,9 @@ abstract class Resource implements Responsable
 
     public function toResponse(Request $request): Response
     {
-        return Json::ok($this->wrap($this->toArray($request)));
+        return new JsonResponse(
+            $this->wrap($this->toArray($request)),
+            Response::HTTP_OK,
+        );
     }
 }

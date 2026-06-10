@@ -6,6 +6,7 @@ namespace Ions\Http;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Ions\Support\Request;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -42,14 +43,15 @@ class ResourceCollection implements Responsable
 
     public function toResponse(Request $request): Response
     {
-        $payload = $this->resolvePayload($request);
-
-        return Json::ok($payload);
+        return new JsonResponse(
+            $this->resolvePayload($request),
+            Response::HTTP_OK,
+        );
     }
 
     /**
-     * Build the payload passed to {@see Json::ok()}. A wrapped collection is an
-     * associative array (data/meta/links); an unwrapped one is the bare list.
+     * Build the response body. A wrapped collection is an associative array
+     * (data/meta/links); an unwrapped one is the bare list.
      *
      * @return array<string, mixed>|list<array<string, mixed>>
      */
