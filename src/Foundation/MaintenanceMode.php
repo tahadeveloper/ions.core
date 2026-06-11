@@ -19,8 +19,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * Gate outcomes:
  *  - flag file absent           -> pass (a single file_exists() per request —
  *                                  the only cost when the app is live)
- *  - request path == /{secret}  -> 302 to '/' + bypass cookie (sha256 of the
- *                                  secret; never the secret itself)
+ *  - request path == /{secret}  -> 302 to the app base + bypass cookie (an
+ *                                  HMAC bound to this down cycle's activation
+ *                                  time; never the secret itself, and never
+ *                                  replayable into a later window)
  *  - valid bypass cookie        -> pass
  *  - path == /up (health on)    -> pass — the liveness probe stays reachable
  *                                  so ops can monitor the box DURING
@@ -33,7 +35,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 final class MaintenanceMode
 {
-    /** Bypass cookie name — its value is the sha256 hash of the secret. */
+    /**
+     * Bypass cookie name — its value is hash_hmac('sha256', downTime,
+     * secretHash): bound to one down cycle, useless after `up`.
+     */
     public const COOKIE = 'ions_maintenance';
 
     /** Bypass cookie lifetime in seconds (12 hours, Laravel parity). */

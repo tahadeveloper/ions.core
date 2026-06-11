@@ -389,6 +389,15 @@ The host's schedule definition class for the cron scheduler (see [scheduler.md](
 
 ---
 
+## `app.forms.dont_flash`
+
+**Type:** `list<string>`  **Default:** `['password', 'password_confirmation', 'current_password']`
+
+Input fields excluded from `withInput()` flashing (and the automatic
+validation-failure flash) — see [forms.md](forms.md).
+
+---
+
 ## `app.health.enabled`
 
 **Type:** `bool` — **Default:** `true`
