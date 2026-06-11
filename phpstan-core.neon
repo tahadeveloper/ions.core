@@ -3,6 +3,10 @@ parameters:
     paths:
         - src/Foundation/Discovery.php
         - src/Foundation/Doctor.php
+        - src/Foundation/ControllerResolver.php
+        - src/Foundation/TrustedProxies.php
+        - src/Foundation/JwtFactory.php
+        - src/Foundation/MiddlewareStack.php
         - src/Security
         - src/Container
         - src/Http

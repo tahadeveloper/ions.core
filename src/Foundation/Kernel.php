@@ -16,18 +16,10 @@ use Ions\Container\Container;
 use Ions\Events\RequestHandled;
 use Ions\Http\ActionArgumentResolver;
 use Ions\Http\ExceptionHandler;
-use Ions\Http\Middleware\AuthMiddleware;
 use Ions\Http\Middleware\ControllerDispatcher;
-use Ions\Http\Middleware\CorsMiddleware;
-use Ions\Http\Middleware\CsrfMiddleware;
 use Ions\Http\Middleware\Pipeline;
-use Ions\Http\Middleware\SecurityHeadersMiddleware;
-use Ions\Http\Middleware\StartSessionMiddleware;
-use Ions\Http\Middleware\TrustedHostMiddleware;
 use Ions\Http\ResponseNormalizer;
-use Ions\Security\ArrayRevocationStore;
 use Ions\Security\Jwt;
-use Ions\Security\RevocationStore;
 use Ions\Security\SecurityHeaders;
 use Ions\Support\Arr;
 use Ions\Support\Request;
@@ -819,63 +811,7 @@ class Kernel extends Singleton
      */
     private static function applyTrustedProxies(?Request $request = null): void
     {
-        $proxies = (array) config('app.trusted_proxies', []);
-        if ($proxies === []) {
-            // Deliberate early return (not setTrustedProxies([])): preserves any
-            // manual setTrustedProxies() call; a config flip to empty takes
-            // effect on the next boot/resetForTesting.
-            return;
-        }
-
-        $resolved = [];
-        foreach ($proxies as $proxy) {
-            if ($proxy === '*') {
-                $peer = $request?->server->get('REMOTE_ADDR');
-                $resolved[] = is_string($peer) && $peer !== '' ? $peer : 'REMOTE_ADDR';
-                continue;
-            }
-            $resolved[] = (string) $proxy;
-        }
-
-        Request::setTrustedProxies($resolved, self::trustedProxyHeaderSet());
-    }
-
-    /**
-     * Resolve config('app.trusted_proxy_headers') to a Symfony header-set
-     * bitmask. Friendly strings (matched case-insensitively):
-     *
-     *   'xff' (default) -> X-Forwarded-For | -Host | -Port | -Proto
-     *   'aws-elb'       -> Request::HEADER_X_FORWARDED_AWS_ELB
-     *   'traefik'       -> Request::HEADER_X_FORWARDED_TRAEFIK
-     *   'forwarded'     -> Request::HEADER_FORWARDED (RFC 7239)
-     *
-     * An int is passed through unchanged so power users can compose any
-     * Request::HEADER_* bitmask directly. Unknown strings throw (fail
-     * closed): a typo'd 'aws_elb' silently falling back to the 'xff'
-     * superset would re-enable X-Forwarded-Host trust the operator meant
-     * to exclude.
-     *
-     * @return int
-     * @throws \InvalidArgumentException on an unrecognized string value
-     */
-    private static function trustedProxyHeaderSet(): int
-    {
-        $configured = config('app.trusted_proxy_headers', 'xff');
-        if (is_int($configured)) {
-            return $configured;
-        }
-
-        return match (strtolower((string) $configured)) {
-            'xff' => Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST
-                | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
-            'aws-elb' => Request::HEADER_X_FORWARDED_AWS_ELB,
-            'traefik' => Request::HEADER_X_FORWARDED_TRAEFIK,
-            'forwarded' => Request::HEADER_FORWARDED,
-            default => throw new \InvalidArgumentException(sprintf(
-                "Unknown app.trusted_proxy_headers value '%s' — use 'xff', 'aws-elb', 'traefik', 'forwarded', or a Request::HEADER_* int bitmask.",
-                (string) $configured
-            )),
-        };
+        TrustedProxies::apply($request);
     }
 
     /**
@@ -887,48 +823,7 @@ class Kernel extends Singleton
      */
     private static function defaultMiddleware(): array
     {
-        // Prefer the container-bound jwt (registered by AuthProvider); fall back to
-        // direct construction so auth works even when AuthProvider is not in the list.
-        $jwt = static::$app->has('jwt') ? static::$app->get('jwt') : self::buildJwt();
-        /** @var \Ions\Security\Jwt|null $jwt */
-
-        $userProvider = static::$app->has('user_provider') ? static::$app->get('user_provider') : null;
-        /** @var \Ions\Auth\Contracts\UserProvider|null $userProvider */
-
-        $web = [
-            new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
-            new SecurityHeadersMiddleware(),
-            new CorsMiddleware((array) config('app.cors', [])),
-        ];
-        // Start the session early (before CSRF) so CSRF and downstream code share it.
-        if (static::$app->has('session')) {
-            /** @var \Ions\Session\SessionManager $session */
-            $session = static::$app->get('session');
-            $web[] = new StartSessionMiddleware($session);
-        }
-        if (config('app.csrf.enabled', true) && static::$app->has('csrf')) {
-            /** @var \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface $csrfManager */
-            $csrfManager = static::$app->get('csrf');
-            $web[] = new CsrfMiddleware($csrfManager);
-        }
-
-        // Debug toolbar (10.6): attached only when APP_DEBUG is truthy at
-        // stack-build time, so production stacks never even construct it.
-        // (config('app.debug_toolbar') is the in-debug escape hatch, checked
-        // per response by the middleware itself.)
-        if (env('APP_DEBUG', false)) {
-            $web[] = new \Ions\Http\Middleware\DebugToolbarMiddleware();
-        }
-
-        return [
-            'web' => $web,
-            'api' => [
-                new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
-                new SecurityHeadersMiddleware(),
-                new CorsMiddleware((array) config('app.cors', [])),
-                new AuthMiddleware($jwt, $userProvider, (array) config('app.auth.public_paths', [])),
-            ],
-        ];
+        return MiddlewareStack::defaults(static::$app);
     }
 
     /**
@@ -942,41 +837,7 @@ class Kernel extends Singleton
      */
     public static function buildJwt(): ?Jwt
     {
-        $secret = (string) env('APP_KEY', '');
-        if (strlen($secret) < 32) {
-            return null;
-        }
-
-        // Resolve an optional RevocationStore from the container.
-        // When a 'revocation_store' binding is present (e.g. a cache-backed
-        // CacheRevocationStore registered by the app), it is used; otherwise
-        // the in-memory ArrayRevocationStore is used as the default.
-        // Note: ArrayRevocationStore only persists within a single request.
-        // For cross-request revocation (e.g. logout that survives restart),
-        // bind a persistent RevocationStore implementation as 'revocation_store'.
-        $store = null;
-        if (isset(static::$app)) {
-            if (static::$app->has('revocation_store')) {
-                /** @var RevocationStore $store */
-                $store = static::$app->get('revocation_store');
-            } else {
-                $store = new ArrayRevocationStore();
-            }
-        }
-
-        try {
-            return new Jwt(
-                $secret,
-                (string) env('APP_NAME', 'ions'),
-                (string) env('APP_NAME', 'ions'),
-                (int) config('app.jwt.ttl', 3600),
-                (int) config('app.jwt.leeway', 0),
-                $store,
-                (int) config('app.jwt.refresh_ttl', Jwt::DEFAULT_REFRESH_TTL),
-            );
-        } catch (\Throwable) {
-            return null;
-        }
+        return JwtFactory::build(isset(static::$app) ? static::$app : null);
     }
 
     /**
@@ -1013,42 +874,7 @@ class Kernel extends Singleton
      */
     public static function resolveMiddleware(string $name): \Ions\Http\Middleware\MiddlewareInterface
     {
-        /** @var array<string,string> $aliases */
-        $aliases = (array) config('app.middleware_aliases', []);
-        $class = $aliases[$name] ?? $name;
-
-        $unresolvable = static function (string $reason) use ($name): never {
-            $message = "Middleware '{$name}' could not be resolved: {$reason}. "
-                . "Check 'app.middleware_aliases' or verify the class exists and implements MiddlewareInterface.";
-
-            if (!env('APP_DEBUG', false)) {
-                // Production renders a generic 500 page — surface the cause in
-                // the logs so operators can see why the route is failing.
-                try {
-                    \Ions\Bundles\Logs::create('app.log')->error($message);
-                } catch (\Throwable) {
-                    // Ignore logging failures — never let them mask the original issue.
-                }
-            }
-
-            throw new \InvalidArgumentException($message);
-        };
-
-        if (!class_exists($class)) {
-            $unresolvable("class '{$class}' does not exist");
-        }
-
-        try {
-            $instance = static::$app->make($class);
-        } catch (\Throwable $e) {
-            $unresolvable("container could not instantiate '{$class}': " . $e->getMessage());
-        }
-
-        if (!($instance instanceof \Ions\Http\Middleware\MiddlewareInterface)) {
-            $unresolvable("'{$class}' does not implement MiddlewareInterface");
-        }
-
-        return $instance;
+        return MiddlewareStack::resolve(static::$app, $name);
     }
 
     /**
@@ -1228,40 +1054,21 @@ class Kernel extends Singleton
      */
     private static function handleRouteRequest(array $matcherParams, string $namespace): array
     {
-        // check if using :: or @ for method
-        if (str_contains($matcherParams['_controller'], '::')) {
-            // action -> as text : NameController::action
-            $exControllerMethod = explode('::', $matcherParams['_controller']);
-        } elseif (str_contains($matcherParams['_controller'], '@')) {
-            // action -> as text : NameController@action
-            $exControllerMethod = explode('@', $matcherParams['_controller']);
-        }
+        // Pure parse + namespacing (controller-string resolution lives in the
+        // ControllerResolver collaborator). The needles list, the config write
+        // and the request-attribute mutations stay here so the per-request
+        // side-effect surface is unchanged. The resolver does not read
+        // config('app._method'), so writing it after the call is behavior-
+        // identical to the original (which wrote it before the filter/adds);
+        // nothing in between observes the key.
+        $needles = array_merge(['super', 'api', 'Api'], static::config()->get('app.needles', []));
 
-        $controller = $exControllerMethod[0] ?? $matcherParams['_controller'];
-        $method = $exControllerMethod[1] ?? $matcherParams['method'];
+        [$controller, $method, $matcherParams] = ControllerResolver::resolve($matcherParams, $namespace, $needles);
 
         static::config()->set('app._method', $method);
 
-        // remove id from parameters when 0 value
-        $matcherParams = Arr::where($matcherParams, static function ($value, $key) {
-            return !($key === 'id' && $value === 0);
-        });
-
         // add matcher to request parameters
         static::$request->attributes->add($matcherParams);
-
-        $needles = array_merge(['super', 'api', 'Api'], static::config()->get('app.needles', []));
-        // add namespace to controller if didn't have — framework-shipped
-        // controllers (Ions\…, e.g. the web-cron controller) and the legacy
-        // 'App\Schedule' special case are absolute and never prefixed.
-        if ($namespace && $controller !== 'App\Schedule' && !str_starts_with($controller, 'Ions\\') && !Str::contains($controller, $namespace)) {
-            // check if super or api
-            if (Str::contains($controller, $needles, true) || Str::contains($namespace, 'Api')) {
-                $controller = $namespace . $controller;
-            } else {
-                $controller = $namespace . 'Controllers\\' . $controller;
-            }
-        }
 
         $slice = Str::afterLast($controller, '\\');
         static::$request->attributes->add(['_controller_name' => $slice, '_method_name' => $method]);
