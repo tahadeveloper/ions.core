@@ -143,6 +143,7 @@ final class Doctor extends Singleton
             static fn (): array => [self::checkDebug()],
             static fn (): array => [self::checkDiscovery()],
             static fn (): array => [self::checkMaintenance()],
+            static fn (): array => [self::checkWorkerReadiness()],
         ];
     }
 
@@ -630,5 +631,39 @@ final class Doctor extends Singleton
         }
 
         return self::result('maintenance', 'Maintenance mode', self::OK, 'Not in maintenance mode.');
+    }
+
+    // ------------------------------------------------------------ worker mode
+
+    /**
+     * Worker-mode readiness (12.6). Kernel::resetForRequest() isolates all
+     * framework-owned per-request state between sequential requests in one
+     * process (proven by the 12.6 leak matrix), so the framework side is
+     * worker-safe out of the box. The one host-side choice doctor can check is
+     * the session driver: native PHP sessions are fragile in a long-lived
+     * worker (renew() restarts NativeSessionStorage, which PHP designed for one
+     * request per process), so a non-native driver is recommended. Always INFO
+     * — doctor cannot know whether this host runs in a worker SAPI; the row is
+     * guidance for those who do, and inert under classic php-fpm.
+     *
+     * @return array{id: string, label: string, status: string, message: string}
+     */
+    private static function checkWorkerReadiness(): array
+    {
+        if (config('session.driver', 'native') === 'native') {
+            return self::result(
+                'worker_mode',
+                'Worker readiness',
+                self::INFO,
+                "For worker mode (FrankenPHP/RoadRunner/Swoole): use a non-native session driver (config('session.driver') is 'native') — native PHP sessions are fragile in long-lived workers. Irrelevant under classic php-fpm. See docs/worker-mode.md."
+            );
+        }
+
+        return self::result(
+            'worker_mode',
+            'Worker readiness',
+            self::INFO,
+            "Worker-mode ready: per-request state is isolated by the framework and the session driver is non-native. Bind a persistent revocation_store for cross-request JWT revocation (the default file-cache store already qualifies). See docs/worker-mode.md."
+        );
     }
 }

@@ -250,7 +250,9 @@ style) builds on these per-process caches. The mechanism shipped in Phase 8.2:
 `Kernel::resetForRequest()` clears all per-request state (request/response
 statics, the framework session + CSRF storage, the per-request Twig globals,
 the query log) while keeping every per-process cache above intact (config,
-container singletons, the route memo, the Twig Environment), and the
-experimental `Ions\Runtime\WorkerRunner` drives the reset-then-handle loop.
-See [worker-mode.md](worker-mode.md) for the per-request vs boot state table,
-usage, and a FrankenPHP example.
+container singletons, the route memo, the Twig Environment), and
+`Ions\Runtime\WorkerRunner` drives the reset-then-handle loop. Worker mode is
+stable as of 4.5 (Phase 12.6): a multi-subsystem isolation matrix proves the
+reset isolates every framework subsystem across requests. See
+[worker-mode.md](worker-mode.md) for the per-request vs boot state table, the
+isolation guarantee, usage, and FrankenPHP / RoadRunner recipes.

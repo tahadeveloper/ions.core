@@ -19,12 +19,15 @@ use Symfony\Component\HttpFoundation\Response;
  * (request/response statics, session, per-request Twig globals, query log)
  * while keeping boot state (config, container singletons, route memo).
  *
- * See docs/worker-mode.md for usage and a FrankenPHP adapter example.
+ * See docs/worker-mode.md for usage and FrankenPHP/RoadRunner recipes.
  *
- * @experimental Worker mode is experimental in 4.1: the reset lifecycle covers
- *               framework-owned state only — host applications must avoid
- *               their own mutable static/per-process state (see the docs for
- *               known limitations, e.g. native PHP sessions in workers).
+ * Worker mode is stable as of 4.5 (Phase 12.6): the per-request reset is
+ * proven to isolate every framework subsystem added through 8.x–12.x by the
+ * multi-subsystem leak matrix (tests/Feature/Runtime/WorkerLeakMatrixTest.php
+ * — Gate user, flash, session/CSRF, trusted proxies, query log, response
+ * cache, IonDisk overrides). The reset lifecycle still covers framework-owned
+ * state ONLY — host applications must avoid their own mutable static or
+ * per-process state (see docs/worker-mode.md "Host responsibilities").
  */
 final class WorkerRunner
 {

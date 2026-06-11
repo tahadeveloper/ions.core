@@ -1,8 +1,9 @@
 <?php
 
 /**
- * Phase 8.2 — experimental WorkerRunner: boot once, handle many requests with
- * per-request isolation (resetForRequest between iterations).
+ * Phase 8.2 — WorkerRunner: boot once, handle many requests with per-request
+ * isolation (resetForRequest between iterations). Promoted to stable in 12.6
+ * (see WorkerLeakMatrixTest for the multi-subsystem isolation guarantee).
  */
 
 use Ions\Runtime\WorkerRunner;
