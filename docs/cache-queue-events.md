@@ -140,9 +140,12 @@ shown:
 ```
 
 `database-uuids` (the default) keys rows by the job's payload uuid — the schema
-the bundled stub creates. `null` discards failures. The `sync` driver is
-unaffected: a failing sync job still throws to the dispatcher inline and is
-never recorded.
+the bundled stub creates. The plain `database` driver is for **legacy tables
+without a uuid column**: with the bundled stub its insert violates the NOT NULL
+uuid constraint and the failure record is silently lost — use `database-uuids`.
+`null` discards failures. The `sync` driver is unaffected: a failing sync job
+throws to the dispatcher inline (web requests are never recorded; inside a
+`queue:work` process the listener does record it).
 
 Inspect and recover with the failed-job commands:
 
