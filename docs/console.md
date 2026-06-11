@@ -63,10 +63,10 @@ These ship with the framework and are always registered:
 | `make:listener` | `MakeListenerCommand` | Generate an event listener (`--event=` to type-hint the event). |
 | `make:test` | `MakeTestCommand` | Generate a host test in `tests/` (`--unit` for a plain PHPUnit test). |
 | `make:control` | `ControllerCommand` | Generate a controller. |
-| `make:seeder` | `SeederCommand` | Generate a seeder. |
-| `make:schema` | `SchemaCommand` | Generate a schema/migration. |
+| `make:seeder` | `SeederCommand` | Generate a seeder into `database/seeders` (4.4+ layout; legacy: `{app|src}/Database/Seeders`). |
+| `make:schema` | `SchemaCommand` | Generate a schema/migration into `database/schemas` (4.4+ layout; legacy: `{app|src}/Database/Schema`). |
 | `route:list` | `Ions\commands\RouteListCommand` | List the registered routes. |
-| `migrate` / `migrate:rollback` | `MigrateCommand` / `RollBackCommand` | Run / roll back migrations. |
+| `migrate` / `migrate:rollback` | `MigrateCommand` / `RollBackCommand` | Run / roll back migrations from `database/schemas` (4.4+ layout; legacy: `{app|src}/Database/Schema`). |
 | `schema:dump` | `DumpCommand` | Dump a database schema. |
 | `install:super` | `SuperCommand` | Install the bundled super-admin. |
 | `install:vue` | `InstallVueCommand` | Scaffold a Vue 3 + Vite frontend into the host (see [assets.md](assets.md)). |

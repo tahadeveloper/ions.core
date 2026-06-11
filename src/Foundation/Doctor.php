@@ -128,6 +128,7 @@ final class Doctor extends Singleton
             static fn (): array => [self::checkAppKey()],
             static fn (): array => [self::checkAppUrl()],
             static fn (): array => self::checkDualAppDirs(),
+            static fn (): array => self::checkDualDatabaseDirs(),
             static fn (): array => self::checkVarWritable(),
             static fn (): array => [self::checkRouteCache()],
             static fn (): array => [self::checkConfigCache()],
@@ -247,6 +248,44 @@ final class Doctor extends Singleton
             'App layout',
             self::WARN,
             'Both app/ and src/ exist at the host root — app/ wins since 4.2, so src/ is ignored by Path resolution; consolidate your application code into app/ and remove the unused directory.'
+        )];
+    }
+
+    /**
+     * Since 4.4, Path::database() resolves host-root {root}/database before
+     * the legacy {app|src}/Database — a host carrying BOTH silently ignores
+     * the legacy directory. Conditional check: yields no row on single-layout
+     * hosts.
+     *
+     * @return list<array{id: string, label: string, status: string, message: string}>
+     */
+    private static function checkDualDatabaseDirs(): array
+    {
+        if (!is_dir(Path::root('database'))) {
+            return [];
+        }
+
+        $legacy = null;
+        foreach (['app', 'src'] as $dir) {
+            if (is_dir(Path::root($dir . DIRECTORY_SEPARATOR . 'Database'))) {
+                $legacy = $dir . '/Database';
+                break;
+            }
+        }
+
+        if ($legacy === null) {
+            return [];
+        }
+
+        return [self::result(
+            'dual_database_dirs',
+            'Database layout',
+            self::WARN,
+            sprintf(
+                'Both database/ and %s exist at the host root — database/ wins since 4.4, so %s is ignored by Path resolution (migrate/seeders/schema dumps); consolidate into database/{migrations,seeders,schemas} and remove the unused directory.',
+                $legacy,
+                $legacy
+            )
         )];
     }
 

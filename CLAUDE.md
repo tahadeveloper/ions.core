@@ -23,7 +23,8 @@ Tests live in `tests/`, match `*Test.php`, and use Pest's `test()`/`expect()` sy
 This library resolves paths **relative to the host app**, which lives **5 directories up** from `src/Foundation/` and `src/Bundles/` (see `Path::$environmentPath` and `Kernel::$environmentPath`). All filesystem access goes through `Ions\Bundles\Path`, which expects this host structure:
 
 - `config/` — PHP config files, each returning an array; loaded by filename into `Kernel::config()` (e.g. `config/app.php` → `config('app.*')`).
-- `app/` **or** `src/` — host application code. **`Path` checks for `app/` first (the convention since 4.2) and falls back to `src/`** for legacy projects. Controllers live in `{app|src}/Http/Controllers`, API endpoints in `{app|src}/Http/Api`, super-admin in `{app|src}/Http/super`, migrations/seeders in `{app|src}/Database`.
+- `app/` **or** `src/` — host application code. **`Path` checks for `app/` first (the convention since 4.2) and falls back to `src/`** for legacy projects. Controllers live in `{app|src}/Http/Controllers`, API endpoints in `{app|src}/Http/Api`, super-admin in `{app|src}/Http/super`.
+- `database/` — host-root database directory (the convention since 4.4): `database/schemas` (migrate classes), `database/migrations` (schema dumps), `database/seeders`. **`Path::database()` uses host-root `database/` whenever the directory exists and falls back byte-identically to legacy `{app|src}/Database/{Schema,Migrations,Seeders}`** (the legacy-cased subfolder names are normalized onto the lowercase dirs only on the new layout). Preserve this fallback when editing path logic.
 - `routes/` — `web.php`/`web.yaml` and `api.php`/`api.yaml` route definitions.
 - `views/`, `public/` (with `public/uploads`, `public/lang`), `var/` (`cache/`, `logs/`, `templates/`).
 - `.env` at the host root (loaded via vlucas/phpdotenv; `Kernel::$envName` defaults to `.env`).
