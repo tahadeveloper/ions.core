@@ -236,11 +236,18 @@ class AuthController
             // counter always carries a TTL (a bare increment() on a missing
             // key would re-create it with no expiry = a permanent lock-out).
             $cache->add($key, 0, $decay);
+            // Companion marker carrying the window's absolute end time (same
+            // TTL) so a 429 advertises the REMAINING window, not the static
+            // decay. add() leaves an existing marker untouched, so the window
+            // keeps sliding from the first hit.
+            $cache->add($key . ':reset', time() + $decay, $decay);
             $hits = (int) $cache->increment($key);
 
             if ($hits > $max) {
-                $response = Json::error('Too many requests', 429, ['retry_after' => $decay]);
-                $response->headers->set('Retry-After', (string) $decay);
+                $reset = (int) $cache->get($key . ':reset', 0);
+                $retryAfter = $reset > 0 ? max(1, $reset - time()) : $decay;
+                $response = Json::error('Too many requests', 429, ['retry_after' => $retryAfter]);
+                $response->headers->set('Retry-After', (string) $retryAfter);
 
                 return $response;
             }
