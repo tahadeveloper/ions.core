@@ -121,8 +121,32 @@ class IonUpload extends Singleton
         return new self();
     }
 
+    /**
+     * Reject any filename that is not a bare basename.
+     *
+     * A stored upload name is always a single path segment (random stem +
+     * extension). Anything containing a directory separator or a `..` segment
+     * — e.g. an attacker-supplied `old_image=../../../.env` flowing in through
+     * update() — is a path-traversal attempt and must never reach unlink().
+     */
+    private static function isSafeFileName(string $fileName): bool
+    {
+        if ($fileName === '' || str_contains($fileName, '/') || str_contains($fileName, '\\') || str_contains($fileName, "\0")) {
+            return false;
+        }
+
+        return $fileName !== '.' && $fileName !== '..' && basename($fileName) === $fileName;
+    }
+
     public static function remove(string $fileName, string $path): self
     {
+        // Path-traversal guard: the filename must be a bare basename. This
+        // single check neutralises both the faked-disk and native branches and
+        // the request-controlled value passed in from update().
+        if (!self::isSafeFileName($fileName)) {
+            return new self();
+        }
+
         if (($fake = self::fakeDisk()) !== null) {
             if ($fake->has($path . '/' . $fileName)) {
                 $fake->delete($path . '/' . $fileName);
@@ -131,11 +155,30 @@ class IonUpload extends Singleton
             return new self();
         }
 
-        if (file_exists($path . '/' . $fileName)) {
-            unlink($path . '/' . $fileName);
+        // Belt to the basename brace: only unlink when the resolved real path
+        // stays inside the uploads directory ($path is the uploads root here).
+        $target = $path . '/' . $fileName;
+        if (file_exists($target) && self::isInside($path, $target)) {
+            unlink($target);
         }
 
         return new self();
+    }
+
+    /**
+     * True when $target's canonical real path is contained within $root.
+     */
+    private static function isInside(string $root, string $target): bool
+    {
+        $realRoot = realpath($root);
+        $realTarget = realpath($target);
+        if ($realRoot === false || $realTarget === false) {
+            return false;
+        }
+
+        $realRoot = rtrim($realRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+        return str_starts_with($realTarget . DIRECTORY_SEPARATOR, $realRoot);
     }
 
     public static function moveUrl(string $image_url, string $destination, $old_destination = 'dump'): self
@@ -177,11 +220,32 @@ class IonUpload extends Singleton
         return new self();
     }
 
+    /**
+     * Read a single input value from the request without the deprecated
+     * Request::get(): prefer the POST/body bag, fall back to the query bag.
+     */
+    private static function requestValue(mixed $request, string $key): mixed
+    {
+        // Mirrors the query->body precedence of the Symfony Request::get() this
+        // replaced (get() is deprecated in HttpFoundation 7.x).
+        if ($request->query->has($key)) {
+            return $request->query->get($key);
+        }
+
+        return $request->request->get($key);
+    }
+
     public static function update($file_name, $file_original_name, $file, $path, array $options = []): self
     {
         $request = Kernel::request();
-        $image_name = $request->get($file_name);
-        $original_name = $request->get($file_original_name);
+        // The old filename to delete comes straight from the request; reduce it
+        // to a bare basename at the boundary so a traversal payload (e.g.
+        // `../../../.env`) can never reach remove() — which also re-validates.
+        $image_name = self::requestValue($request, $file_name);
+        if (is_string($image_name) && $image_name !== '') {
+            $image_name = basename($image_name);
+        }
+        $original_name = self::requestValue($request, $file_original_name);
         self::$output['error'] = 0;
         if ($file) {
             $upload_file = static::store($file, $path, $options);

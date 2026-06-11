@@ -38,13 +38,18 @@ final class RateLimitMiddleware implements MiddlewareInterface
         $count = (int) $this->cache->get($key, 0);
 
         if ($count >= $this->maxAttempts) {
-            return $this->tooManyRequests($this->decaySeconds);
+            return $this->tooManyRequests($this->retryAfter($key));
         }
 
         // On first hit, add() sets the key with the TTL (so the window starts now).
         // On subsequent hits, increment() updates the counter without resetting the TTL.
         if ($count === 0) {
             $this->cache->add($key, 1, $this->decaySeconds);
+            // Companion marker carrying the window's absolute end time, with the
+            // same TTL as the counter. Read back on a 429 so Retry-After reports
+            // the REMAINING window rather than the static decay — portable across
+            // cache stores that do not expose a TTL read.
+            $this->cache->add($key . ':reset', time() + $this->decaySeconds, $this->decaySeconds);
         } else {
             $this->cache->increment($key);
         }
@@ -55,6 +60,22 @@ final class RateLimitMiddleware implements MiddlewareInterface
     private function buildKey(Request $request): string
     {
         return $this->prefix . sha1($request->getClientIp() . '|' . $request->getPathInfo());
+    }
+
+    /**
+     * Seconds left in the current window, from the companion :reset marker.
+     *
+     * Falls back to the full decay when the marker is missing (e.g. evicted),
+     * and is clamped to at least 1 so Retry-After is always actionable.
+     */
+    private function retryAfter(string $key): int
+    {
+        $reset = (int) $this->cache->get($key . ':reset', 0);
+        if ($reset <= 0) {
+            return $this->decaySeconds;
+        }
+
+        return max(1, $reset - time());
     }
 
     private function tooManyRequests(int $retryAfter): Response
