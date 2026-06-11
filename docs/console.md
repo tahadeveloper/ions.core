@@ -220,6 +220,33 @@ The summary line reads `12 ok, 3 warnings, 0 failures (3 info, 0 skipped)`.
 The JSON payload is `{"checks": [{id, label, status, message}, …],
 "summary": {ok, info, warn, fail, skip}, "ok": bool}`.
 
+### The `/up` health endpoint
+
+The same diagnostics are reachable over HTTP (4.3): the kernel registers a
+built-in `GET /up` route (like `/cron/schedule`) handled by
+`Ions\Http\HealthController`:
+
+```bash
+curl https://example.com/up                          # -> 200 'ok' (liveness)
+curl "https://example.com/up?checks=1&token=$TOKEN"  # -> doctor JSON (readiness)
+```
+
+- **`GET /up`** answers a plain `200 ok` — point load balancers and uptime
+  monitors here. The response is `Cache-Control: no-store` (exempt from the
+  kernel's public web caching defaults) so a CDN can never mask an outage.
+- **`GET /up?checks=1&token=…`** runs `Doctor::run()` and returns the exact
+  `doctor --json` payload above. The status is **200 even when checks fail** —
+  read `ok: false` in the body; non-200 means the app itself is down. Because
+  doctor output names paths and config state, this variant requires
+  `config('app.health.token')` to be set and to match `?token=` — otherwise
+  403. No token configured = checks locked.
+- Disable the route entirely with `config('app.health.enabled') => false`
+  (then `/up` 404s).
+
+The route runs through the normal web middleware stack (security headers,
+CORS, session start when bound) — deliberate: a probe that exercises the real
+pipeline is a more honest signal than one that bypasses it.
+
 ## Task scheduling
 
 Tasks are defined fluently in `App\Schedule::boot(Scheduler $schedule)` and

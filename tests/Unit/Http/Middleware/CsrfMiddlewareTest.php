@@ -43,14 +43,21 @@ test('safe methods (GET) pass through without a token', function () {
     expect($res->getContent())->toBe('ok');
 });
 
-test('POST without a valid token → 419', function () {
+test('POST without a valid token → 419 HttpException (themeable via errors/419.twig)', function () {
     $mw = new CsrfMiddleware(inMemoryCsrfManager());
     $reached = false;
-    $res = $mw->handle(Request::create('/form', 'POST'), function ($r) use (&$reached) {
-        $reached = true;
-        return new Response('ok');
-    });
-    expect($res->getStatusCode())->toBe(419)->and($reached)->toBeFalse();
+
+    try {
+        $mw->handle(Request::create('/form', 'POST'), function ($r) use (&$reached) {
+            $reached = true;
+            return new Response('ok');
+        });
+        $this->fail('Expected a 419 HttpException.');
+    } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+        expect($e->getStatusCode())->toBe(419)
+            ->and($e->getMessage())->toBe('CSRF token mismatch.')
+            ->and($reached)->toBeFalse();
+    }
 });
 
 test('POST with a valid token passes', function () {

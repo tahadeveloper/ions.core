@@ -389,6 +389,41 @@ The host's schedule definition class for the cron scheduler (see [scheduler.md](
 
 ---
 
+## `app.health.enabled`
+
+**Type:** `bool` — **Default:** `true`
+
+Controls the built-in `GET /up` health endpoint (4.3, see
+[console.md](console.md#the-up-health-endpoint)). Setting this **explicitly to
+`false`** removes the route from the collection entirely — `/up` then 404s like
+any unknown path. The endpoint answers a plain `200 ok` and is marked
+`Cache-Control: no-store` so CDNs can never serve a cached "ok" during an
+outage.
+
+## `app.health.token`
+
+**Type:** `string|null` — **Default:** `null`
+
+Token gating `GET /up?checks=1`, which runs the full `ions doctor` checks and
+answers their JSON (`{checks, summary, ok}`) over HTTP. Doctor output names
+filesystem paths and config state, so the checks variant is locked unless this
+token is set **and** matches the `?token=` query parameter (constant-time
+compare); otherwise the request is rejected with 403. Leave `null` to keep the
+liveness probe only. Set it from the environment, e.g.
+`'token' => env('HEALTH_TOKEN')`.
+
+## `app.debug_toolbar`
+
+**Type:** `bool` — **Default:** `true`
+
+In-debug escape hatch for the debug toolbar (see
+[performance.md](performance.md#debug-toolbar-debug-only)). The toolbar
+middleware is only ever attached to the web stack when `APP_DEBUG` is truthy —
+production never constructs it regardless of this key. Set `false` to hide the
+bar while debugging.
+
+---
+
 ## Auth config (`config/auth.php`)
 
 ### `auth.provider`
@@ -593,6 +628,33 @@ connection so `debugQuery()` returns the executed statements.
 > lifetime of the process (unbounded growth in workers/long requests), so it is
 > now strictly opt-in. Debuggers that relied on `APP_DEBUG` must set
 > `'query_log' => true` in `config/database.php`.
+
+### `database.strict`
+
+**Type:** `bool` — **Default:** `true` *(only effective in debug)*
+
+ORM strict mode (4.3). When `APP_DEBUG` is truthy and this key is not `false`,
+`DatabaseProvider::boot()` enables Eloquent's development guards:
+
+- `Model::preventLazyLoading(true)` — lazy-loading a relation off a model that
+  was hydrated as part of a **multi-model result set** throws
+  `Illuminate\Database\LazyLoadingViolationException` naming the relation (a
+  single `first()`/`find()` model never throws — that is upstream Eloquent
+  semantics, since one lazy load is not an N+1).
+- `Model::preventSilentlyDiscardingAttributes(true)` — `fill()`ing an attribute
+  blocked by `$fillable` throws instead of silently dropping it.
+
+With `APP_DEBUG` off the guards are **always disabled**, regardless of this
+key — production behavior never changes. The statics are re-set on every boot
+with the freshly computed value, so worker re-boots and test runs self-correct.
+
+Not to be confused with the per-connection `'strict' => true` MySQL mode flag
+inside `connections.mysql`.
+
+> **Changed in 4.3:** strict mode defaults to ON in debug. Upgraders whose dev
+> code lazy-loads relations from collections will now see
+> `LazyLoadingViolationException` — fix with eager loading (`->with(...)`) or
+> opt out via `'strict' => false`. See UPGRADE-4.3.
 
 ### `database.nplusone.enabled`
 

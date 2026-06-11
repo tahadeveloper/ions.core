@@ -31,6 +31,18 @@ return [
         'signed' => \Ions\Http\Middleware\ValidateSignatureMiddleware::class,
     ],
 
+    // Built-in /up health endpoint (10.6). EXPLICIT mirror of the skeleton
+    // defaults (drift guard): enabled, no checks token configured — the
+    // HealthEndpointTest sets a token per-test when gating the doctor JSON.
+    'health' => [
+        'enabled' => true,
+        'token' => null,
+    ],
+
+    // Debug toolbar (10.6) in-debug escape hatch — default shown EXPLICITLY
+    // per the drift guard; DebugToolbarTest flips it to false.
+    'debug_toolbar' => true,
+
     // Low limit so the rate-limit test can exceed the window quickly.
     'ratelimit' => [
         'max'   => 3,

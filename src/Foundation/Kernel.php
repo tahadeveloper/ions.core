@@ -166,6 +166,11 @@ class Kernel extends Singleton
         Request::setTrustedProxies([], Request::HEADER_X_FORWARDED_FOR);
         \Ions\Bundles\Path::resetBasePath();
         Discovery::reset();
+        // ORM strict mode (10.6) flips Eloquent CLASS statics; restore the
+        // library defaults so a strict-mode test can never pollute the next
+        // boot (DatabaseProvider::boot() re-computes them anyway).
+        \Illuminate\Database\Eloquent\Model::preventLazyLoading(false);
+        \Illuminate\Database\Eloquent\Model::preventSilentlyDiscardingAttributes(false);
     }
 
     /**
@@ -643,8 +648,12 @@ class Kernel extends Singleton
             // Preserve old cache-control headers for non-error web responses —
             // but never for redirects: a publicly cacheable 3xx would let a
             // shared cache/CDN serve one user's redirect (and its per-user
-            // Location) to other users.
-            if ($targetFolder === 'web' && !$response->isRedirection()) {
+            // Location) to other users. Responses that explicitly opted OUT of
+            // caching (no-store, e.g. the /up health probe) are respected:
+            // setPublic()/setMaxAge() would strip the directive and let a CDN
+            // mask an outage with a cached body.
+            if ($targetFolder === 'web' && !$response->isRedirection()
+                && !$response->headers->hasCacheControlDirective('no-store')) {
                 $response->setPublic();
                 $response->setMaxAge(3600);
                 $response->headers->addCacheControlDirective('must-revalidate', true);
@@ -851,6 +860,14 @@ class Kernel extends Singleton
             /** @var \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface $csrfManager */
             $csrfManager = static::$app->get('csrf');
             $web[] = new CsrfMiddleware($csrfManager);
+        }
+
+        // Debug toolbar (10.6): attached only when APP_DEBUG is truthy at
+        // stack-build time, so production stacks never even construct it.
+        // (config('app.debug_toolbar') is the in-debug escape hatch, checked
+        // per response by the middleware itself.)
+        if (env('APP_DEBUG', false)) {
+            $web[] = new \Ions\Http\Middleware\DebugToolbarMiddleware();
         }
 
         return [
@@ -1093,6 +1110,15 @@ class Kernel extends Singleton
             '/cron/schedule',
             ['_controller' => \Ions\Schedule\Http\WebCronController::class . '::run']
         ));
+
+        // Built-in /up health endpoint (10.6) — same controller-string
+        // pattern; disabled entirely (404) with app.health.enabled => false.
+        if (config('app.health.enabled', true) !== false) {
+            $routes->add(Str::random(10) . '_health', new Route(
+                '/up',
+                ['_controller' => \Ions\Http\HealthController::class . '::up']
+            ));
+        }
 
         return $routes;
     }
