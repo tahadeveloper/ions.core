@@ -156,19 +156,35 @@ matter:
 
 ## TLS-terminating proxies (read before going behind a load balancer)
 
-The framework has **no trusted-proxy support yet**: when nginx/an LB
-terminates TLS and forwards plain HTTP to PHP, `Request::isSecure()` is
-`false`. Consequences (details in `UPGRADE-4.1.md` and [config.md](config.md)):
+When nginx/an LB terminates TLS and forwards plain HTTP to PHP, the framework
+only sees the proxy's hop — configure
+[`app.trusted_proxies`](config.md#apptrusted_proxies) (4.3+) so it trusts that
+proxy's `X-Forwarded-*` headers:
 
-- `session.cookie_secure => 'auto'` resolves to an **insecure** cookie there —
-  keep the 4.1 default `true` behind a TLS proxy.
-- HSTS (`app.security.hsts`) is only emitted on requests the framework sees
-  as HTTPS, so behind such a proxy it will not be sent by the app. If you
-  need HSTS in that topology, emit it from the proxy that actually speaks TLS.
+```php
+// config/app.php
+'trusted_proxies' => ['10.0.0.0/8'],   // your proxy IPs/CIDRs
+// or, single load balancer in front of every request:
+'trusted_proxies' => ['*'],            // trust the directly connecting peer
+```
+
+With it, `X-Forwarded-Proto: https` from the proxy makes
+`Request::isSecure()` `true`, so HSTS (`app.security.hsts`) is emitted,
+`session.cookie_secure => 'auto'` resolves secure, and `getClientIp()`
+returns the real client from `X-Forwarded-For`. The header set is
+configurable via
+[`app.trusted_proxy_headers`](config.md#apptrusted_proxy_headers)
+(`'aws-elb'`, `'traefik'`, RFC 7239 `'forwarded'`, or a bitmask).
+
+**Without** `trusted_proxies` configured, requests behind such a proxy look
+like plain HTTP: do **not** use `cookie_secure => 'auto'` there — keep the
+4.1 default `true`, and emit HSTS from the proxy that actually speaks TLS.
+Only ever list proxies you control: trusting arbitrary peers lets clients
+spoof their IP and scheme.
 
 When PHP-FPM sits directly behind the TLS-speaking nginx above (same box,
 `fastcgi_param HTTPS on;` set by nginx on the TLS vhost), none of this
-applies — the request is seen as secure.
+applies — the request is seen as secure without any proxy trust.
 
 ## Worker mode (FrankenPHP / RoadRunner / Swoole)
 

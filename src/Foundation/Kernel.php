@@ -125,6 +125,8 @@ class Kernel extends Singleton
                 Request::setTrustedHosts($trustedHosts);
             }
 
+            self::applyTrustedProxies();
+
             self::bootProviders();
 
         } catch (Throwable $e) {
@@ -157,6 +159,11 @@ class Kernel extends Singleton
         // Symfony Request CLASS static — clear it or every later boot in this
         // process inherits the previous app's host allowlist.
         Request::setTrustedHosts([]);
+        // Same hygiene for trusted proxies (boot()/handle() set them from
+        // config('app.trusted_proxies')): an empty list disables proxy trust;
+        // the header-set argument is required by Symfony but inert without
+        // proxies.
+        Request::setTrustedProxies([], Request::HEADER_X_FORWARDED_FOR);
         \Ions\Bundles\Path::resetBasePath();
         Discovery::reset();
     }
@@ -561,6 +568,12 @@ class Kernel extends Singleton
         // in worker mode where the boot-time capture is stale.
         static::$request = $request;
 
+        // Re-apply trusted proxies against THIS request: boot() already set
+        // them for the classic-FPM case, but the '*' wildcard must resolve to
+        // the peer actually connecting NOW (worker mode handles many peers per
+        // process; at CLI boot $_SERVER['REMOTE_ADDR'] does not even exist).
+        self::applyTrustedProxies($request);
+
         // Determine group from first path segment.
         $targetFolder = $request->segment(1) === 'api' ? 'api' : 'web';
         if ($targetFolder === 'api') {
@@ -723,6 +736,74 @@ class Kernel extends Singleton
         return Arr::where($matcherParams, static function ($value, $key) {
             return !str_starts_with((string) $key, '_') && !($key === 'id' && $value === 0);
         });
+    }
+
+    /**
+     * Apply config('app.trusted_proxies') to the Request CLASS static.
+     *
+     * Entries are proxy IPs or CIDR ranges passed straight to Symfony's
+     * Request::setTrustedProxies(). The wildcard '*' (Laravel parity) means
+     * "trust the directly connecting peer": with a request at hand its
+     * REMOTE_ADDR is used; otherwise Symfony's literal 'REMOTE_ADDR' token is
+     * passed, which Symfony substitutes from $_SERVER at set time (classic
+     * FPM boot) and silently drops when unavailable (CLI) — which is why
+     * handle() re-applies this per request.
+     *
+     * No-op when the config key is empty: serving directly (no proxy) needs
+     * no trust, and X-Forwarded-* headers from clients stay untrusted.
+     *
+     * @param Request|null $request The request being handled, when available.
+     * @return void
+     */
+    private static function applyTrustedProxies(?Request $request = null): void
+    {
+        $proxies = (array) config('app.trusted_proxies', []);
+        if ($proxies === []) {
+            return;
+        }
+
+        $resolved = [];
+        foreach ($proxies as $proxy) {
+            if ($proxy === '*') {
+                $peer = $request?->server->get('REMOTE_ADDR');
+                $resolved[] = is_string($peer) && $peer !== '' ? $peer : 'REMOTE_ADDR';
+                continue;
+            }
+            $resolved[] = (string) $proxy;
+        }
+
+        Request::setTrustedProxies($resolved, self::trustedProxyHeaderSet());
+    }
+
+    /**
+     * Resolve config('app.trusted_proxy_headers') to a Symfony header-set
+     * bitmask. Friendly strings:
+     *
+     *   'xff' (default) -> X-Forwarded-For | -Host | -Port | -Proto
+     *   'aws-elb'       -> Request::HEADER_X_FORWARDED_AWS_ELB
+     *   'traefik'       -> Request::HEADER_X_FORWARDED_TRAEFIK
+     *   'forwarded'     -> Request::HEADER_FORWARDED (RFC 7239)
+     *
+     * An int is passed through unchanged so power users can compose any
+     * Request::HEADER_* bitmask directly. Unknown strings fall back to the
+     * 'xff' default combination.
+     *
+     * @return int
+     */
+    private static function trustedProxyHeaderSet(): int
+    {
+        $configured = config('app.trusted_proxy_headers', 'xff');
+        if (is_int($configured)) {
+            return $configured;
+        }
+
+        return match ((string) $configured) {
+            'aws-elb' => Request::HEADER_X_FORWARDED_AWS_ELB,
+            'traefik' => Request::HEADER_X_FORWARDED_TRAEFIK,
+            'forwarded' => Request::HEADER_FORWARDED,
+            default => Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
+        };
     }
 
     /**

@@ -136,6 +136,7 @@ final class Doctor extends Singleton
             static fn (): array => [self::checkPhpExtensions()],
             static fn (): array => [self::checkCsrf()],
             static fn (): array => [self::checkTrustedHosts()],
+            static fn (): array => [self::checkTrustedProxies()],
             static fn (): array => [self::checkSessionCookies()],
             static fn (): array => [self::checkCors()],
             static fn (): array => [self::checkDebug()],
@@ -448,6 +449,25 @@ final class Doctor extends Singleton
             'Trusted hosts',
             self::WARN,
             "No trusted hosts configured — Host-header validation relies on the APP_URL check alone. Set config('app.trusted_hosts')."
+        );
+    }
+
+    /** @return array{id: string, label: string, status: string, message: string} */
+    private static function checkTrustedProxies(): array
+    {
+        $proxies = (array) config('app.trusted_proxies', []);
+
+        if ($proxies !== []) {
+            return self::result('trusted_proxies', 'Trusted proxies', self::OK, sprintf('Trusted proxies configured (%d entr%s).', count($proxies), count($proxies) === 1 ? 'y' : 'ies'));
+        }
+
+        // INFO, not WARN: serving PHP directly (no proxy in front) is a
+        // perfectly healthy topology that needs no proxy trust.
+        return self::result(
+            'trusted_proxies',
+            'Trusted proxies',
+            self::INFO,
+            "No trusted proxies configured — fine when serving directly. Behind a TLS-terminating proxy/load balancer set config('app.trusted_proxies') so isSecure(), client IPs, HSTS and cookie_secure => 'auto' honour X-Forwarded-* headers."
         );
     }
 

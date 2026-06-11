@@ -280,6 +280,11 @@ them. Before going live:
 - [ ] **`app.trusted_hosts` configured** ([config.md](config.md#apptrusted_hosts))
   — an empty list disables host validation entirely; fine locally, not in
   production.
+- [ ] **`app.trusted_proxies` configured when behind a TLS-terminating
+  proxy/LB** ([config.md](config.md#apptrusted_proxies)) — without it
+  `isSecure()` is `false` there, so HSTS is never emitted and
+  `cookie_secure => 'auto'` resolves insecure; with it the proxy's
+  `X-Forwarded-*` headers are honoured. Never list proxies you don't control.
 - [ ] **Email action links are [signed URLs](security.md#signed-urls)** —
   password resets, verification, unsubscribe: `signedRoute('name', [...],
   new DateTimeImmutable('+48 hours'))` + the `signed` middleware. Tamper-proof
@@ -332,5 +337,5 @@ long-running tasks with `withoutOverlapping()`. Full reference:
 [scheduler.md](scheduler.md).
 
 For the server itself — nginx/Apache configs that only expose `public/`,
-PHP-FPM pool sizing, the TLS-proxy caveat, and the deploy checklist ending in
+PHP-FPM pool sizing, the TLS-proxy guidance (`app.trusted_proxies`), and the deploy checklist ending in
 `ions optimize && ions doctor` — see [deploy.md](deploy.md).
