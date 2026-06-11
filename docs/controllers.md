@@ -68,11 +68,12 @@ Action methods (and `boot()`) are invoked through
 |---|------|---------|
 | 1 | `Request`-compatible type-hint → the current request | `Request $request` (Ions, Illuminate or Symfony hint) |
 | 2 | Name matches a **route placeholder** (untyped or scalar-hinted) | `/users/{id}` → `int $id` receives `42` |
-| 3 | Other object type-hints → `app()->make()` | `UserRepository $users` |
-| 4 | Untyped (or `mixed`) **first** parameter → the current request (legacy contract) | `function show($request)` |
-| 5 | Declared default value | `string $slug = 'home'` |
-| 6 | Nullable → `null` | `?Mailer $mailer` |
-| 7 | Otherwise → clear exception (500) naming the parameter | |
+| 3 | **Eloquent `Model` subclass** hint whose name matches a route placeholder → the fetched record ([route model binding](#route-model-binding)) | `/widgets/{widget}` → `Widget $widget` receives the row |
+| 4 | Other object type-hints → `app()->make()` | `UserRepository $users` |
+| 5 | Untyped (or `mixed`) **first** parameter → the current request (legacy contract) | `function show($request)` |
+| 6 | Declared default value | `string $slug = 'home'` |
+| 7 | Nullable → `null` | `?Mailer $mailer` |
+| 8 | Otherwise → clear exception (500) naming the parameter | |
 
 Notes:
 
@@ -100,6 +101,50 @@ Notes:
 // routes/web.php:   Route::get('/posts/{id}/{slug}', PostsController::class . '::show');
 public function show(Request $request, PostRepository $posts, int $id, string $slug = ''): Response
 ```
+
+### Route model binding
+
+Rule 3 in the table above: when an action (or closure route) parameter is
+type-hinted with an **Eloquent `Model` subclass** and its **name matches a
+route placeholder**, the resolver fetches the record instead of handing the
+raw placeholder value through:
+
+```php
+// routes/web.php:   Route::get('/widgets/{widget}', WidgetsController::class . '::show');
+public function show(Widget $widget): Response   // SELECT ... WHERE id = {widget} LIMIT 1
+```
+
+- **Lookup key:** the model's `getRouteKeyName()` — Eloquent's default is the
+  primary key. Override it on the model to bind by another column:
+
+  ```php
+  class Post extends Model
+  {
+      public function getRouteKeyName(): string
+      {
+          return 'slug';   // /posts/{post} now resolves WHERE slug = ...
+      }
+  }
+  ```
+
+- **Miss → 404.** No matching record throws a `NotFoundHttpException`
+  (`No query results for model [App\Models\Post] ...`) — the same 404 the
+  `abort(404)` helper produces, rendered HTML/JSON by the standard exception
+  handler.
+- **Nullable miss → `null`.** A `?Widget $widget` parameter receives `null`
+  on a miss instead of 404-ing — useful for "create or show" style actions.
+- **Name must match.** A Model-hinted parameter whose name matches **no**
+  placeholder falls through to rule 4 (container make) and receives a **new,
+  empty model instance** — unchanged from earlier releases.
+- **Requires the `db` engine.** Binding queries through Eloquent, so
+  `config('app.database_engine')` must include `'db'`. Without a booted
+  connection Illuminate's own "connection resolver" error surfaces as a 500.
+- **Scope cut:** the inline custom-key route syntax (`{user:slug}`) is not
+  supported — `getRouteKeyName()` covers the conventional case.
+- **Behavior note (pre-4.3):** before 4.3, a Model hint named after a
+  placeholder hit the container rule and silently received a new **empty**
+  model. The binding rule now fetches the real record (or 404s) — almost
+  certainly what such signatures always intended.
 
 ## New hooks
 
