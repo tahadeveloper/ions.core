@@ -150,6 +150,14 @@ class IonDisk
             ? Str::slug(pathinfo($originalFilename, PATHINFO_FILENAME))
             : Str::random(15);
         $randomName .= '.' . $extension;
+
+        // FINDING 1: $userProvidedPath is a Flysystem KEY (relative to the disk
+        // root); reject any `..`/absolute escape before it is joined and
+        // written. Flysystem roots the actual write at the disk root.
+        if (!self::isWriteKeyContained((string) $userProvidedPath)) {
+            return ['error' => 'Refusing to write outside the upload root'];
+        }
+
         $filePath = "$userProvidedPath/$randomName";
 
         // Upload the file to the specified path
@@ -179,12 +187,24 @@ class IonDisk
 
     public static function download($filePath, $downloadPath): array|string
     {
+        // FINDING 3: the destination path is caller-controlled and was opened
+        // with a raw fopen('wb'). Constrain it to an allowed root (the local
+        // disk root or the system temp dir) so a traversal payload cannot drop
+        // a file anywhere on the filesystem.
+        if (!self::isDownloadDestAllowed((string) $downloadPath)) {
+            return ['error' => 'Refusing to write outside the allowed download root'];
+        }
+
         // Read the stored file from the configured disk and write it to the local destination path.
         try {
             $filesystem = self::filesystem();
             if ($filesystem->has($filePath)) {
                 $stream = $filesystem->readStream($filePath);
                 $dest = fopen($downloadPath, 'wb');
+                if ($dest === false) {
+                    fclose($stream);
+                    return ['error' => 'Could not open the download destination'];
+                }
                 stream_copy_to_stream($stream, $dest);
                 fclose($stream);
                 fclose($dest);
@@ -315,6 +335,12 @@ class IonDisk
 
     private static function handleLocalUpload(UploadedFile $file, string $path, string $fileNameWithExt, string $randomFilename, string $extension, array $options): array
     {
+        // FINDING 1: the caller-controlled target directory must not traverse
+        // out via `..` (move() would otherwise create an escaped directory).
+        if (!self::isWriteTargetContained($path)) {
+            return ['error' => true, 'message' => 'Refusing to write outside the upload root'];
+        }
+
         $storeName = $randomFilename . '.' . $extension;
         $size = $file->getSize(); // capture before move() invalidates the temp path
         try {
@@ -344,6 +370,129 @@ class IonDisk
             'filename' => $randomFilename . '.' . $extension,
             'size' => $file->getSize(),
         ];
+    }
+
+    /**
+     * Containment for a Flysystem write KEY (relative to the disk root).
+     *
+     * Used by putFile(), whose $userProvidedPath is a relative key joined onto
+     * a random name and written through Flysystem (rooted at the disk root).
+     * Reject empty/null-byte values, any absolute prefix, and any `..` segment
+     * — Flysystem v3 also normalizes/rejects traversal, this is defense in
+     * depth at the boundary. Legitimate nested keys (`avatars/2024`) pass.
+     */
+    private static function isWriteKeyContained(string $key): bool
+    {
+        if ($key === '' || str_contains($key, "\0")) {
+            return false;
+        }
+
+        $normalized = str_replace('\\', '/', $key);
+        if (str_starts_with($normalized, '/') || preg_match('#^[a-zA-Z]:/#', $normalized) === 1) {
+            return false; // absolute escape
+        }
+
+        return !in_array('..', explode('/', $normalized), true);
+    }
+
+    /**
+     * Write-side path-traversal guard (FINDING 1/3).
+     *
+     * The upload/download TARGET directory is request-controllable and may not
+     * exist yet, so we cannot canonicalize the leaf. Instead we reject any `..`
+     * traversal segment or null byte outright, then — honoring FINDING 8 —
+     * canonicalize the PARENT directory: when the parent realpath()s we require
+     * it to stay inside the configured local disk root (when one is set). A
+     * non-existent parent (realpath === false) only passes the cheap segment
+     * check, so a `..`-bearing path can never bypass containment via a missing
+     * target. Returns true when the target is safe to write.
+     */
+    private static function isWriteTargetContained(string $path): bool
+    {
+        if ($path === '' || str_contains($path, "\0")) {
+            return false;
+        }
+
+        $normalized = str_replace('\\', '/', $path);
+        if (in_array('..', explode('/', $normalized), true)) {
+            return false; // any traversal segment is rejected, fail-closed
+        }
+
+        // When a local disk root is configured, also assert the canonical
+        // parent stays inside it (best-effort: only when the parent exists).
+        $root = (string) config('filesystem.disks.local.root', '');
+        if ($root === '') {
+            return true;
+        }
+        $realRoot = realpath($root);
+        if ($realRoot === false) {
+            return true; // no canonical root to compare against
+        }
+
+        $parent = \dirname($path);
+        $realParent = realpath($parent);
+        if ($realParent === false) {
+            // Parent does not exist yet. With no `..` segment present (checked
+            // above) it cannot traverse out; allow the write to create it.
+            return true;
+        }
+
+        $realRoot = rtrim($realRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $realParent = rtrim($realParent, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+        return str_starts_with($realParent, $realRoot);
+    }
+
+    /**
+     * Containment for the download() destination (FINDING 3).
+     *
+     * The destination is a real local filesystem path supplied by the caller
+     * and opened with a raw fopen('wb'). It is legitimately an absolute path
+     * (the temp/local-disk area), so we cannot forbid absolutes; instead we
+     * reject any `..` traversal segment or null byte (the actual escape vector)
+     * and — when an existing parent canonicalizes under the configured local
+     * disk root or the system temp dir — accept. A parent that exists but lands
+     * OUTSIDE both allowed roots is rejected (honoring FINDING 8: no traversal
+     * may bypass containment). A not-yet-existing parent with no `..` segment is
+     * allowed (the leaf write may create the file in an allowed tree).
+     */
+    private static function isDownloadDestAllowed(string $downloadPath): bool
+    {
+        if ($downloadPath === '' || str_contains($downloadPath, "\0")) {
+            return false;
+        }
+
+        $normalized = str_replace('\\', '/', $downloadPath);
+        if (in_array('..', explode('/', $normalized), true)) {
+            return false; // traversal segment — fail-closed
+        }
+
+        $allowedRoots = [];
+        $localRoot = (string) config('filesystem.disks.local.root', '');
+        if ($localRoot !== '' && ($r = realpath($localRoot)) !== false) {
+            $allowedRoots[] = rtrim($r, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        }
+        foreach (['/tmp', sys_get_temp_dir()] as $tmpDir) {
+            if (($tmp = realpath($tmpDir)) !== false) {
+                $allowedRoots[] = rtrim($tmp, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+            }
+        }
+
+        $realParent = realpath(\dirname($downloadPath));
+        if ($realParent === false) {
+            // Parent not created yet: with no `..` segment it cannot traverse
+            // out, so allow the write to materialise it.
+            return true;
+        }
+        $realParent = rtrim($realParent, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+        foreach ($allowedRoots as $root) {
+            if (str_starts_with($realParent, $root)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -449,8 +598,65 @@ class IonDisk
         }
     }
 
+    /**
+     * Build a time-limited, *presigned* S3 URL for $path (FINDING 7).
+     *
+     * Previously this returned an UNSIGNED, permanent public object URL (the
+     * presign call was commented out) — an authorization bug, since callers
+     * expect a credential that expires. It now returns a real presigned URL via
+     * the AWS SDK's createPresignedRequest().
+     *
+     * @param int|string $expirationTime Seconds (int) or a strtotime-relative
+     *        string (e.g. '+20 minutes') accepted by the SDK; defaults to 1h.
+     *
+     * Residual (host policy): the bucket is NOT allow-listed here. Hosts must
+     * never pass attacker-controlled input as the bucket override.
+     */
     public static function getSignedUrl($path, $expirationTime = 3600, $defaultOptions = null): string // 1 hour
     {
+        // Apply a per-call override and restore it afterwards (no cross-request
+        // bleed in worker mode — see applyOptionOverrides()).
+        $restore = self::applyOptionOverrides($defaultOptions);
+
+        try {
+            $disk = self::flySystem();
+
+            if ($disk === null) {
+                throw new RuntimeException('Signed URLs are not available for local storage.');
+            }
+
+            $s3Client = self::getS3Client();
+            $command = $s3Client->getCommand('GetObject', [
+                'Bucket' => self::$bucket,
+                'Key' => $path,
+            ]);
+
+            // Normalize an int seconds value to an SDK-accepted expiry.
+            $expiry = is_int($expirationTime) ? "+{$expirationTime} seconds" : $expirationTime;
+            $request = $s3Client->createPresignedRequest($command, $expiry);
+
+            return (string) $request->getUri();
+        } finally {
+            $restore();
+        }
+    }
+
+    /**
+     * Apply a per-call bucket/basePath override and return a restore closure.
+     *
+     * FINDING 7: callers mutate static self::$bucket/self::$basePath from
+     * per-call options; without resetting them the override bled across
+     * requests in worker mode. Each mutating method now applies the override
+     * and restores the previous static state via the returned closure in a
+     * finally block (the per-call override feature is preserved).
+     *
+     * @return callable():void
+     */
+    private static function applyOptionOverrides($defaultOptions): callable
+    {
+        $prevBucket = self::$bucket;
+        $prevBasePath = self::$basePath;
+
         if ($defaultOptions) {
             if ($defaultOptions->has('bucket')) {
                 self::$bucket = $defaultOptions->get('bucket');
@@ -459,146 +665,120 @@ class IonDisk
                 self::$basePath = $defaultOptions->get('basePath');
             }
         }
-        $disk = self::flySystem();
 
-        if ($disk === null) {
-            throw new RuntimeException('Signed URLs are not available for local storage.');
-        }
-
-        $s3Client = self::getS3Client();
-        $command = $s3Client->getCommand('GetObject', [
-            'Bucket' => self::$bucket,
-            'Key' => $path,
-        ]);
-        $url = $s3Client->getObjectUrl(self::$bucket, $path);
-        //$request = $s3Client->createPresignedRequest($command, $expirationTime);
-        // Get the actual resigned-url
-        return $url;
+        return static function () use ($prevBucket, $prevBasePath): void {
+            self::$bucket = $prevBucket;
+            self::$basePath = $prevBasePath;
+        };
     }
 
     public static function getUrl(string $path, $defaultOptions = null): string
     {
-        if ($defaultOptions) {
-            if ($defaultOptions->has('bucket')) {
-                self::$bucket = $defaultOptions->get('bucket');
-            }
-            if ($defaultOptions->has('basePath')) {
-                self::$basePath = $defaultOptions->get('basePath');
-            }
-        }
-        $s3Client = self::getS3Client();
-
-        if ($defaultOptions && $defaultOptions->has('cdn_base_url')) {
-            return $defaultOptions->get('cdn_base_url') . '/' . $path;
-        }
-
+        $restore = self::applyOptionOverrides($defaultOptions);
         try {
-            $result = $s3Client->getObjectUrl(self::$bucket, $path);
-            return $result;
-        } catch (AwsException $e) {
-            throw new RuntimeException('Failed to get URL: ' . $e->getMessage());
+            $s3Client = self::getS3Client();
+
+            if ($defaultOptions && $defaultOptions->has('cdn_base_url')) {
+                return $defaultOptions->get('cdn_base_url') . '/' . $path;
+            }
+
+            try {
+                return $s3Client->getObjectUrl(self::$bucket, $path);
+            } catch (AwsException $e) {
+                throw new RuntimeException('Failed to get URL: ' . $e->getMessage());
+            }
+        } finally {
+            $restore();
         }
     }
 
     public static function exists($path, $defaultOptions = null): bool
     {
-        if ($defaultOptions) {
-            if ($defaultOptions->has('bucket')) {
-                self::$bucket = $defaultOptions->get('bucket');
-            }
-            if ($defaultOptions->has('basePath')) {
-                self::$basePath = $defaultOptions->get('basePath');
-            }
-        }
-        $disk = self::flySystem();
+        $restore = self::applyOptionOverrides($defaultOptions);
+        try {
+            $disk = self::flySystem();
 
-        if ($disk === null) {
-            if ($defaultOptions && $defaultOptions->has('target')) {
-                $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
-            } else {
-                $path = Path::files($path);
+            if ($disk === null) {
+                if ($defaultOptions && $defaultOptions->has('target')) {
+                    $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
+                } else {
+                    $path = Path::files($path);
+                }
+                return File::exists($path);
             }
-            return File::exists($path);
-        }
 
-        return $disk->has($path);
+            return $disk->has($path);
+        } finally {
+            $restore();
+        }
     }
 
     public static function size($path, $defaultOptions = null): int
     {
-        if ($defaultOptions) {
-            if ($defaultOptions->has('bucket')) {
-                self::$bucket = $defaultOptions->get('bucket');
-            }
-            if ($defaultOptions->has('basePath')) {
-                self::$basePath = $defaultOptions->get('basePath');
-            }
-        }
-        $disk = self::flySystem();
+        $restore = self::applyOptionOverrides($defaultOptions);
+        try {
+            $disk = self::flySystem();
 
-        if ($disk === null) {
-            if ($defaultOptions && $defaultOptions->has('target')) {
-                $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
-            } else {
-                $path = Path::files($path);
+            if ($disk === null) {
+                if ($defaultOptions && $defaultOptions->has('target')) {
+                    $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
+                } else {
+                    $path = Path::files($path);
+                }
+                return File::size($path);
             }
-            return File::size($path);
-        }
 
-        return $disk->fileSize($path);
+            return $disk->fileSize($path);
+        } finally {
+            $restore();
+        }
     }
 
     public static function mimeType($path, $defaultOptions = null): string
     {
-        if ($defaultOptions) {
-            if ($defaultOptions->has('bucket')) {
-                self::$bucket = $defaultOptions->get('bucket');
-            }
-            if ($defaultOptions->has('basePath')) {
-                self::$basePath = $defaultOptions->get('basePath');
-            }
-        }
-        $disk = self::flySystem();
+        $restore = self::applyOptionOverrides($defaultOptions);
+        try {
+            $disk = self::flySystem();
 
-        if ($disk === null) {
-            if ($defaultOptions && $defaultOptions->has('target')) {
-                $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
-            } else {
-                $path = Path::files($path);
+            if ($disk === null) {
+                if ($defaultOptions && $defaultOptions->has('target')) {
+                    $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
+                } else {
+                    $path = Path::files($path);
+                }
+                return File::mimeType($path);
             }
-            return File::mimeType($path);
-        }
 
-        return $disk->mimeType($path);
+            return $disk->mimeType($path);
+        } finally {
+            $restore();
+        }
     }
 
     public static function createDirectory($path, $defaultOptions = null): bool
     {
-        if ($defaultOptions) {
-            if ($defaultOptions->has('bucket')) {
-                self::$bucket = $defaultOptions->get('bucket');
-            }
-            if ($defaultOptions->has('basePath')) {
-                self::$basePath = $defaultOptions->get('basePath');
-            }
-        }
-        $disk = self::flySystem();
-
-        if ($disk === null) {
-            if ($defaultOptions && $defaultOptions->has('target')) {
-                $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
-            } else {
-                $path = Path::files($path);
-            }
-            return File::makeDirectory($path, 0777, true);
-        }
-
+        $restore = self::applyOptionOverrides($defaultOptions);
         try {
-            $disk->createDirectory($path);
-        } catch (FilesystemException $e) {
-            throw new RuntimeException('Failed to create directory: ' . $e->getMessage());
+            $disk = self::flySystem();
+
+            if ($disk === null) {
+                if ($defaultOptions && $defaultOptions->has('target')) {
+                    $path = Path::filesRoot($defaultOptions->get('target') . '/' . $path);
+                } else {
+                    $path = Path::files($path);
+                }
+                return File::makeDirectory($path, 0777, true);
+            }
+
+            try {
+                $disk->createDirectory($path);
+            } catch (FilesystemException $e) {
+                throw new RuntimeException('Failed to create directory: ' . $e->getMessage());
+            }
+            return true;
+        } finally {
+            $restore();
         }
-        return true;
     }
 
     public static function deleteDirectory(string $path): void
@@ -632,116 +812,116 @@ class IonDisk
 
     public static function copy($sourcePath, $destinationPath, $defaultOptions = null): bool
     {
-        if ($defaultOptions) {
-            if ($defaultOptions->has('bucket')) {
-                self::$bucket = $defaultOptions->get('bucket');
-            }
-            if ($defaultOptions->has('basePath')) {
-                self::$basePath = $defaultOptions->get('basePath');
-            }
-            if ($defaultOptions->has('removePath')) {
+        $restore = self::applyOptionOverrides($defaultOptions);
+        try {
+            if ($defaultOptions && $defaultOptions->has('removePath')) {
                 self::$basePath = '';
                 if ($defaultOptions->has('fromPath') && $defaultOptions->has('toPath')) {
                     $sourcePath = $defaultOptions->get('fromPath') . '/' . $sourcePath;
                     $destinationPath = $defaultOptions->get('toPath') . '/' . $destinationPath;
                 }
             }
-        }
 
-        $disk = self::flySystem();
+            $disk = self::flySystem();
 
-        if ($disk === null) {
-            // remove fromPath from sourcePath
-            $sourcePath = str_replace($defaultOptions->get('fromPath') . '/', '', $sourcePath);
-            $destinationPath = str_replace($defaultOptions->get('toPath') . '/', '', $destinationPath);
+            if ($disk === null) {
+                // remove fromPath/toPath prefixes when present (null-safe, mirrors
+                // move()); both ends then route through Path::files()/filesRoot(),
+                // which enforce traversal containment (FINDING 2/6).
+                if ($defaultOptions && $defaultOptions->has('fromPath')) {
+                    $sourcePath = str_replace($defaultOptions->get('fromPath') . '/', '', $sourcePath);
+                }
+                if ($defaultOptions && $defaultOptions->has('toPath')) {
+                    $destinationPath = str_replace($defaultOptions->get('toPath') . '/', '', $destinationPath);
+                }
 
-            if ($defaultOptions->has('targetFrom')) {
-                $sourcePath = Path::filesRoot($defaultOptions->get('targetFrom') . '/' . $sourcePath);
-            } else {
-                $sourcePath = Path::files($sourcePath);
+                if ($defaultOptions && $defaultOptions->has('targetFrom')) {
+                    $sourcePath = Path::filesRoot($defaultOptions->get('targetFrom') . '/' . $sourcePath);
+                } else {
+                    $sourcePath = Path::files($sourcePath);
+                }
+                if ($defaultOptions && $defaultOptions->has('targetTo')) {
+                    $destinationPath = Path::filesRoot($defaultOptions->get('targetTo') . '/' . $destinationPath);
+                } else {
+                    $destinationPath = Path::files($destinationPath);
+                }
+                return File::copy($sourcePath, $destinationPath);
             }
-            if ($defaultOptions->has('targetTo')) {
-                $destinationPath = Path::filesRoot($defaultOptions->get('targetTo') . '/' . $destinationPath);
-            } else {
-                $destinationPath = Path::files($destinationPath);
-            }
-            return File::copy($sourcePath, $destinationPath);
-        }
 
-        try {
-            if ($defaultOptions && $defaultOptions->get('bucket') && $defaultOptions->has('otherBucket')) {
-                $client = self::getS3Client();
-                $client->copyObject([
-                    'Bucket' => $defaultOptions->get('otherBucket'),
-                    'CopySource' => $defaultOptions->get('bucket') . '/' . $sourcePath,
-                    'Key' => $destinationPath,
-                ]);
-            } else {
-                $disk->copy($sourcePath, $destinationPath);
+            try {
+                if ($defaultOptions && $defaultOptions->get('bucket') && $defaultOptions->has('otherBucket')) {
+                    $client = self::getS3Client();
+                    $client->copyObject([
+                        'Bucket' => $defaultOptions->get('otherBucket'),
+                        'CopySource' => $defaultOptions->get('bucket') . '/' . $sourcePath,
+                        'Key' => $destinationPath,
+                    ]);
+                } else {
+                    $disk->copy($sourcePath, $destinationPath);
+                }
+            } catch (FilesystemException $e) {
+                throw new RuntimeException('Failed to copy file: ' . $e->getMessage());
             }
-        } catch (FilesystemException $e) {
-            throw new RuntimeException('Failed to copy file: ' . $e->getMessage());
+            return true;
+        } finally {
+            $restore();
         }
-        return true;
     }
 
     public static function move($sourcePath, $destinationPath, $defaultOptions = null): bool
     {
-        if ($defaultOptions) {
-            if ($defaultOptions->has('bucket')) {
-                self::$bucket = $defaultOptions->get('bucket');
-            }
-            if ($defaultOptions->has('basePath')) {
-                self::$basePath = $defaultOptions->get('basePath');
-            }
-            if ($defaultOptions->has('removePath')) {
+        $restore = self::applyOptionOverrides($defaultOptions);
+        try {
+            if ($defaultOptions && $defaultOptions->has('removePath')) {
                 self::$basePath = '';
                 if ($defaultOptions->has('fromPath') && $defaultOptions->has('toPath')) {
                     $sourcePath = $defaultOptions->get('fromPath') . '/' . $sourcePath;
                     $destinationPath = $defaultOptions->get('toPath') . '/' . $destinationPath;
                 }
             }
+
+            $disk = self::flySystem();
+
+            if ($disk === null) {
+                // remove fromPath from sourcePath
+                if ($defaultOptions && $defaultOptions->has('fromPath')) {
+                    $sourcePath = str_replace($defaultOptions->get('fromPath') . '/', '', $sourcePath);
+                }
+                if ($defaultOptions && $defaultOptions->has('toPath')) {
+                    $destinationPath = str_replace($defaultOptions->get('toPath') . '/', '', $destinationPath);
+                }
+
+                if ($defaultOptions && $defaultOptions->has('targetFrom')) {
+                    $sourcePath = Path::filesRoot($defaultOptions->get('targetFrom') . '/' . $sourcePath);
+                } else {
+                    $sourcePath = Path::files($sourcePath);
+                }
+                if ($defaultOptions && $defaultOptions->has('targetTo')) {
+                    $destinationPath = Path::filesRoot($defaultOptions->get('targetTo') . '/' . $destinationPath);
+                } else {
+                    $destinationPath = Path::files($destinationPath);
+                }
+                return File::move($sourcePath, $destinationPath);
+            }
+
+            try {
+                if ($defaultOptions && $defaultOptions->get('bucket') && $defaultOptions->has('otherBucket')) {
+                    $client = self::getS3Client();
+                    $client->copyObject([
+                        'Bucket' => $defaultOptions->get('otherBucket'),
+                        'CopySource' => $defaultOptions->get('bucket') . '/' . $sourcePath,
+                        'Key' => $destinationPath,
+                    ]);
+                } else {
+                    $disk->move($sourcePath, $destinationPath);
+                }
+            } catch (FilesystemException $e) {
+                throw new RuntimeException('Failed to move file: ' . $e->getMessage());
+            }
+            return true;
+        } finally {
+            $restore();
         }
-
-        $disk = self::flySystem();
-
-        if ($disk === null) {
-            // remove fromPath from sourcePath
-            if ($defaultOptions && $defaultOptions->has('fromPath')) {
-                $sourcePath = str_replace($defaultOptions->get('fromPath') . '/', '', $sourcePath);
-            }
-            if ($defaultOptions && $defaultOptions->has('toPath')) {
-                $destinationPath = str_replace($defaultOptions->get('toPath') . '/', '', $destinationPath);
-            }
-
-            if ($defaultOptions && $defaultOptions->has('targetFrom')) {
-                $sourcePath = Path::filesRoot($defaultOptions->get('targetFrom') . '/' . $sourcePath);
-            } else {
-                $sourcePath = Path::files($sourcePath);
-            }
-            if ($defaultOptions && $defaultOptions->has('targetTo')) {
-                $destinationPath = Path::filesRoot($defaultOptions->get('targetTo') . '/' . $destinationPath);
-            } else {
-                $destinationPath = Path::files($destinationPath);
-            }
-            return File::move($sourcePath, $destinationPath);
-        }
-
-        try {
-            if ($defaultOptions && $defaultOptions->get('bucket') && $defaultOptions->has('otherBucket')) {
-                $client = self::getS3Client();
-                $client->copyObject([
-                    'Bucket' => $defaultOptions->get('otherBucket'),
-                    'CopySource' => $defaultOptions->get('bucket') . '/' . $sourcePath,
-                    'Key' => $destinationPath,
-                ]);
-            } else {
-                $disk->move($sourcePath, $destinationPath);
-            }
-        } catch (FilesystemException $e) {
-            throw new RuntimeException('Failed to move file: ' . $e->getMessage());
-        }
-        return true;
     }
 
 }

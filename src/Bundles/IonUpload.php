@@ -61,6 +61,15 @@ class IonUpload extends Singleton
             return new self();
         }
 
+        // FINDING 1: the destination DIRECTORY is request-controllable and was
+        // written via $file->move() without containment. Reject any traversal
+        // target before validating/moving so nothing is written outside the
+        // intended root.
+        if (!self::isWriteTargetContained($path)) {
+            self::$output = ['error' => 1, 'message' => 'Invalid upload destination'];
+            return new self();
+        }
+
         $allowed = $options['allowed'] ?? config('app.uploads.allowed', ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'zip']);
         unset($options['allowed']);
         $validator = new UploadValidator($allowed, (array) config('app.uploads.mime_map', []));
@@ -119,6 +128,39 @@ class IonUpload extends Singleton
         }
 
         return new self();
+    }
+
+    /**
+     * Write-side containment for the upload target DIRECTORY (FINDING 1).
+     *
+     * store() moves the validated upload into $path; that directory comes from
+     * the caller and may legitimately be an absolute path outside any single
+     * uploads root (e.g. a per-request temp dir). The fail-closed control is to
+     * reject any `..` traversal segment or null byte, then — honoring FINDING 8
+     * — verify that when the PARENT directory already exists its canonical real
+     * path does not itself contain a traversal escape. A non-existent parent
+     * passes only the segment check (no `..` ⇒ cannot traverse out).
+     */
+    private static function isWriteTargetContained(string $path): bool
+    {
+        if ($path === '' || str_contains($path, "\0")) {
+            return false;
+        }
+
+        $normalized = str_replace('\\', '/', $path);
+        if (in_array('..', explode('/', $normalized), true)) {
+            return false;
+        }
+
+        // Defense in depth: if the parent exists, its canonical path must not
+        // re-introduce a `..` (e.g. via a crafted symlink chain the caller
+        // built). realpath() collapses it; a residual `..` would be anomalous.
+        $realParent = realpath(\dirname($path));
+        if ($realParent !== false && str_contains(str_replace('\\', '/', $realParent), '/../')) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -187,7 +229,10 @@ class IonUpload extends Singleton
         if ($image_url) {
             $url_array = explode('/', $image_url);
             $count_url_array = count($url_array);
-            $file_name = $url_array[$count_url_array - 1];
+            // FINDING 2: the last URL segment is attacker-controlled. Reduce it
+            // to a bare basename (like update() does) so a traversal payload
+            // cannot flow into Path::files() / moveLocal().
+            $file_name = basename($url_array[$count_url_array - 1]);
             if (str_contains($image_url, $old_destination) && self::existsOnDisk(Path::files($old_destination . '/' . $file_name))) {
                 static::moveLocal($old_destination, $destination, $file_name);
                 $image_ext = $url_array[$count_url_array - 1];
