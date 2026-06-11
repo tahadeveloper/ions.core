@@ -66,6 +66,10 @@ $s->save();                 // persist
 $s->getSession();           // the underlying Symfony Session
 ```
 
+For the higher-level form-flow helpers built on the flash API — `flash()`,
+`old()`, `errors()` and the fluent `redirect()` chain — see
+[forms.md](forms.md).
+
 ## Lifecycle integration
 
 `StartSessionMiddleware` is added to the default **web** stack *before*

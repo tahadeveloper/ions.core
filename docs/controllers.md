@@ -229,9 +229,14 @@ An action may return (see [views.md](views.md) for views):
 | Return | Result |
 |---|---|
 | `Symfony\Component\HttpFoundation\Response` (or subclass) | used as-is |
+| `Ions\Http\RedirectResponse` (from `redirect()` / `back()`) | used as-is — see [forms.md](forms.md) for the fluent `->with()/->withErrors()/->withInput()` chain |
 | `Ions\Http\Responsable` | `toResponse($request)` |
 | `Ions\View\View` (from `view()` / `$this->view()`) | rendered to a 200 HTML response |
 | anything else (`null`, void, …) | the shared `Kernel::response()` the action may have written to (legacy) |
+
+For the full POST → validate → redirect-back → re-render cycle (FormRequest
+web failures, `errors()`/`old()` in templates, flash data) see
+[forms.md](forms.md).
 
 Normalization is shared by controller actions **and** closure routes
 (`Ions\Http\ResponseNormalizer`) — closures can return `Responsable` and

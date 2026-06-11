@@ -640,8 +640,11 @@ class Kernel extends Singleton
 
             $response = (new Pipeline($stack, $terminal))->handle($request);
 
-            // Preserve old cache-control headers for non-error web responses.
-            if ($targetFolder === 'web') {
+            // Preserve old cache-control headers for non-error web responses —
+            // but never for redirects: a publicly cacheable 3xx would let a
+            // shared cache/CDN serve one user's redirect (and its per-user
+            // Location) to other users.
+            if ($targetFolder === 'web' && !$response->isRedirection()) {
                 $response->setPublic();
                 $response->setMaxAge(3600);
                 $response->headers->addCacheControlDirective('must-revalidate', true);

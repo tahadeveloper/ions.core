@@ -27,3 +27,21 @@ test('it starts the session, attaches it to the request, and saves on the way ou
     expect($response->getContent())->toBe('ok')
         ->and($manager->get('written'))->toBe('yes');
 });
+
+test('it saves the session when the pipeline throws (flash-on-error persistence)', function () {
+    $manager = new SessionManager(['driver' => 'array']);
+    $middleware = new StartSessionMiddleware($manager);
+
+    expect(fn () => $middleware->handle(Request::create('/'), function () use ($manager): Response {
+        expect($manager->isStarted())->toBeTrue();
+        $manager->put('flashed-on-error', 'kept');
+
+        throw new RuntimeException('boom');
+    }))->toThrow(RuntimeException::class, 'boom');
+
+    // MockArraySessionStorage::save() is the only thing that flips a started
+    // session back to not-started — observing started=false after the throw
+    // proves save() ran on the exception path. The data itself survives.
+    expect($manager->isStarted())->toBeFalse()
+        ->and($manager->get('flashed-on-error'))->toBe('kept');
+});

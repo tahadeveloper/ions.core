@@ -1,0 +1,1 @@
+errors:{% if errors().any %}{{ errors().first('email') }}{% else %}none{% endif %}|old:{{ old('name', 'empty') }}

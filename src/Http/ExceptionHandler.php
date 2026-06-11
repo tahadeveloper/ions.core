@@ -40,8 +40,15 @@ final class ExceptionHandler
     }
 
     /**
-     * Render an Illuminate ValidationException as a 422 response. API/JSON
-     * requests receive {message, errors}; web requests fall back to HTML.
+     * Render an Illuminate ValidationException. API/JSON requests receive a
+     * 422 {message, errors} payload (unchanged since 7.7); web (HTML)
+     * requests get the form flow (10.3): a 302 redirect back to the Referer
+     * ('/' fallback) with the errors and the request input flashed for the
+     * next render's errors()/old() helpers.
+     *
+     * This is the single choke point for the web behavior — FormRequest,
+     * closures and manual validate() calls that throw ValidationException all
+     * land here.
      */
     private function renderValidation(ValidationException $e, Request $request): Response
     {
@@ -54,7 +61,11 @@ final class ExceptionHandler
             return Json::error($message, $status, ['errors' => $errors]);
         }
 
-        return $this->html($message, $status, $e, (bool) env('APP_DEBUG', false), $request);
+        // withInput() reads the failing request (pinned via the Redirector);
+        // password-ish fields are excluded per config('app.forms.dont_flash').
+        return (new Redirector($request))->back()
+            ->withErrors($errors)
+            ->withInput();
     }
 
     private function html(string $message, int $status, Throwable $e, bool $debug, Request $request): Response

@@ -26,10 +26,13 @@ final class StartSessionMiddleware implements MiddlewareInterface
         $this->session->start();
         $request->setSession($this->session->getSession());
 
-        $response = $next($request);
-
-        $this->session->save();
-
-        return $response;
+        // finally: the session is persisted on the exception path too, so
+        // flash data written before a throw (e.g. by an error handler that
+        // redirects back) survives into the next request.
+        try {
+            return $next($request);
+        } finally {
+            $this->session->save();
+        }
     }
 }

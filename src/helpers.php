@@ -277,30 +277,119 @@ if (!function_exists('signedRoute')) {
      */
     function signedRoute(string $name, array $params = [], DateTimeInterface|int|null $expiresAt = null): string
     {
-        // The shared collection only holds routes registered outside route
-        // files (App\Booting, tests). Routes from routes/{web|api}.php and
-        // attributes live in the per-group captures — search those next.
-        $routes = Kernel::RouteCollection();
-        if ($routes->get($name) === null) {
-            foreach (['web', 'api'] as $group) {
-                $candidate = Kernel::routesFor($group);
-                if ($candidate->get($name) !== null) {
-                    $routes = $candidate;
-                    break;
-                }
-            }
+        // Resolution shared with route() / redirect()->route() (10.3): see
+        // Ions\Http\UrlResolver for the lookup precedence and context notes.
+        return signedUrl(\Ions\Http\UrlResolver::route($name, $params), $expiresAt);
+    }
+}
+
+if (!function_exists('route')) {
+    /**
+     * Generate an absolute URL for a named route (Phase 10.3, ahead of the
+     * 10.7 routing work — both share Ions\Http\UrlResolver).
+     *
+     * $params fill route placeholders; leftovers become query parameters.
+     * The absolute URL is built from config('app.app_url') — the same value
+     * the kernel's host gate enforces. Name lookup precedence: shared
+     * collection (App\Booting/tests) → 'web' group → 'api' group.
+     *
+     * @param string $name Route name (4th param of Route::get(), or attribute route name).
+     * @param array<string, mixed> $params Placeholder + extra query parameters.
+     * @return string
+     * @throws \Symfony\Component\Routing\Exception\RouteNotFoundException when the route name is unknown.
+     */
+    function route(string $name, array $params = []): string
+    {
+        return \Ions\Http\UrlResolver::route($name, $params);
+    }
+}
+
+if (!function_exists('redirect')) {
+    /**
+     * Create a redirect response — or, with no arguments, a fluent builder.
+     *
+     *   redirect('/dashboard')             -> 302 RedirectResponse to app_url + path
+     *   redirect('/gone', 301)            -> custom status
+     *   redirect()->route('users.show')   -> named-route redirect
+     *   redirect()->back()                -> Referer (or '/') redirect
+     *   redirect()->away('https://x.y')   -> external URL, untouched
+     *
+     * Every RedirectResponse supports the flash chain: ->with($key, $value),
+     * ->withErrors($bag), ->withInput(), ->withHeaders([...]). See docs/forms.md.
+     *
+     * @return \Ions\Http\RedirectResponse|\Ions\Http\Redirector
+     */
+    function redirect(?string $to = null, int $status = 302): \Ions\Http\RedirectResponse|\Ions\Http\Redirector
+    {
+        $redirector = new \Ions\Http\Redirector();
+
+        return $to === null ? $redirector : $redirector->to($to, $status);
+    }
+}
+
+if (!function_exists('back')) {
+    /**
+     * Redirect back to the current request's Referer, or to $fallback when
+     * the header is absent. Alias for redirect()->back().
+     */
+    function back(string $fallback = '/', int $status = 302): \Ions\Http\RedirectResponse
+    {
+        return (new \Ions\Http\Redirector())->back($fallback, $status);
+    }
+}
+
+if (!function_exists('flash')) {
+    /**
+     * Session flash: set with two arguments, read with one.
+     *
+     *   flash('status', 'Profile saved.')  -> flash a value for the next request
+     *   flash('status')                    -> read (and consume) the flashed value
+     *
+     * Flash data survives until first read — normally the next request's
+     * render (Symfony FlashBag semantics). Reads are memoized per request, so
+     * repeated flash('status') calls within one render agree.
+     *
+     * @return mixed The flashed value when reading (null when none); null when setting.
+     */
+    function flash(string $key, mixed $value = null): mixed
+    {
+        if (func_num_args() >= 2) {
+            \Ions\Session\Flash::put($key, $value);
+
+            return null;
         }
 
-        // Bare context: the absolute base (host + any APP_FOLDER) comes from
-        // app_url below — request-derived baseUrl must not be prepended again.
-        $context = new \Symfony\Component\Routing\RequestContext();
+        return \Ions\Session\Flash::consume($key);
+    }
+}
 
-        $generator = new \Symfony\Component\Routing\Generator\UrlGenerator($routes, $context);
-        $path = $generator->generate($name, $params, \Symfony\Component\Routing\Generator\UrlGeneratorInterface::ABSOLUTE_PATH);
+if (!function_exists('old')) {
+    /**
+     * Previously flashed request input (RedirectResponse::withInput()), for
+     * re-populating form fields after a failed validation. Dot notation is
+     * supported for nested input.
+     */
+    function old(string $key, mixed $default = null): mixed
+    {
+        $input = \Ions\Session\Flash::consume(\Ions\Session\Flash::OLD_INPUT);
 
-        $base = rtrim((string) config('app.app_url', ''), '/');
+        return is_array($input) ? Arr::get($input, $key, $default) : $default;
+    }
+}
 
-        return signedUrl($base . $path, $expiresAt);
+if (!function_exists('errors')) {
+    /**
+     * The validation error bag flashed by the previous request
+     * (RedirectResponse::withErrors() / a failed FormRequest on a web route).
+     *
+     * Always returns a bag — empty when nothing was flashed — so callers and
+     * templates never need an existence check.
+     */
+    function errors(): \Ions\Http\ErrorBag
+    {
+        $messages = \Ions\Session\Flash::consume(\Ions\Session\Flash::ERRORS);
+
+        return new \Ions\Http\ErrorBag(is_array($messages) ? $messages : []);
     }
 }
 

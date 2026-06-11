@@ -45,6 +45,20 @@ Route::get('/about', 'PageController@about', [], 'page.about');
 // signature: Route::get(string $path, string|Closure $controller, array $defaults = [], ?string $name = null, array $wheres = [])
 ```
 
+Generate URLs for named routes with the `route()` helper (4.3):
+
+```php
+route('page.about');                       // http://app.example/about
+route('users.show', ['id' => 7]);          // placeholders filled
+route('users.show', ['id' => 7, 'tab' => 'info']); // leftovers become ?tab=info
+```
+
+The absolute URL is built from `config('app.app_url')`. Name lookup checks
+the shared collection (routes registered in `App\Booting`/tests) first, then
+the `web` group, then `api`. `signedRoute()` (see [security.md](security.md))
+and `redirect()->route()` ([forms.md](forms.md)) resolve identically — an
+unknown name throws Symfony's `RouteNotFoundException`.
+
 ### RESTful resource
 
 ```php

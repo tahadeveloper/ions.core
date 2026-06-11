@@ -7,6 +7,14 @@ namespace Ions\Bundles;
 use Illuminate\Http\RedirectResponse;
 use Ions\Foundation\Kernel;
 
+/**
+ * Legacy static redirect API (send()/exit-based) — kept for BC.
+ *
+ * @see \Ions\Http\Redirector  The fluent redirect() builder (10.3): returns
+ *                             Response objects (no exit) and supports the
+ *                             flash chain ->with()/->withErrors()/->withInput().
+ * @see redirect()             The helper in src/helpers.php.
+ */
 class Redirect
 {
     /**
