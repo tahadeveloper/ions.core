@@ -99,6 +99,29 @@ test('the throttle counter key always carries a TTL (never created forever)', fu
         ->and($storage[$key]['expiresAt'])->toBeGreaterThan(0);
 });
 
+test('a throttled forgot request reports the remaining window, not the static decay', function () {
+    config(['app.auth.forgot_throttle' => ['max' => 1, 'decay' => 600]]);
+
+    expect(Kernel::handle(forgotPost('throttle-me@example.com'))->getStatusCode())->toBe(200);
+
+    // Simulate ~590s elapsed by rewinding the companion :reset marker so only
+    // ~10s remain of the 600s window.
+    $cache = Kernel::app()->get('cache')->store();
+    $key = 'forgot:' . sha1('throttle-me@example.com|127.0.0.1');
+    $cache->put($key . ':reset', time() + 10, 600);
+
+    $blocked = Kernel::handle(forgotPost('throttle-me@example.com'));
+    expect($blocked->getStatusCode())->toBe(429);
+
+    $retryHeader = (int) $blocked->headers->get('Retry-After');
+    $body = json_decode((string) $blocked->getContent(), true);
+
+    expect($retryHeader)->toBeLessThan(600)
+        ->and($retryHeader)->toBeGreaterThanOrEqual(1)
+        ->and($retryHeader)->toBeLessThanOrEqual(10)
+        ->and((int) ($body['retry_after'] ?? -1))->toBe($retryHeader);
+});
+
 test('app.auth.forgot_throttle config overrides max attempts', function () {
     config(['app.auth.forgot_throttle' => ['max' => 1, 'decay' => 600]]);
 
