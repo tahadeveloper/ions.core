@@ -309,13 +309,23 @@ class Path extends Singleton
      */
     public static function database(string $file = ''): string
     {
-        $root = self::base() . DIRECTORY_SEPARATOR . 'database';
-
-        if (is_dir($root)) {
-            return $root . DIRECTORY_SEPARATOR . self::databaseSub($file);
+        if (self::usesDatabaseLayout()) {
+            return self::base() . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . self::databaseSub($file);
         }
 
         return self::appDir() . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . $file;
+    }
+
+    /**
+     * Whether the host uses the Laravel-standard host-root `database/` layout
+     * (since 4.4). True when `{root}/database` exists; generators key their
+     * target directory and PSR-4 namespace (`Database\Factories`,
+     * `Database\Seeders`) off this, falling back to the legacy
+     * `{app|src}/Database` + `App\Database\…` namespaces otherwise.
+     */
+    public static function usesDatabaseLayout(): bool
+    {
+        return is_dir(self::base() . DIRECTORY_SEPARATOR . 'database');
     }
 
     /**

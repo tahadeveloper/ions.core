@@ -18,9 +18,9 @@ are already resolved; later keys may still be unevaluated closures):
 
 declare(strict_types=1);
 
-namespace App\Factories;
+namespace Database\Factories;
 
-use App\Widget;
+use App\Models\Widget;
 use Ions\Database\Factory;
 use Ions\Support\Str;
 
@@ -42,14 +42,35 @@ class WidgetFactory extends Factory
 }
 ```
 
-Generate one with `php bin/ions make:factory WidgetFactory` (writes to
-`{app|src}/Factories/`, inferring the model `App\Widget` from the name —
-override with `--model=App\Models\Widget`). **Caveat:** the generated class
-always lives in `App\Factories\`, but `HasIonsFactory` resolves
-`{ModelNamespace}\Factories\{Model}Factory` — so for a model outside the
-`App\` namespace (e.g. `App\Models\Widget`), either add
-`protected static string $factory = \App\Factories\WidgetFactory::class;` to
-the model or move the factory to `{ModelNamespace}\Factories\`.
+Generate one with `php bin/ions make:factory WidgetFactory`. The target follows
+the host layout:
+
+- **Host-root `database/` layout (since 4.4, recommended):** writes to
+  `database/factories/` with the Laravel-standard `Database\Factories`
+  namespace. This is the first-choice convention resolved by `HasIonsFactory`
+  (see below). The host must map the namespace in its `composer.json` so the
+  class autoloads:
+
+  ```json
+  "autoload": {
+      "psr-4": {
+          "App\\": "app/",
+          "Database\\Factories\\": "database/factories/",
+          "Database\\Seeders\\": "database/seeders/"
+      }
+  }
+  ```
+
+  Run `composer dump-autoload` after adding the mapping. `make:factory` prints
+  this hint when the namespace is not yet autoloadable.
+- **Legacy `{app|src}/Database` layout:** writes to `{app|src}/Factories/` with
+  the `App\Factories` namespace. Here the model is inferred as `App\{Name}`
+  (override with `--model=App\Models\Widget`); because the legacy factory lives
+  in `App\Factories\` but the BC convention resolves
+  `{ModelNamespace}\Factories\{Model}Factory`, for a model outside `App\` the
+  command prints a note telling you to add
+  `protected static string $factory = \App\Factories\WidgetFactory::class;` or
+  move the factory.
 
 Attributes are written with `forceFill()`, so `$fillable`/`$guarded` does not
 restrict factory attributes.
@@ -105,17 +126,24 @@ class Widget extends Model
 Widget::factory()->count(3)->create();
 ```
 
-`Model::factory()` resolves the factory class by a simple rule:
+`Model::factory()` resolves the factory class by trying these in order — the
+first existing class wins:
 
 1. A `protected static string $factory = SomeFactory::class;` property on the
-   model wins, when present.
-2. Otherwise `{ModelNamespace}\Factories\{Model}Factory` — e.g. `App\Widget`
-   resolves `App\Factories\WidgetFactory`, and `App\Models\Widget` resolves
+   model, when present (explicit override).
+2. **`Database\Factories\{Model}Factory`** — the Laravel-standard top-level
+   namespace (since 4.4, the first-choice convention). E.g. `App\Models\Widget`
+   resolves `Database\Factories\WidgetFactory`. This requires the host to map
+   `"Database\\Factories\\": "database/factories/"` and
+   `"Database\\Seeders\\": "database/seeders/"` in `composer.json` (see
+   [Defining a factory](#defining-a-factory)).
+3. `{ModelNamespace}\Factories\{Model}Factory` — the 4.2 convention, kept as a
+   backwards-compatible fallback. E.g. `App\Widget` resolves
+   `App\Factories\WidgetFactory`, and `App\Models\Widget` resolves
    `App\Models\Factories\WidgetFactory`.
 
-This is intentionally simpler than Laravel's `Database\Factories`
-cross-namespace mapping: the factory lives in a `Factories` sub-namespace next
-to the model (or wherever `$factory` points), nothing else. A missing factory
+Steps 2 and 3 are probed with `class_exists()`. A model needs **zero**
+configuration when its factory follows convention 2 or 3. A missing factory
 throws a `RuntimeException` naming the class that was expected.
 
 ## Faker
@@ -149,9 +177,16 @@ deterministic values.
 
 ## Seeding
 
-Factories work anywhere the database is booted, including seeders:
+Factories work anywhere the database is booted, including seeders. Generate one
+with `php bin/ions make:seeder WidgetSeeder` — on the host-root `database/`
+layout it lands in `database/seeders/` with the `Database\Seeders` namespace
+(the `"Database\\Seeders\\": "database/seeders/"` composer.json mapping,
+alongside the factories mapping); on the legacy layout it lands in
+`{app|src}/Database/Seeders/` with `App\Database\Seeders`.
 
 ```php
+namespace Database\Seeders;
+
 class WidgetSeeder
 {
     public function seed(): void

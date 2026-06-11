@@ -40,7 +40,27 @@ afterEach(function () {
     Path::resetBasePath();
 });
 
-test('make:seeder generates into database/seeders on a host-root database/ layout', function () {
+test('make:seeder generates into database/seeders with the Database\\Seeders namespace on a host-root database/ layout', function () {
+    $base = makeGeneratorLayoutHost(['database']);
+
+    try {
+        Path::setBasePath($base);
+
+        $tester = runConsoleCommand(new SeederCommand(), ['name' => 'WidgetSeeder']);
+
+        $generated = $base . '/database/seeders/WidgetSeeder.php';
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and(is_file($generated))->toBeTrue()
+            ->and((string) file_get_contents($generated))
+            ->toContain('class WidgetSeeder')
+            ->toContain('namespace Database\\Seeders;');
+    } finally {
+        removeGeneratorLayoutHost($base);
+    }
+});
+
+test('make:seeder prints a Database\\ autoload hint on the new layout', function () {
     $base = makeGeneratorLayoutHost(['database']);
 
     try {
@@ -49,15 +69,13 @@ test('make:seeder generates into database/seeders on a host-root database/ layou
         $tester = runConsoleCommand(new SeederCommand(), ['name' => 'WidgetSeeder']);
 
         expect($tester->getStatusCode())->toBe(0)
-            ->and(is_file($base . '/database/seeders/WidgetSeeder.php'))->toBeTrue()
-            ->and((string) file_get_contents($base . '/database/seeders/WidgetSeeder.php'))
-            ->toContain('class WidgetSeeder');
+            ->and($tester->getDisplay())->toContain('"Database\\\\Seeders\\\\": "database/seeders/"');
     } finally {
         removeGeneratorLayoutHost($base);
     }
 });
 
-test('make:seeder keeps the legacy {src}/Database/Seeders target when no database/ dir exists', function () {
+test('make:seeder keeps the legacy {src}/Database/Seeders target and App\\Database\\Seeders namespace when no database/ dir exists', function () {
     $base = makeGeneratorLayoutHost(['src']);
 
     try {
@@ -65,8 +83,66 @@ test('make:seeder keeps the legacy {src}/Database/Seeders target when no databas
 
         $tester = runConsoleCommand(new SeederCommand(), ['name' => 'WidgetSeeder']);
 
+        $generated = $base . '/src/Database/Seeders/WidgetSeeder.php';
+
         expect($tester->getStatusCode())->toBe(0)
-            ->and(is_file($base . '/src/Database/Seeders/WidgetSeeder.php'))->toBeTrue();
+            ->and(is_file($generated))->toBeTrue()
+            ->and((string) file_get_contents($generated))
+            ->toContain('namespace App\\Database\\Seeders;');
+    } finally {
+        removeGeneratorLayoutHost($base);
+    }
+});
+
+test('make:factory generates into database/factories with the Database\\Factories namespace on a host-root database/ layout', function () {
+    $base = makeGeneratorLayoutHost(['database']);
+
+    try {
+        Path::setBasePath($base);
+
+        $tester = runConsoleCommand(new MakeFactoryCommand(), ['name' => 'WidgetFactory']);
+
+        $generated = $base . '/database/factories/WidgetFactory.php';
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and(is_file($generated))->toBeTrue()
+            ->and((string) file_get_contents($generated))
+            ->toContain('namespace Database\\Factories;')
+            ->toContain('class WidgetFactory extends Factory');
+    } finally {
+        removeGeneratorLayoutHost($base);
+    }
+});
+
+test('make:factory prints a Database\\ autoload hint on the new layout', function () {
+    $base = makeGeneratorLayoutHost(['database']);
+
+    try {
+        Path::setBasePath($base);
+
+        $tester = runConsoleCommand(new MakeFactoryCommand(), ['name' => 'WidgetFactory']);
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and($tester->getDisplay())->toContain('"Database\\\\Factories\\\\": "database/factories/"');
+    } finally {
+        removeGeneratorLayoutHost($base);
+    }
+});
+
+test('make:factory keeps the legacy {src}/Factories target and App\\Factories namespace when no database/ dir exists', function () {
+    $base = makeGeneratorLayoutHost(['src']);
+
+    try {
+        Path::setBasePath($base);
+
+        $tester = runConsoleCommand(new MakeFactoryCommand(), ['name' => 'WidgetFactory']);
+
+        $generated = $base . '/src/Factories/WidgetFactory.php';
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and(is_file($generated))->toBeTrue()
+            ->and((string) file_get_contents($generated))
+            ->toContain('namespace App\\Factories;');
     } finally {
         removeGeneratorLayoutHost($base);
     }

@@ -29,8 +29,11 @@ level-5 main + level-8 core both 0, new PSR-4 code strict_types).
 ## 11.2 Namespaces & autoload for seeders/factories
 
 - Laravel-style top-level `Database\` namespace: `Database\Factories\…`,
-  `Database\Seeders\…`, PSR-4-mapped in the HOST's composer.json
-  (`"Database\\": "database/"`). The skeleton ships the mapping.
+  `Database\Seeders\…`, PSR-4-mapped in the HOST's composer.json with the
+  Laravel-correct sub-namespace dirs (`"Database\\Factories\\":
+  "database/factories/"`, `"Database\\Seeders\\": "database/seeders/"` — NOT a
+  single `"Database\\": "database/"`, which breaks on case-sensitive
+  filesystems). The skeleton ships the mapping.
 - `HasIonsFactory` resolution order becomes: (1) explicit `protected static
   $factory` (unchanged), (2) **`Database\Factories\{Model}Factory`** (new,
   Laravel parity), (3) the 4.2 convention `{ModelNamespace}\Factories\{Model}Factory`
@@ -63,7 +66,8 @@ level-5 main + level-8 core both 0, new PSR-4 code strict_types).
 ## 11.4 Skeleton, docs, release 4.4.0
 
 - Skeleton ships the full new layout: `database/{migrations,seeders,factories,
-  schemas,backups}/.gitkeep`, `Database\` PSR-4 mapping, sqlite config example
+  schemas,backups}/.gitkeep`, the `Database\Factories\` + `Database\Seeders\`
+  sub-namespace PSR-4 mappings, sqlite config example
   pointing at `database/database.sqlite`, `.gitignore` entries (`database/
   *.sqlite`, `database/backups/*`).
 - Docs: new docs/database-layout.md or fold into existing database docs
