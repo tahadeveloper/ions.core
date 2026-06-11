@@ -22,7 +22,11 @@ Commit: `feat(database): Database\Factories/Seeders namespaces — HasIonsFactor
 Ground the legacy ModelCommand surface (flags, stub placeholders, current target). Files: modernized command on GeneratorCommand (validation/--force), `app/Models` + `App\Models` target, modern stub (+HasIonsFactory — live if harmless, grounded), `--factory` flag delegating to make:factory, skeleton `app/Models/.gitkeep`. Tests: generation + lint + end-to-end model+factory on sqlite; legacy regression decision documented (replace vs coexist — REPLACE the command registration, keep BC flags that matter).
 Commit: `feat(console): make:model — app/Models target, GeneratorCommand base, --factory`.
 
-## 11.4 Skeleton + docs + release 4.4.0
+## 11.4 JWT refresh-token reuse detection (security finding #3, 2026-06-11)
+Ground: src/Security/Jwt.php (issue/issueRefresh/refresh/verify), src/Security/RevocationStore.php (per-jti only — no family grouping), AuthController refresh/logout. Current: refresh() revokes the presented jti but issues only a NEW ACCESS token (no new refresh token) and has NO family/lineage tracking or reuse detection. Implement the OAuth refresh-rotation breach-detection pattern: (1) `fid` family-id claim minted at issueRefresh (login), carried forward on every rotation; (2) refresh() RE-ISSUES a new refresh token (same fid) AND a new access token — return both; AuthController::refresh surfaces the new refresh token; (3) extend RevocationStore (interface + CacheRevocationStore + ArrayRevocationStore) with revokeFamily(fid, ttl)/isFamilyRevoked(fid); (4) reuse detection: presenting an already-revoked refresh jti triggers revokeFamily(fid) (kill the whole lineage) then 401; happy path short-circuits if isFamilyRevoked(fid). Additive/BC: tokens without fid skip family checks. Tests: rotation re-issues refresh; replay of a rotated token revokes the family; a sibling token in a revoked family is rejected; legacy no-fid tokens still work. UPGRADE-4.4 note (refresh() return shape change: now returns access+refresh).
+Commit: `feat(security): JWT refresh-token rotation with family reuse detection (revoke-all-on-replay)`.
+
+## 11.5 Skeleton + docs + release 4.4.0
 Skeleton full layout + PSR-4 + sqlite example + .gitignore; canonical "Database layout" docs section (ground current doc locations); best-practices tree; UPGRADE-4.4.md; CHANGELOG [4.4.0]; fact-check review; merge; push; tag 4.4.0 locally (user confirms push).
 Commit: `docs(release): 4.4.0 — database layout, changelog, UPGRADE-4.4`.
 
