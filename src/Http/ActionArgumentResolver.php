@@ -12,6 +12,7 @@ use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
+use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
@@ -35,7 +36,8 @@ use Throwable;
  *      default primary key). Miss → NotFoundHttpException (the same 404 the
  *      abort(404) helper produces); miss on a nullable parameter → null.
  *      Requires the 'db' database engine to be booted — with no Eloquent
- *      connection resolver set, Illuminate's own error surfaces as a 500.
+ *      connection resolver set, a clear RuntimeException naming the model
+ *      class and the engine is thrown (rendered as a 500).
  *   4. Other object type-hints → Container::make(). When the container cannot
  *      resolve, fall back to the declared default, then null when nullable;
  *      otherwise the container's exception surfaces (rendered as a 500).
@@ -150,13 +152,22 @@ final class ActionArgumentResolver
      * (getRouteKeyName() — default primary key) equals the placeholder value.
      * Miss → 404 NotFoundHttpException, or null when the parameter is
      * nullable. Eloquent must be booted ('db' in app.database_engine):
-     * without a connection resolver Illuminate's own error surfaces — clear
-     * enough, deliberately not wrapped.
+     * without a connection resolver Illuminate would die with a bare
+     * "Call to a member function connection() on null" Error (a blank 500
+     * with debug off), so the guard below throws a clear RuntimeException
+     * naming the model class and the missing engine instead.
      *
      * @param class-string<Model> $class
      */
     private function resolveBoundModel(string $class, mixed $value, bool $allowsNull): ?Model
     {
+        if (Model::getConnectionResolver() === null) {
+            throw new RuntimeException(sprintf(
+                "Route model binding for [%s] requires the 'db' database engine (config app.database_engine).",
+                $class,
+            ));
+        }
+
         $model = $class::query()->where((new $class())->getRouteKeyName(), $value)->first();
 
         if ($model !== null) {

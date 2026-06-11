@@ -228,6 +228,19 @@ describe('route model binding', function () {
             ->and($args[0]->exists)->toBeFalse();
     });
 
+    test('regression: binding without a connection resolver throws a clear RuntimeException naming the class and the db engine', function () {
+        // No 'db' engine booted: Eloquent has no connection resolver. The
+        // resolver must throw its own intelligible error instead of letting
+        // Illuminate's bare "Call to a member function connection() on null"
+        // Error surface (a blank 500 with debug off).
+        \Illuminate\Database\Eloquent\Model::unsetConnectionResolver();
+
+        resolveArgs(fn (\IonsFixture\Models\Widget $widget) => null, ['widget' => '1']);
+    })->throws(
+        RuntimeException::class,
+        "Route model binding for [IonsFixture\Models\Widget] requires the 'db' database engine (config app.database_engine).",
+    );
+
     test('regression: scalar placeholders, services and Request hints are untouched by the binding rule', function () {
         $gear = \IonsFixture\Models\Widget::query()->create(['name' => 'Gear', 'sku' => 'g-1', 'price' => 5]);
 

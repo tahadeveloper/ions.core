@@ -138,7 +138,14 @@ public function show(Widget $widget): Response   // SELECT ... WHERE id = {widge
   empty model instance** — unchanged from earlier releases.
 - **Requires the `db` engine.** Binding queries through Eloquent, so
   `config('app.database_engine')` must include `'db'`. Without a booted
-  connection Illuminate's own "connection resolver" error surfaces as a 500.
+  connection the resolver throws a clear `RuntimeException` ("Route model
+  binding for [Class] requires the 'db' database engine"), rendered as a 500.
+- **Global scopes apply.** Bindings run through `query()`, so global scopes
+  filter the lookup — a soft-deleting model 404s trashed rows (there is no
+  `withTrashed()` escape hatch in this phase).
+- **Union types never bind.** Only a named `Model` subclass hint triggers
+  binding; a union-typed parameter named after a placeholder receives the raw
+  placeholder string per rule 2.
 - **Scope cut:** the inline custom-key route syntax (`{user:slug}`) is not
   supported — `getRouteKeyName()` covers the conventional case.
 - **Behavior note (pre-4.3):** before 4.3, a Model hint named after a

@@ -52,6 +52,15 @@ beforeEach(function () {
     Route::get('/slugged/{widget}', WidgetsController::class . '::showBySlug');
     Route::get('/widgets-fresh/{widget}', WidgetsController::class . '::fresh');
     Route::get('/closure-widgets/{widget}', fn (Widget $widget) => new Response('closure:' . $widget->name));
+    Route::get('/api/widgets/{widget}', fn (Widget $widget) => new Response('api:' . $widget->name));
+
+    // The api group runs AuthMiddleware — list the binding route as public so
+    // the 404 below comes from the binding miss, not a 401. The middleware
+    // stack reads this config per request, so the post-boot mutation applies.
+    config(['app.auth.public_paths' => array_merge(
+        (array) config('app.auth.public_paths', []),
+        ['/api/widgets'],
+    )]);
 });
 
 afterEach(function () {
@@ -71,6 +80,14 @@ test('a missing record renders a 404 through the standard exception handler', fu
     $response = Kernel::handle(Request::create('/widgets/999'));
 
     expect($response->getStatusCode())->toBe(404);
+});
+
+test('an api binding miss renders a JSON 404 through the standard exception handler', function () {
+    $response = Kernel::handle(Request::create('/api/widgets/999'));
+
+    expect($response->getStatusCode())->toBe(404)
+        ->and((string) $response->headers->get('Content-Type'))->toContain('json')
+        ->and((string) $response->getContent())->toContain('No query results');
 });
 
 test('a nullable model parameter receives null on a miss instead of a 404', function () {
