@@ -346,12 +346,51 @@ class IonDisk
         ];
     }
 
+    /**
+     * Path-traversal guard for the native (local) delete branches.
+     *
+     * IonDisk::delete()/deleteDirectory() receive an ABSOLUTE filesystem path
+     * (callers build it via Path::files()/filesRoot()) and feed it straight to
+     * unlink()/rmdir(). Reject any path that contains a `..` segment or whose
+     * canonical real path escapes the configured local disk root, so a caller
+     * cannot be coerced into deleting `.env` or any file outside uploads.
+     */
+    private static function assertLocalPathContained(string $path): void
+    {
+        $root = (string) config('filesystem.disks.local.root', '');
+
+        // No configured root → fall back to the bare `..` rejection below.
+        $normalized = str_replace('\\', '/', $path);
+        $segments = explode('/', $normalized);
+        if (in_array('..', $segments, true)) {
+            throw new RuntimeException("Refusing to delete a path containing '..': $path");
+        }
+
+        if ($root === '') {
+            return;
+        }
+
+        $realRoot = realpath($root);
+        $realTarget = realpath($path);
+        // A missing target is handled by the caller's existence check; only
+        // enforce containment when both ends canonicalize.
+        if ($realRoot === false || $realTarget === false) {
+            return;
+        }
+
+        $realRoot = rtrim($realRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (!str_starts_with($realTarget . DIRECTORY_SEPARATOR, $realRoot)) {
+            throw new RuntimeException("Refusing to delete a path outside the disk root: $path");
+        }
+    }
+
     public static function delete(string $path): void
     {
         $disk = self::flySystem();
 
         if ($disk === null) {
             // Local storage handling
+            self::assertLocalPathContained($path);
             if (file_exists($path)) {
                 unlink($path);
             } else {
@@ -564,6 +603,7 @@ class IonDisk
 
         if ($disk === null) {
             // Local storage handling
+            self::assertLocalPathContained($path);
             if (is_dir($path)) {
                 $files = array_diff(scandir($path), ['.', '..']);
                 foreach ($files as $file) {
