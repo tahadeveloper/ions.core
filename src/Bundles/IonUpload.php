@@ -135,7 +135,7 @@ class IonUpload extends Singleton
             return false;
         }
 
-        return $fileName !== '..' && basename($fileName) === $fileName;
+        return $fileName !== '.' && $fileName !== '..' && basename($fileName) === $fileName;
     }
 
     public static function remove(string $fileName, string $path): self
@@ -226,11 +226,13 @@ class IonUpload extends Singleton
      */
     private static function requestValue(mixed $request, string $key): mixed
     {
-        if ($request->request->has($key)) {
-            return $request->request->get($key);
+        // Mirrors the query->body precedence of the Symfony Request::get() this
+        // replaced (get() is deprecated in HttpFoundation 7.x).
+        if ($request->query->has($key)) {
+            return $request->query->get($key);
         }
 
-        return $request->query->get($key);
+        return $request->request->get($key);
     }
 
     public static function update($file_name, $file_original_name, $file, $path, array $options = []): self

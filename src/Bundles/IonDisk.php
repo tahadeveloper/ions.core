@@ -358,8 +358,12 @@ class IonDisk
     private static function assertLocalPathContained(string $path): void
     {
         $root = (string) config('filesystem.disks.local.root', '');
+        if ($root === '') {
+            // No configured local root → derive the uploads root so the
+            // containment check still applies (instead of `..`-rejection only).
+            $root = (string) Path::filesRoot('');
+        }
 
-        // No configured root → fall back to the bare `..` rejection below.
         $normalized = str_replace('\\', '/', $path);
         $segments = explode('/', $normalized);
         if (in_array('..', $segments, true)) {
