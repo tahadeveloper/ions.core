@@ -16,7 +16,8 @@ use RuntimeException;
  *   2. `Database\Factories\{Model}Factory` — the Laravel-standard top-level
  *      namespace (since 4.4, first-choice convention). E.g. `App\Models\Widget`
  *      resolves `Database\Factories\WidgetFactory`. Requires the host to map
- *      `"Database\\": "database/"` in composer.json.
+ *      `"Database\\Factories\\": "database/factories/"` and
+ *      `"Database\\Seeders\\": "database/seeders/"` in composer.json.
  *   3. `{ModelNamespace}\Factories\{Model}Factory` — the 4.2 convention,
  *      kept as a backwards-compatible fallback. E.g. `App\Widget` resolves
  *      `App\Factories\WidgetFactory`.
@@ -79,7 +80,8 @@ trait HasIonsFactory
             return $standard;
         }
 
-        // (3) 4.2 convention fallback: {ModelNamespace}\Factories\…
+        // (3) 4.2 convention fallback: {ModelNamespace}\Factories\… — returned
+        // unchecked so the caller's RuntimeException names a concrete class.
         return $namespace . 'Factories\\' . $basename . 'Factory';
     }
 }

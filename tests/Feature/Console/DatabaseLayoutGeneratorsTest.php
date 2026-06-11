@@ -69,7 +69,7 @@ test('make:seeder prints a Database\\ autoload hint on the new layout', function
         $tester = runConsoleCommand(new SeederCommand(), ['name' => 'WidgetSeeder']);
 
         expect($tester->getStatusCode())->toBe(0)
-            ->and($tester->getDisplay())->toContain('"Database\\\\": "database/"');
+            ->and($tester->getDisplay())->toContain('"Database\\\\Seeders\\\\": "database/seeders/"');
     } finally {
         removeGeneratorLayoutHost($base);
     }
@@ -123,7 +123,7 @@ test('make:factory prints a Database\\ autoload hint on the new layout', functio
         $tester = runConsoleCommand(new MakeFactoryCommand(), ['name' => 'WidgetFactory']);
 
         expect($tester->getStatusCode())->toBe(0)
-            ->and($tester->getDisplay())->toContain('"Database\\\\": "database/"');
+            ->and($tester->getDisplay())->toContain('"Database\\\\Factories\\\\": "database/factories/"');
     } finally {
         removeGeneratorLayoutHost($base);
     }

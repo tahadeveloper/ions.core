@@ -97,16 +97,16 @@ class MakeFactoryCommand extends GeneratorCommand
 
         $this->info(
             'Note: this factory uses the Database\\Factories namespace. Ensure your host ' .
-            'composer.json maps it for autoloading: "Database\\\\": "database/" (then run ' .
-            'composer dump-autoload).'
+            'composer.json maps it for autoloading: "Database\\\\Factories\\\\": "database/factories/" ' .
+            '(then run composer dump-autoload).'
         );
     }
 
     /**
-     * The factory is always generated in App\Factories, but HasIonsFactory
-     * resolves {ModelNamespace}\Factories\{Model}Factory by convention — for
-     * a --model outside the App\ namespace the pair will not resolve, so tell
-     * the user how to wire it.
+     * On the legacy layout the factory is always generated in App\Factories,
+     * but HasIonsFactory resolves {ModelNamespace}\Factories\{Model}Factory by
+     * convention — for a --model outside the App\ namespace the pair will not
+     * resolve, so tell the user how to wire it.
      */
     private function noteFactoryNamespaceMismatch(): void
     {

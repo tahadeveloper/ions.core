@@ -55,7 +55,8 @@ the host layout:
   "autoload": {
       "psr-4": {
           "App\\": "app/",
-          "Database\\": "database/"
+          "Database\\Factories\\": "database/factories/",
+          "Database\\Seeders\\": "database/seeders/"
       }
   }
   ```
@@ -133,7 +134,8 @@ first existing class wins:
 2. **`Database\Factories\{Model}Factory`** — the Laravel-standard top-level
    namespace (since 4.4, the first-choice convention). E.g. `App\Models\Widget`
    resolves `Database\Factories\WidgetFactory`. This requires the host to map
-   `"Database\\": "database/"` in `composer.json` (see
+   `"Database\\Factories\\": "database/factories/"` and
+   `"Database\\Seeders\\": "database/seeders/"` in `composer.json` (see
    [Defining a factory](#defining-a-factory)).
 3. `{ModelNamespace}\Factories\{Model}Factory` — the 4.2 convention, kept as a
    backwards-compatible fallback. E.g. `App\Widget` resolves
@@ -178,8 +180,9 @@ deterministic values.
 Factories work anywhere the database is booted, including seeders. Generate one
 with `php bin/ions make:seeder WidgetSeeder` — on the host-root `database/`
 layout it lands in `database/seeders/` with the `Database\Seeders` namespace
-(same `"Database\\": "database/"` composer.json mapping as factories); on the
-legacy layout it lands in `{app|src}/Database/Seeders/` with `App\Database\Seeders`.
+(the `"Database\\Seeders\\": "database/seeders/"` composer.json mapping,
+alongside the factories mapping); on the legacy layout it lands in
+`{app|src}/Database/Seeders/` with `App\Database\Seeders`.
 
 ```php
 namespace Database\Seeders;

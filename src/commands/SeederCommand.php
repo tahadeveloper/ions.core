@@ -68,8 +68,8 @@ class SeederCommand extends GeneratorCommand
 
         $this->info(
             'Note: this seeder uses the Database\\Seeders namespace. Ensure your host ' .
-            'composer.json maps it for autoloading: "Database\\\\": "database/" (then run ' .
-            'composer dump-autoload).'
+            'composer.json maps it for autoloading: "Database\\\\Seeders\\\\": "database/seeders/" ' .
+            '(then run composer dump-autoload).'
         );
     }
 }
