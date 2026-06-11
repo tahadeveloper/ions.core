@@ -35,7 +35,7 @@ return [
         // File-backed SQLite alternative — set DB_CONNECTION=sqlite:
         'sqlite' => [
             'driver' => 'sqlite',
-            'database' => \Ions\Bundles\Path::var('database.sqlite'),
+            'database' => \Ions\Bundles\Path::database('database.sqlite'),
             'prefix' => '',
         ],
     ],

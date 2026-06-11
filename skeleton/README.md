@@ -43,7 +43,8 @@ for the full nginx/Apache configs, PHP-FPM notes and the deploy checklist see
 | `bin/ions` | Console (`php bin/ions list`, `make:*`, `migrate`, `queue:work`, `optimize`, `doctor`) |
 | `config/` | One PHP file per namespace: `app.php` → `config('app.*')`, … |
 | `routes/web.php`, `routes/api.php` | Route definitions (`Ions\Bundles\Route`) |
-| `app/` | Application code (`App\` PSR-4): controllers in `app/Http/Controllers`, API controllers in `app/Http/Api`, commands in `app/Commands`, service providers in `app/Providers` (auto-discovered — no `app.providers` entry needed; see `docs/config.md` in `ionzile/core`) |
+| `app/` | Application code (`App\` PSR-4): models in `app/Models`, controllers in `app/Http/Controllers`, API controllers in `app/Http/Api`, commands in `app/Commands`, service providers in `app/Providers` (auto-discovered — no `app.providers` entry needed; see `docs/config.md` in `ionzile/core`) |
+| `database/` | Standard data layout (4.4+): `migrations/`, `seeders/` (`Database\Seeders`), `factories/` (`Database\Factories`), `schemas/`, `backups/`. The two `Database\…` sub-namespaces are PSR-4-mapped in `composer.json`. |
 | `views/` | Twig templates |
 | `public/uploads`, `public/lang` | Uploads disk root, translation files |
 | `var/` | Writable: `cache/`, `logs/`, `templates/` (compiled Twig) |

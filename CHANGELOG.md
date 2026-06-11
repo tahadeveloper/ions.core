@@ -4,13 +4,128 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-For migration instructions see [UPGRADE-4.3.md](UPGRADE-4.3.md) (4.2 → 4.3),
+For migration instructions see [UPGRADE-4.4.md](UPGRADE-4.4.md) (4.3 → 4.4),
+[UPGRADE-4.3.md](UPGRADE-4.3.md) (4.2 → 4.3),
 [UPGRADE-4.2.md](UPGRADE-4.2.md) (4.1 → 4.2),
 [UPGRADE-4.1.md](UPGRADE-4.1.md) (4.0 → 4.1),
 [UPGRADE-4.0.md](UPGRADE-4.0.md) (3.x → 4.0) and
 [UPGRADE-3.0.md](UPGRADE-3.0.md) (2.1.x → 3.0).
 
 ## [Unreleased]
+
+## [4.4.0] - 2026-06-11
+
+The Phase 11 release: the Laravel-standard host-root `database/` layout, plus
+the merged security work (also released as 4.3.1). Migrations, seeders,
+factories, schema dumps and backups move to a single `database/` tree at the
+host root, with the `Database\Factories\` / `Database\Seeders\` namespaces;
+`make:model` retargets to `app/Models` (`App\Models`) on a hardened generator
+base; and the JWT refresh flow gains rotation with refresh-token-family reuse
+detection (the "revoke-all-on-replay" breach pattern). No new dependencies.
+The behavior changes — the `database/` precedence, the composer.json namespace
+mappings, the `make:model` target + dropped DB introspection, and the
+`Jwt::refresh()` return-shape / `/api/auth/refresh` JSON change — are detailed
+in [UPGRADE-4.4.md](UPGRADE-4.4.md).
+
+### Added
+
+- **Host-root `database/` layout** — `Path::database()` now resolves the
+  Laravel-standard host-root `database/` tree (`migrations/`, `seeders/`,
+  `factories/`, `schemas/`, `backups/`) when `{root}/database` exists
+  (`Path::usesDatabaseLayout()`), taking **precedence** over the legacy
+  `{app|src}/Database`. The legacy `Schema`/`Seeders`/`Factories`/`Backups`
+  subfolder names map onto the lowercase standard directories; the legacy
+  layout stays byte-identical as the preserved fallback. `MigrateCommand`,
+  `SeederCommand`, `MakeFactoryCommand`, `DumpCommand` and `SchemaCommand` all
+  key their target directory off this. `ions doctor` gained a
+  `dual_database_dirs` check that warns when both `database/` and a legacy
+  `{app|src}/Database` exist (database/ wins; consolidate and remove the unused
+  directory). See [docs/console.md](docs/console.md) and
+  [UPGRADE-4.4.md](UPGRADE-4.4.md).
+- **`Database\Factories\` / `Database\Seeders\` namespaces** — `HasIonsFactory`
+  resolves a model's factory Laravel-parity: an explicit `protected static
+  string $factory` wins, then the top-level `Database\Factories\{Model}Factory`
+  (the 4.4 layout), then the 4.2 `{ModelNamespace}\Factories\{Model}Factory`
+  fallback. `make:factory` generates into `database/factories/` (namespace
+  `Database\Factories`) and `make:seeder` into `database/seeders/` (namespace
+  `Database\Seeders`) on the new layout. Host apps adopting the layout add
+  `"Database\\Factories\\": "database/factories/"` and
+  `"Database\\Seeders\\": "database/seeders/"` to their composer.json
+  `autoload.psr-4`. See [docs/factories.md](docs/factories.md) and
+  [UPGRADE-4.4.md](UPGRADE-4.4.md).
+- **`make:model` → `app/Models` (`App\Models`)** — `ModelCommand` now generates
+  models into `app/Models` (namespace `App\Models`, `Path::src('Models/…')`
+  preserving the `src/`→`app/` fallback) on a shared `GeneratorCommand` base
+  (name validation, `--force` overwrite guard). The stub uses the
+  `Ions\Database\HasIonsFactory` trait live. A new `--factory` flag also
+  generates the matching `Database\Factories\{Name}Factory` in the same step.
+  See [docs/console.md](docs/console.md) and
+  [UPGRADE-4.4.md](UPGRADE-4.4.md).
+- **JWT refresh-token family reuse detection** — refresh tokens now carry a
+  family id (`fid`, minted at login and carried forward across rotations).
+  `Jwt::refresh()` rotates: it revokes the presented refresh token and re-issues
+  **both** a new access and a new refresh token in the same family. Replaying an
+  already-rotated refresh token is detected as a breach and revokes the **whole
+  family** (every sibling token). `RevocationStore` gained `revokeFamily()` /
+  `isFamilyRevoked()`, implemented by `ArrayRevocationStore` and
+  `CacheRevocationStore`. Pre-4.4 refresh tokens with no `fid` still refresh
+  (they join the family-aware scheme on first rotation). See
+  [docs/auth.md](docs/auth.md) and [UPGRADE-4.4.md](UPGRADE-4.4.md).
+
+### Changed
+
+- **`make:model` target moved + DB introspection removed** — models now land in
+  `app/Models` (`App\Models`) instead of the previous location, and the command
+  no longer introspects the database to auto-fill `$table`/`$fillable`/`$hidden`
+  from a live schema; the generated stub ships placeholder properties to fill in.
+  See [UPGRADE-4.4.md](UPGRADE-4.4.md).
+- **`Jwt::refresh()` return shape changed `string` → `array{access, refresh}`**
+  — `refresh()` now re-issues both tokens and returns the pair, rather than a
+  single access-token string. Callers must read `['access']` / `['refresh']`.
+  See [UPGRADE-4.4.md](UPGRADE-4.4.md).
+- **`POST /api/auth/refresh` JSON adds `refresh_token`** — the refresh endpoint
+  now returns the rotated `refresh_token` alongside `access_token`; clients must
+  store the **new** refresh token after each refresh (the old one is revoked and
+  replaying it revokes the family). See [UPGRADE-4.4.md](UPGRADE-4.4.md).
+- **Custom `RevocationStore` implementations must add `revokeFamily()` /
+  `isFamilyRevoked()`** — the interface grew two methods for family-based
+  revocation; the bundled array and cache stores implement them. See
+  [UPGRADE-4.4.md](UPGRADE-4.4.md).
+
+### Security
+
+- **Path-traversal arbitrary file deletion fixed** (also released as 4.3.1) — a
+  crafted filename passed to `IonUpload::update()`/`remove()` or
+  `IonDisk::delete()`/`deleteDirectory()` could escape the uploads/disk root and
+  delete arbitrary files. Deletions are now constrained to a single path segment
+  (`basename` + the rejection of `.`/`..`) and a `realpath` containment check
+  against the resolved root (including a derived uploads root when no local root
+  is configured).
+- **Accurate `Retry-After`** (also released as 4.3.1) — the rate-limit
+  middleware and the per-email forgot-password throttle now emit the true
+  remaining window in `Retry-After` instead of the full window, so clients back
+  off for the correct duration.
+
+### Fixed
+
+- **MySQL test portability + CI style** (internal) — test-suite fixes for MySQL 8
+  portability and `composer cs` (PHP-CS-Fixer) style, keeping the CI MySQL job
+  and style gate green.
+
+## [4.3.1] - 2026-06-11
+
+A security patch over 4.3.0 (also rolled into 4.4.0).
+
+### Security
+
+- **Path-traversal arbitrary file deletion fixed** — a crafted filename passed
+  to `IonUpload::update()`/`remove()` or `IonDisk::delete()`/`deleteDirectory()`
+  could escape the uploads/disk root and delete arbitrary files. Deletions are
+  now constrained to a single path segment (`basename` + rejection of `.`/`..`)
+  and a `realpath` containment check against the resolved root.
+- **Accurate `Retry-After`** — the rate-limit middleware and the per-email
+  forgot-password throttle now emit the true remaining window in `Retry-After`
+  instead of the full window.
 
 ## [4.3.0] - 2026-06-11
 
@@ -289,7 +404,9 @@ is additive. See [UPGRADE-4.0.md](UPGRADE-4.0.md).
 - **CSRF enforced by default** — `CsrfMiddleware` is in the default web stack; all state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`) require a valid `_ion_token` field or `X-CSRF-TOKEN` header (HTTP 419 otherwise).
 - **Query-filter allow-listing** — `QueryBuilder::allowFilters()` now enforces a strict allow-list; unrecognised filter columns throw `InvalidFilterQuery`; passing a non-array argument throws `TypeError` (fail-closed).
 
-[Unreleased]: https://github.com/tahadeveloper/ions.core/compare/4.3.0...HEAD
+[Unreleased]: https://github.com/tahadeveloper/ions.core/compare/4.4.0...HEAD
+[4.4.0]: https://github.com/tahadeveloper/ions.core/compare/4.3.1...4.4.0
+[4.3.1]: https://github.com/tahadeveloper/ions.core/compare/4.3.0...4.3.1
 [4.3.0]: https://github.com/tahadeveloper/ions.core/compare/4.2.0...4.3.0
 [4.2.0]: https://github.com/tahadeveloper/ions.core/compare/4.1.0...4.2.0
 [4.1.0]: https://github.com/tahadeveloper/ions.core/compare/4.0.0...4.1.0

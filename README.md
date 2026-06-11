@@ -131,7 +131,13 @@ your-app/
 │   ├── web.php            # Web routes
 │   └── api.php            # API routes
 ├── app/                   # Application source (or legacy src/)
-│   └── Http/              # Controllers (web)
+│   ├── Http/              # Controllers (web)
+│   └── Models/            # Eloquent models (App\Models, make:model)
+├── database/              # Host-root layout (4.4): migrations/, seeders/,
+│   │                      #   factories/, schemas/, backups/
+│   ├── migrations/
+│   ├── seeders/           # Database\Seeders
+│   └── factories/         # Database\Factories
 ├── views/
 │   └── default/           # Twig templates
 ├── var/
@@ -166,7 +172,7 @@ Both directory names are supported: `app/` is checked first (the convention sinc
   `traefik`/`forwarded`); proxy-aware `isSecure()`, HSTS and `cookie_secure => 'auto'` behind TLS-terminating LBs
 - **JWT auth** (`Ions\Security\Jwt`) — access + refresh tokens, revocation deny-list, clock leeway
 - **HTTP auth endpoints** — `Ions\Auth\Http\AuthController` (login / refresh / logout / password reset); per-user-bound
-  tokens
+  tokens; refresh-token rotation with family reuse detection (replay revokes the whole family) (4.4)
 - **Pluggable auth** — `UserProvider` contract; `SentinelUserProvider` (default) or `EloquentUserProvider`
 - **Authorization** — `Ions\Auth\Gate` abilities + model policies: `allows`/`denies`/`authorize` (403 on deny),
   `can()` helper + Twig `can()` function, `$this->authorize()` in controllers, guest auto-deny
@@ -192,7 +198,11 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 - **Mailables** — `Ions\Mail\Mailable` (build/send/queue with Twig views); `Mail::fake()` FQCN assertions
 - **Notifications** — `Ions\Notifications\Notification` with mail + database channels, custom channels, `notify()`;
   `Notifications::fake()`
-- **Model factories** — `Ions\Database\Factory` (`make`/`create`/`count`/`state`), `HasIonsFactory`, Faker integration
+- **Host-root `database/` layout** — Laravel-standard `database/` tree (`migrations`/`seeders`/`factories`/`schemas`/
+  `backups`) with precedence over legacy `{app|src}/Database`; `Database\Factories`/`Database\Seeders` namespaces;
+  `make:model` → `app/Models` (`App\Models`, `--factory` flag); `ions doctor` dual-directory warning (4.4)
+- **Model factories** — `Ions\Database\Factory` (`make`/`create`/`count`/`state`), `HasIonsFactory` (explicit
+  `$factory` → `Database\Factories` → `{ModelNs}\Factories` resolution), Faker integration
 - **Testing kit** — `Ions\Testing\TestCase` + `TestResponse` (verb helpers, `actingAs()` real JWT) plus
   Queue/Event/Storage/Mail/Notifications/Http fakes
 - **N+1 query detector** — debug-only repeated-pattern warnings to `var/logs/performance.log`
@@ -220,8 +230,9 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 - **Exception handler** — `Ions\Http\ExceptionHandler`; JSON for API (incl. 422 validation), HTML for web with
   host-themeable `views/errors/{status}.twig` pages (4.3); web validation failures redirect back with errors + input;
   safe in production
-- **Generators** — `make:middleware`, `make:service-provider`, `make:command`, `make:resource`, `make:request`,
-  `make:job`, `make:event`, `make:listener`, `make:test`, `make:factory`
+- **Generators** — `make:model` (`app/Models`, `--factory`), `make:middleware`, `make:service-provider`,
+  `make:command`, `make:resource`, `make:request`, `make:job`, `make:event`, `make:listener`, `make:test`,
+  `make:factory`, `make:seeder`
 - **Host-app skeleton** — `skeleton/`: a minimal bootable host layout with the 4.1 secure defaults pre-filled
 - **Debug error page** — source excerpt, stack/previous chain, redacted request summary (`APP_DEBUG=true` only)
 - **IDE support** — `.phpstorm.meta.php` ships with the package, so PhpStorm infers concrete types for `app('id')` and
@@ -265,6 +276,7 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 | [docs/worker-mode.md](docs/worker-mode.md)               | Experimental worker mode: `Kernel::resetForRequest()`, `WorkerRunner`, state table, FrankenPHP example                                                             |
 | [docs/deploy.md](docs/deploy.md)                         | Deployment: nginx/Apache configs, `public/.htaccess`, PHP-FPM pool notes, TLS-proxy caveat, deploy checklist                                                       |
 | [CHANGELOG.md](CHANGELOG.md)                             | What changed in each release                                                                                                                                       |
+| [UPGRADE-4.4.md](UPGRADE-4.4.md)                         | Behavior changes and migration guide for 4.3 → 4.4.0                                                                                                               |
 | [UPGRADE-4.3.md](UPGRADE-4.3.md)                         | Behavior changes and migration guide for 4.2 → 4.3.0                                                                                                               |
 | [UPGRADE-4.2.md](UPGRADE-4.2.md)                         | Behavior changes and migration guide for 4.1 → 4.2.0                                                                                                               |
 | [UPGRADE-4.1.md](UPGRADE-4.1.md)                         | Behavior changes and migration guide for 4.0 → 4.1.0                                                                                                               |

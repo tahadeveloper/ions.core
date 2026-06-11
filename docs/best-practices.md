@@ -27,19 +27,30 @@ my-app/
 │   │   ├── Controllers/       # Web controllers
 │   │   ├── Api/               # API controllers
 │   │   └── Requests/          # FormRequest classes (make:request)
+│   ├── Models/                # Eloquent models — App\Models (make:model)
 │   ├── Providers/             # Auto-discovered service providers
 │   ├── Services/              # Your domain services (any name works — it's your code)
 │   ├── Jobs/                  # Queued jobs (make:job)
 │   ├── Events/ + Listeners/   # Events (make:event / make:listener)
 │   ├── Notifications/         # Notifications
-│   ├── Factories/             # Model factories (make:factory)
 │   ├── Commands/              # Console commands, auto-discovered
 │   └── Schedule.php           # Scheduled tasks (docs/scheduler.md)
+├── database/                  # Host-root layout (4.4) — wins over app/Database
+│   ├── migrations/
+│   ├── seeders/               # Database\Seeders (make:seeder)
+│   ├── factories/             # Database\Factories (make:factory)
+│   └── schemas/               # Schema dumps (dump/schema commands)
 ├── views/                     # Twig templates
 ├── tests/                     # Pest/PHPUnit on Ions\Testing\TestCase
 ├── var/                       # Writable: cache/, logs/, templates/
 └── .env
 ```
+
+The `database/` tree is the Laravel-standard host-root layout (since 4.4): `make:migration`/`make:seeder`/`make:factory`
+and schema dumps target it, and it takes precedence over the legacy `{app|src}/Database`. Register the factory and seeder
+namespaces in your composer.json — `"Database\\Factories\\": "database/factories/"` and
+`"Database\\Seeders\\": "database/seeders/"` — then `composer dump-autoload`. `make:model` generates into `app/Models`
+(`App\Models`) using `HasIonsFactory`, which resolves `Database\Factories\{Model}Factory` automatically.
 
 Only `Http/`, `Providers/`, `Commands/`, `Factories/` and `Schedule.php` carry
 framework conventions (dispatch, discovery, factory resolution, the
