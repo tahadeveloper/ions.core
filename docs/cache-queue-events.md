@@ -98,10 +98,66 @@ return [
 ```bash
 ions queue:work                       # work the default connection until empty
 ions queue:work database --once       # process a single job, then exit
-ions queue:work database --stop-when-empty --tries=3
+ions queue:work database --stop-when-empty --tries=3 --backoff=10
 ```
 
 The `database` connection needs the `jobs`/`failed_jobs` tables. A migration
 stub ships at `src/Queue/stubs/create_jobs_table.stub` — copy it into the host's
 `{app|src}/Database` directory (dropping `.stub`) and run `ions migrate`. See
 [console.md](console.md) for the console runner.
+
+### Retries & backoff
+
+A job is attempted up to `--tries` times (default 1); each non-final failure
+releases it back onto the queue, delayed by `--backoff` seconds (default 0).
+Properties on the job class always win over the CLI defaults — they are
+captured into the payload at dispatch time and the Illuminate worker prefers
+them over its `WorkerOptions`:
+
+```php
+final class SendWelcome extends \Ions\Queue\Job {
+    public int $tries = 3;     // attempts before landing in failed_jobs
+    public int $backoff = 60;  // seconds between attempts (or array [10, 60, 300])
+
+    public function handle(): void { /* ... */ }
+}
+```
+
+### Failed jobs
+
+When a job exhausts its tries, `queue:work` records it in the failed-jobs
+store: connection, queue, full payload, the exception (with trace) and
+`failed_at`. Storage is configured under `config('queue.failed')` — defaults
+shown:
+
+```php
+// config/queue.php
+'failed' => [
+    'driver'   => 'database-uuids', // 'database-uuids' | 'database' | 'null'
+    'database' => null,             // connection name (null = default connection)
+    'table'    => 'failed_jobs',    // created by the create_jobs_table stub
+],
+```
+
+`database-uuids` (the default) keys rows by the job's payload uuid — the schema
+the bundled stub creates. The plain `database` driver is for **legacy tables
+without a uuid column**: with the bundled stub its insert violates the NOT NULL
+uuid constraint and the failure record is silently lost — use `database-uuids`.
+`null` discards failures. The `sync` driver is unaffected: a failing sync job
+throws to the dispatcher inline (web requests are never recorded; inside a
+`queue:work` process the listener does record it).
+
+Inspect and recover with the failed-job commands:
+
+```bash
+ions queue:failed                # list: ID, connection, queue, class, failed at
+ions queue:retry <id> [<id>…]    # push specific failed jobs back onto the queue
+ions queue:retry --all           # …or everything
+ions queue:forget <id>           # delete one failed job
+ions queue:flush [--hours=48]    # delete all (optionally only 48h+ old)
+```
+
+The typical workflow: `queue:failed` to find the ID, fix the underlying bug,
+`queue:retry <id>` (the payload is re-pushed to its original connection/queue
+with its attempts reset and removed from failed_jobs), then `queue:work` picks
+it up again.

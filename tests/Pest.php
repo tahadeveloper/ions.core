@@ -69,6 +69,39 @@ function runConsoleCommand(\Illuminate\Console\Command $command, array $input = 
 }
 
 /**
+ * Creates the database queue tables (jobs + failed_jobs) on the in-memory
+ * SQLite connection, mirroring src/Queue/stubs/create_jobs_table.stub.
+ * Shared by QueueProviderTest and QueueFailedJobsTest.
+ */
+function createQueueTables(): void
+{
+    $schema = \Ions\Foundation\Kernel::app()->get('db')->connection()->getSchemaBuilder();
+
+    $schema->dropIfExists('jobs');
+    $schema->dropIfExists('failed_jobs');
+
+    $schema->create('jobs', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->bigIncrements('id');
+        $t->string('queue')->index();
+        $t->longText('payload');
+        $t->unsignedTinyInteger('attempts');
+        $t->unsignedInteger('reserved_at')->nullable();
+        $t->unsignedInteger('available_at');
+        $t->unsignedInteger('created_at');
+    });
+
+    $schema->create('failed_jobs', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->id();
+        $t->string('uuid')->unique();
+        $t->text('connection');
+        $t->text('queue');
+        $t->longText('payload');
+        $t->longText('exception');
+        $t->timestamp('failed_at')->useCurrent();
+    });
+}
+
+/**
  * Creates the notifications table on the in-memory SQLite connection,
  * mirroring src/Notifications/stubs/create_notifications_table.stub.
  * $table allows the config('notifications.table') override tests to

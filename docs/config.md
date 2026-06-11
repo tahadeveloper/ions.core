@@ -777,6 +777,13 @@ return [
             'queue'  => 'default',  'retry_after' => 90,
         ],
     ],
+    'failed' => [                  // failed-job storage (all keys optional)
+        // 'database' is ONLY for legacy tables without a uuid column — with
+        // the bundled stub (uuid NOT NULL) it silently loses failure records.
+        'driver'   => 'database-uuids', // 'database-uuids' | 'database' | 'null'
+        'database' => null,             // connection name (null = default)
+        'table'    => 'failed_jobs',
+    ],
 ];
 ```
 

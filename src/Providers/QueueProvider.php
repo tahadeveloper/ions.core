@@ -12,6 +12,10 @@ use Illuminate\Queue\Connectors\DatabaseConnector;
 use Illuminate\Queue\Connectors\NullConnector;
 use Illuminate\Queue\Connectors\RedisConnector;
 use Illuminate\Queue\Connectors\SyncConnector;
+use Illuminate\Queue\Failed\DatabaseFailedJobProvider;
+use Illuminate\Queue\Failed\DatabaseUuidFailedJobProvider;
+use Illuminate\Queue\Failed\FailedJobProviderInterface;
+use Illuminate\Queue\Failed\NullFailedJobProvider;
 use Illuminate\Queue\QueueManager;
 use Ions\Container\ServiceProvider;
 use Ions\Queue\ConsoleExceptionHandler;
@@ -71,6 +75,37 @@ final class QueueProvider extends ServiceProvider
         // The default connection instance (the 'queue.connection' alias mirrors
         // Laravel's binding so a Job can resolve its target queue).
         $this->container->bind('queue.connection', static fn () => $container->get('queue')->connection());
+
+        // Failed-job storage, config('queue.failed'). Lazy: only resolved when
+        // a worker actually records (or a queue:failed/retry command reads) a
+        // failure. Drivers: 'database-uuids' (default — matches the stub's
+        // unique uuid column and Laravel's default), 'database' (no uuid
+        // column), or 'null' to discard failures.
+        $this->container->singleton('queue.failer', static function () use ($container): FailedJobProviderInterface {
+            /** @var array<string, mixed> $config */
+            $config = (array) config('queue.failed', []);
+
+            // An explicitly null driver disables failure recording (Laravel
+            // semantics), as does 'null'.
+            $driver = array_key_exists('driver', $config) ? $config['driver'] : 'database-uuids';
+            if ($driver === null || $driver === 'null') {
+                return new NullFailedJobProvider();
+            }
+
+            /** @var \Illuminate\Database\Capsule\Manager $capsule */
+            $capsule = $container->get('db');
+            $resolver = $capsule->getDatabaseManager();
+
+            // Connection name (defaults to the default connection) and table.
+            $database = is_string($config['database'] ?? null)
+                ? $config['database']
+                : $resolver->getDefaultConnection();
+            $table = is_string($config['table'] ?? null) ? $config['table'] : 'failed_jobs';
+
+            return $driver === 'database'
+                ? new DatabaseFailedJobProvider($resolver, $database, $table)
+                : new DatabaseUuidFailedJobProvider($resolver, $database, $table);
+        });
 
         // The queue Worker reports failures through an ExceptionHandler; bind a
         // console-friendly one unless the host already provided its own.

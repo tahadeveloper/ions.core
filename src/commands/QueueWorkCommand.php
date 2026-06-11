@@ -3,6 +3,8 @@
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Events\Dispatcher;
+use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Queue\Failed\FailedJobProviderInterface;
 use Illuminate\Queue\QueueManager;
 use Illuminate\Queue\Worker;
 use Illuminate\Queue\WorkerOptions;
@@ -27,7 +29,8 @@ class QueueWorkCommand extends Command
         {--stop-when-empty : Stop when the queue is empty}
         {--max-jobs=0 : The number of jobs to process before stopping (0 = unlimited)}
         {--sleep=3 : Seconds to sleep when no job is available}
-        {--tries=1 : Number of attempts before a job is marked as failed}';
+        {--tries=1 : Number of attempts before a job is marked as failed (a $tries property on the job class wins)}
+        {--backoff=0 : Seconds to delay a released job before retrying it (a $backoff property on the job class wins)}';
 
     protected $description = 'Process jobs from the queue.';
 
@@ -41,6 +44,27 @@ class QueueWorkCommand extends Command
         $events = $app->get('events');
         /** @var ExceptionHandler $exceptions */
         $exceptions = $app->get(ExceptionHandler::class);
+
+        // Record final failures in the failed-jobs store (queue.failer). The
+        // Illuminate Worker only dispatches a JobFailed event — persisting it
+        // is the work command's job (Laravel's WorkCommand does the same via
+        // listenForEvents). Guarded by a container marker so repeated handle()
+        // calls against one booted kernel don't register duplicate listeners.
+        if (!$app->bound('queue.failer.listening')) {
+            $app->instance('queue.failer.listening', true);
+
+            $events->listen(JobFailed::class, static function (JobFailed $event) use ($app): void {
+                /** @var FailedJobProviderInterface $failer */
+                $failer = $app->get('queue.failer');
+
+                $failer->log(
+                    $event->connectionName,
+                    $event->job->getQueue(),
+                    $event->job->getRawBody(),
+                    $event->exception,
+                );
+            });
+        }
 
         $worker = new Worker(
             $manager,
@@ -56,7 +80,11 @@ class QueueWorkCommand extends Command
             ? $queueOption
             : $this->defaultQueueFor($connection);
 
+        // Note: a $tries/$backoff property on the job class always wins over
+        // these CLI defaults — the Worker prefers the job payload's
+        // maxTries/backoff (captured at dispatch time) when present.
         $options = new WorkerOptions(
+            backoff: (string) $this->option('backoff'),
             sleep: (int) $this->option('sleep'),
             maxTries: (int) $this->option('tries'),
             stopWhenEmpty: (bool) $this->option('stop-when-empty'),
