@@ -31,6 +31,14 @@ return [
         'origins' => [],
     ],
 
+    // Behind a TLS-terminating reverse proxy / load balancer? List the
+    // proxies whose X-Forwarded-* headers to trust (IPs/CIDRs, or '*' for
+    // the directly connecting peer) — required there for isSecure(), client
+    // IPs, HSTS and session cookie_secure => 'auto'. Serving PHP directly
+    // needs none. See docs/config.md#apptrusted_proxies and docs/deploy.md.
+    //     'trusted_proxies' => ['10.0.0.0/8'],
+    //     'trusted_proxy_headers' => 'xff', // | 'aws-elb' | 'traefik' | 'forwarded'
+
     // Per-route middleware aliases, usable as ->middleware(['throttle']).
     // 'signed' rejects requests whose URL lacks a valid signedRoute()/
     // signedUrl() signature (403) — see docs/security.md.

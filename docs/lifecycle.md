@@ -8,7 +8,7 @@ Calling `Kernel::boot(?string $basePath = null)` initialises the framework:
 2. **Environment** — `vlucas/phpdotenv` loads `.env` via `safeLoad()` (missing file is not fatal).
 3. **Container** — `Ions\Container\Container` is instantiated and set on `Illuminate\Support\Facades\Facade`. The `filesystem` / `files` bindings are registered inline because `captureConfig()` needs them before providers run.
 4. **Config** — every PHP file in `config/` is loaded into an `Ions\Foundation\Config` instance (a thin wrapper around an associative array). Accessible via `config('key.sub')` anywhere after boot.
-5. **Trusted hosts** — if `app.trusted_hosts` is non-empty, `Request::setTrustedHosts()` is called immediately.
+5. **Trusted hosts & proxies** — if `app.trusted_hosts` is non-empty, `Request::setTrustedHosts()` is called immediately; likewise `app.trusted_proxies` is applied via `Request::setTrustedProxies()` (and re-applied per request in `Kernel::handle()` so the `'*'` wildcard resolves against the actual connecting peer — see [config.md](config.md#apptrusted_proxies)).
 6. **Provider bootstrap (two-pass)**:
    - Resolves the provider list: `app.providers` when set (verbatim, no scans); otherwise the `discover:cache` file (`var/cache/providers.php`, one `require`, zero scans — used only when `APP_DEBUG` is off, see [performance.md](performance.md)) or live `Discovery::providers()` — framework defaults + composer `extra.ions.providers` packages + host `{app|src}/Providers/` scan (see [config.md](config.md#appproviders) and [packages.md](packages.md)); pure `Kernel::defaultProviders()` when `app.discovery` is `false`.
    - All `register()` methods run first (every service is bound before any `boot()` runs).

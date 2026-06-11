@@ -161,6 +161,54 @@ An empty array disables host validation (safe for local dev only).
 
 ---
 
+## `app.trusted_proxies`
+
+**Type:** `array` of IPs/CIDRs, or `['*']`  **Default:** `[]`
+
+Reverse proxies whose `X-Forwarded-*` headers the framework should trust,
+passed to Symfony's `Request::setTrustedProxies()` at boot and re-applied per
+request by `Kernel::handle()`. Behind a TLS-terminating proxy or load
+balancer this is what makes `Request::isSecure()`, `getClientIp()`, HSTS
+([`app.security.hsts`](#appsecurityhsts)) and `session.cookie_secure =>
+'auto'` see the real client connection instead of the proxy's plain-HTTP hop.
+
+```php
+// Exact proxy IPs or CIDR ranges:
+'trusted_proxies' => ['10.0.0.0/8'],
+
+// Single-LB case: trust whatever peer connects directly (Laravel's '*'):
+'trusted_proxies' => ['*'],
+```
+
+Only list proxies **you** control — trusting arbitrary peers lets clients
+spoof their IP and scheme. `'*'` is only safe when the app is **never**
+directly reachable (a private-network load balancer fronts every request):
+a client that connects directly then *is* the trusted proxy and can spoof
+its IP and scheme. An empty array (the default) trusts nothing:
+`X-Forwarded-*` headers from clients are ignored.
+
+---
+
+## `app.trusted_proxy_headers`
+
+**Type:** `string` or `int` bitmask  **Default:** `'xff'`
+
+Which forwarded headers to trust from the proxies above:
+
+| Value | Trusted headers |
+|---|---|
+| `'xff'` (default) | `X-Forwarded-For` / `-Host` / `-Port` / `-Proto` |
+| `'aws-elb'` | the set sent by AWS ELB/ALB (no `X-Forwarded-Host`) |
+| `'traefik'` | all `X-Forwarded-*` headers sent by Traefik |
+| `'forwarded'` | the RFC 7239 `Forwarded` header |
+
+Power users can pass any `Request::HEADER_*` int bitmask directly. Strings
+are matched case-insensitively; unknown strings throw at boot
+(`InvalidArgumentException`) rather than silently falling back to the wider
+`'xff'` set.
+
+---
+
 ## `app.jwt.ttl`
 
 **Type:** `int` (seconds)  **Default:** `3600` (1 hour)
@@ -608,11 +656,13 @@ fails secure (`true`) when no request is available at session construction
 (CLI, pre-request worker boot). Plain-HTTP dev hosts must set
 `'cookie_secure' => false` (or `'auto'`) explicitly.
 
-> **Caveat:** behind a TLS-terminating reverse proxy the framework has no
-> trusted-proxy support yet, so `Request::isSecure()` is `false` and `'auto'`
-> resolves to an **insecure** cookie — do not use `'auto'` there; keep the
-> default `true`. HSTS via [`app.security.hsts`](#appsecurityhsts) likewise
-> depends on the request scheme and is never emitted behind such a proxy.
+> **Behind a TLS-terminating reverse proxy** configure
+> [`app.trusted_proxies`](#apptrusted_proxies) (4.3+) — with it,
+> `X-Forwarded-Proto` from your proxy makes `Request::isSecure()` `true`, so
+> `'auto'` resolves to a **secure** cookie and HSTS via
+> [`app.security.hsts`](#appsecurityhsts) is emitted. Without it the request
+> looks like plain HTTP there: do **not** use `'auto'` — keep the default
+> `true`.
 
 ### The `session()` helper
 

@@ -192,6 +192,7 @@ php vendor/ionzile/core/bin/ions doctor --json   # structured JSON for CI
 | `php_extensions` | Required extensions (`openssl`, `sodium`, `zip`, plus `pdo` when a DB is configured) are loaded. | **FAIL** |
 | `csrf` | `config('app.csrf.enabled')` is not disabled. | WARN |
 | `trusted_hosts` | `config('app.trusted_hosts')` is set. | WARN |
+| `trusted_proxies` | Whether `config('app.trusted_proxies')` is set — required behind a TLS-terminating proxy/LB for `isSecure()`, client IPs, HSTS and `cookie_secure => 'auto'`. | INFO — serving directly needs none |
 | `session_cookies` | No *explicit* insecure overrides (`cookie_secure => false`, `cookie_httponly => false`) — secure defaults apply since 4.1. | WARN |
 | `cors` | `config('app.cors.origins')` is not the wildcard `['*']`. | WARN |
 | `debug` | `APP_DEBUG` is off. | WARN — doctor cannot know whether this host is production |

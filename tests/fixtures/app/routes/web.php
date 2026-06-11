@@ -28,6 +28,16 @@ Route::post('/csrf-protected', fn () => new \Symfony\Component\HttpFoundation\Re
 Route::get('/signed/welcome', fn () => new Response('signed ok'), [], 'signed.welcome')->middleware(['signed']);
 Route::get('/signed/download/{id}', fn () => new Response('download ok'), [], 'signed.download')->middleware(['signed']);
 
+// --- Trusted-proxy fixture (Phase 10.1) ---
+// Echoes what the framework believes about the connection so the trusted-proxy
+// tests can assert isSecure()/getClientIp() through the full pipeline.
+Route::get('/proxy-echo', function (Request $request) {
+    return new Response((string) json_encode([
+        'secure' => $request->isSecure(),
+        'ip' => $request->getClientIp(),
+    ]));
+});
+
 // --- Worker-mode isolation fixtures (Phase 8.2) ---
 
 // Mutates the SHARED kernel response and returns null, so the pipeline falls

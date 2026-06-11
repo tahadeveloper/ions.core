@@ -106,6 +106,7 @@ test('every advertised check id is present in the results', function () {
         'php_extensions',
         'csrf',
         'trusted_hosts',
+        'trusted_proxies',
         'session_cookies',
         'cors',
         'debug',
@@ -301,6 +302,32 @@ test('configured trusted_hosts passes', function () {
     config(['app.trusted_hosts' => ['localhost']]);
 
     expect(doctorCheck(Doctor::run(), 'trusted_hosts')['status'])->toBe(Doctor::OK);
+});
+
+test('unset trusted_proxies is informational (fine when serving directly)', function () {
+    bootFixtureKernel();
+
+    $result = doctorCheck(Doctor::run(), 'trusted_proxies');
+
+    expect($result['status'])->toBe(Doctor::INFO)
+        ->and($result['message'])->toContain("app.trusted_proxies");
+});
+
+test('configured trusted_proxies passes', function () {
+    bootFixtureKernel();
+    config(['app.trusted_proxies' => ['10.0.0.0/8']]);
+
+    expect(doctorCheck(Doctor::run(), 'trusted_proxies')['status'])->toBe(Doctor::OK);
+});
+
+test("trusted_proxies '*' passes but the OK message carries the reachability caveat", function () {
+    bootFixtureKernel();
+    config(['app.trusted_proxies' => ['*']]);
+
+    $result = doctorCheck(Doctor::run(), 'trusted_proxies');
+
+    expect($result['status'])->toBe(Doctor::OK)
+        ->and($result['message'])->toContain("'*' — ensure the app is not directly reachable");
 });
 
 test('APP_DEBUG enabled is a warning', function () {
