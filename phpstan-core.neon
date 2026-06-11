@@ -10,6 +10,8 @@ parameters:
         - src/Auth/Providers
         - src/Auth/Http
         - src/Auth/Gate.php
+        - src/Auth/TwoFactor.php
+        - src/Auth/TwoFactorReplayStore.php
         - src/Filesystem
         - src/Log
         - src/Providers

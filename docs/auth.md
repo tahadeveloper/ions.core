@@ -1,5 +1,9 @@
 # Authentication
 
+> Adding a second factor? See [two-factor.md](two-factor.md) for the RFC 6238
+> TOTP verifier (`Ions\Auth\TwoFactor`), recovery codes, and the
+> challenge-after-password login pattern.
+
 ## UserProvider and Authenticatable
 
 The authentication system is built around two contracts:
