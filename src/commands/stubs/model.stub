@@ -1,18 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace {{ namespace }};
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Date;
-{{ import }}
+use Ions\Database\HasIonsFactory;
+
 /**
  * Class {{ class }}
- *
- * {{ properties }}
  */
- class {{ class }} extends Model
+class {{ class }} extends Model
 {
-    {{ use }}
+    use HasIonsFactory;
+
     /**
      * Indicates if the model should be timestamped.
      *
@@ -30,16 +31,14 @@ use Illuminate\Support\Facades\Date;
     /**
      * The attributes that are mass assignable.
      *
-     * @var array
+     * @var array<int, string>
      */
     protected $fillable = [{{ fillable }}];
 
     /**
      * The attributes excluded from the model's JSON form.
      *
-     * @var array
+     * @var array<int, string>
      */
-    protected $hidden = [
-        {{ hidden }}
-    ];
+    protected $hidden = [{{ hidden }}];
 }

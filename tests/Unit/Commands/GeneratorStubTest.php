@@ -59,14 +59,14 @@ test('MigrateCommand emits $table->id() not increments()', function () {
 });
 
 // ---------------------------------------------------------------------------
-// ModelCommand.php — must emit SoftDeletes + $casts, not SoftDeletingTrait + $dates
+// model.stub — modern stub: HasIonsFactory live, no removed Eloquent APIs
 // ---------------------------------------------------------------------------
 
-test('ModelCommand emits SoftDeletes + $casts not SoftDeletingTrait + $dates', function () {
-    $src = file_get_contents(__DIR__ . '/../../../src/commands/ModelCommand.php');
+test('model.stub uses HasIonsFactory and no removed Eloquent APIs', function () {
+    $stub = file_get_contents(__DIR__ . '/../../../src/commands/stubs/model.stub');
 
-    expect($src)->not->toContain('SoftDeletingTrait');
-    expect($src)->not->toContain('protected $dates');
-    expect($src)->toContain('SoftDeletes');
-    expect($src)->toContain('$casts');
+    expect($stub)->toContain('use Ions\\Database\\HasIonsFactory;')
+        ->toContain('use HasIonsFactory;')
+        ->not->toContain('SoftDeletingTrait')
+        ->not->toContain('protected $dates');
 });

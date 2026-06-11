@@ -51,7 +51,7 @@ These ship with the framework and are always registered:
 | Signature | Class | Purpose |
 | --------- | ----- | ------- |
 | `make:key` | `KeyCommand` | Create the app key (and optional JWT key). |
-| `make:model` | `ModelCommand` | Generate an Eloquent model. |
+| `make:model` | `ModelCommand` | Generate an Eloquent model into `app/Models` (`App\Models`); the model uses `HasIonsFactory`. `--factory` also generates the matching `Database\Factories\{Name}Factory` (delegates to `make:factory`). See [factories.md](factories.md). |
 | `make:provider` | `ProviderCommand` | Generate a controller-style provider. |
 | `make:service-provider` | `MakeServiceProviderCommand` | Generate a container service provider. |
 | `make:middleware` | `MakeMiddlewareCommand` | Generate an HTTP middleware. |

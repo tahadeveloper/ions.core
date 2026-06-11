@@ -126,6 +126,11 @@ class Widget extends Model
 Widget::factory()->count(3)->create();
 ```
 
+`make:model Widget` generates this model (in `app/Models`, namespace
+`App\Models`) with the `HasIonsFactory` trait already applied. Add `--factory`
+to generate the matching `Database\Factories\WidgetFactory` in the same step:
+`php bin/ions make:model Widget --factory`.
+
 `Model::factory()` resolves the factory class by trying these in order — the
 first existing class wins:
 

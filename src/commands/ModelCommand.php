@@ -1,104 +1,76 @@
 <?php
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Ions\Bundles\Path;
-use Ions\Support\File;
-use JetBrains\PhpStorm\Pure;
+use Ions\Console\GeneratorCommand;
 
-class ModelCommand extends Command
+/**
+ * make:model — generate an Eloquent model in app/Models (App\Models), on the
+ * hardened GeneratorCommand base (name validation + --force).
+ *
+ * The generated model uses the Ions\Database\HasIonsFactory trait live: the
+ * trait is inert until factory() is called (no boot/constructor side effects),
+ * so a model with no matching factory carries it harmlessly. With --factory the
+ * matching Database\Factories\{Name}Factory is generated too (delegated to
+ * make:factory), giving zero-config {Name}::factory() resolution.
+ *
+ * The target dir resolves through Path::src('Models/...'), preserving the
+ * src/ -> app/ fallback: on the modern layout the model lands in app/Models.
+ */
+class ModelCommand extends GeneratorCommand
 {
-    protected $signature = 'make:model {name}';
-    protected $description = 'Create model for table in database.';
+    protected $signature = 'make:model {name} {--factory : Also generate a matching {Name}Factory} {--force : Overwrite the file if it already exists}';
 
-    public function handle(): void
+    protected $description = 'Create a new Eloquent model in app/Models (App\\Models).';
+
+    protected function type(): string
     {
-        $name = $this->argument('name'); // ExampleTextModel
-        $name_cap = Str::remove('Model', $name); // ExampleText
-        $name_snake = Str::snake($name_cap); // Example_Text
-        $name_lower = Str::lower($name_snake); // example_text
-
-        if (!File::exists(Path::src('Models'))) {
-            File::makeDirectory(Path::src('Models'), 0755, true, true);
-        }
-
-        $new_file = Path::src('Models/' . $name . '.php');
-        Storage::copy(Path::bin('commands/stubs/model.stub'), $new_file);
-
-        $timestamps = 'true';
-        $fillable = '';
-        $hidden = '';
-        $import = '';
-        $use = '';
-        $properties = '';
-
-        try {
-            $fields = Schema::connection('default')->getColumnListing($name_lower);
-        } catch (Throwable) {
-            //ignore
-            $fields = [];
-        }
-
-        $hide = ['password', 'secret'];
-        $avoid = ['id', 'ID', 'verified', 'active'];
-
-        if (!empty($fields)) {
-            foreach ($fields as $property) {
-                if ($isDate = Str::endsWith($property, '_at')) {
-                    $avoid[] = $property;
-                }
-                if ($is_id = Str::endsWith($property, '_id')) {
-                    $avoid[] = $property;
-                }
-                [$type, $subType] = $this->guessType($property);
-                $pt = in_array($property, $hide, true)
-                    ? '@property-write'
-                    : (in_array($property, $avoid, true) || $isDate ? '@property-read ' : '@property      ');
-                $properties .= "$pt $type \${$property}$subType\n * ";
-            }
-
-            $timestamps = in_array('created_at', $fields, true) ? 'true' : 'false';
-            $fields = array_diff($fields, $avoid);
-            $hide = array_intersect($fields, $hide);
-
-            $fillable = "'" . implode("',\n        '", $fields) . "'";
-
-            if (in_array('deleted_at', $fields, true)) {
-                $import = "use Illuminate\\Database\\Eloquent\\SoftDeletes;\n\n";
-                $use = "use SoftDeletes;\n\n    protected \$casts = ['deleted_at' => 'datetime'];\n        ";
-            }
-        }
-
-        if (!empty($hide)) {
-            $hidden = "'" . implode("',\n        '", $hide) . "'";
-        }
-
-        $replace = Str::replace(
-            ['{{ namespace }}', '{{ import }}', '{{ class }}', '{{ properties }}', '{{ use }}', '{{ timestamps }}', '{{ table }}', '{{ fillable }}', '{{ hidden }}'],
-            ['App\\Models', $import, $name, $properties, $use, $timestamps, $name_lower, $fillable, $hidden],
-            Storage::get($new_file)
-        );
-
-        Storage::put($new_file, $replace);
-
-        $this->info('Model created successfully, happy to see you.');
+        return 'Model';
     }
 
-    #[Pure] protected function guessType($name): array
+    protected function stubPath(): string
     {
-        $subtype = '';
-        $type = 'string';
-        if (Str::endsWith($name, '_at')) {
-            //date field
-            $subtype = ' {@type date}';
-        } elseif (Str::endsWith($name, ['id', 'ID'])) {
-            //int
-            $type = 'int   ';
-        } // else //assume string
-
-        return [$type, $subtype];
+        return Path::bin('commands/stubs/model.stub');
     }
 
+    protected function targetPath(string $name): string
+    {
+        return Path::src('Models/' . $name . '.php');
+    }
+
+    /**
+     * Default placeholder values for a fresh model: timestamps on, a snake_case
+     * plural-ish table guessed from the class name, empty fillable/hidden lists
+     * for the developer to fill in.
+     *
+     * @return array<string, string>
+     */
+    protected function replacements(string $name): array
+    {
+        return [
+            '{{ namespace }}' => 'App\\Models',
+            '{{ class }}' => $name,
+            '{{ timestamps }}' => 'true',
+            '{{ table }}' => Str::snake(Str::pluralStudly($name)),
+            '{{ fillable }}' => '',
+            '{{ hidden }}' => '',
+        ];
+    }
+
+    public function handle(): int
+    {
+        $result = $this->generate();
+
+        if ($result === self::SUCCESS && $this->option('factory')) {
+            $name = $this->argument('name');
+            $name = is_string($name) ? $name : '';
+
+            $this->call('make:factory', [
+                'name' => $name . 'Factory',
+                '--model' => 'App\\Models\\' . $name,
+            ]);
+        }
+
+        return $result;
+    }
 }
