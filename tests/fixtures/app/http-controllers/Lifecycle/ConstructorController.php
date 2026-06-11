@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace IonsFixture\Http\Controllers\Lifecycle;
 
-use IonsFixture\Services\GreeterContract;
 use Ions\Foundation\BaseController;
 use Ions\Support\Request;
+use IonsFixture\Services\GreeterContract;
 use Symfony\Component\HttpFoundation\Response;
 
 /**

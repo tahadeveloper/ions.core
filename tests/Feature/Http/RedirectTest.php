@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Ions\Bundles\Route;
 use Ions\Http\ErrorBag;
-use Ions\Http\RedirectResponse;
 use Ions\Http\Redirector;
+use Ions\Http\RedirectResponse;
 use Ions\Http\ResponseNormalizer;
 use Ions\Support\Request;
 use Symfony\Component\HttpFoundation\Response;
