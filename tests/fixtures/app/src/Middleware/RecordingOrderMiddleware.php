@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace IonsFixture\Middleware;
 
-use IonsFixture\Lifecycle\Recorder;
 use Ions\Http\Middleware\MiddlewareInterface;
 use Ions\Support\Request;
+use IonsFixture\Lifecycle\Recorder;
 use Symfony\Component\HttpFoundation\Response;
 
 /**

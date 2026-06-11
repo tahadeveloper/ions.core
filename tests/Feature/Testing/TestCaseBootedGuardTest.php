@@ -16,7 +16,7 @@ use Ions\Testing\TestResponse;
 
 function bootedGuardCase(): TestCase
 {
-    return new class('bootedGuard') extends TestCase {
+    return new class ('bootedGuard') extends TestCase {
         protected string $basePath = __DIR__ . '/../../fixtures/app';
 
         /** Simulates the host override that FORGOT parent::setUp(). */

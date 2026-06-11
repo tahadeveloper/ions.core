@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use IonsFixture\Http\Controllers\Binding\WidgetsController;
-use IonsFixture\Models\SluggedWidget;
-use IonsFixture\Models\Widget;
 use Ions\Bundles\Route;
 use Ions\Foundation\Kernel;
 use Ions\Support\Request;
+use IonsFixture\Http\Controllers\Binding\WidgetsController;
+use IonsFixture\Models\SluggedWidget;
+use IonsFixture\Models\Widget;
 use Symfony\Component\HttpFoundation\Response;
 
 /*
