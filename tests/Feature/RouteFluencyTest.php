@@ -241,3 +241,35 @@ test('nested groups stack name prefixes and merge middleware', function () {
     expect($response->headers->get('X-Fluency-Mw'))->toBe('ran')
         ->and($response->headers->get('X-Second-Mw'))->toBe('ran');
 });
+
+test('a throwing group closure never leaks its prefix/name/middleware onto later routes', function () {
+    try {
+        Route::prefix('/admin')->name('admin.')->middleware([FluencyStampMiddleware::class])->group(function () {
+            throw new RuntimeException('boom inside group');
+        });
+    } catch (RuntimeException) {
+        // expected — the group closure failed
+    }
+
+    Route::get('/after-throw', fn () => new Response('clean'))->name('after-throw');
+
+    // The route must be reachable at its own path, under its own name, with
+    // no group middleware attached.
+    expect(route('after-throw'))->toBe('http://localhost/after-throw');
+    $response = Kernel::handle(Request::create('/after-throw'));
+    expect($response->getContent())->toBe('clean')
+        ->and($response->headers->has('X-Fluency-Mw'))->toBeFalse();
+});
+
+test('a throwing eager prefix() closure never leaks the prefix', function () {
+    try {
+        Route::prefix('/legacy', null, function () {
+            throw new RuntimeException('boom inside eager prefix');
+        });
+    } catch (RuntimeException) {
+        // expected
+    }
+
+    Route::get('/after-eager', fn () => new Response('ok'));
+    expect(Kernel::handle(Request::create('/after-eager'))->getContent())->toBe('ok');
+});

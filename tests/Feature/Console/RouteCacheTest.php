@@ -270,6 +270,10 @@ test('fluent name()/where()/redirect()/view() routes compile and match through r
     $view = Kernel::handle(Request::create('/fluent/view'));
     expect($view->getStatusCode())->toBe(200)
         ->and($view->getContent())->toBe('hello world');
+    // fallback() is deliberately absent from this fixture: other tests pin
+    // unmatched-path 404s here. Compiled fallbacks are plain string routes
+    // (same machinery as redirect()/view() above); live semantics are pinned
+    // in RouteFluencyTest.
 });
 
 test('cached throttled route returns 429 after exceeding the rate limit (RateLimitMiddleware runs through cache)', function () {

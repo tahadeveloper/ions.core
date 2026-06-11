@@ -320,9 +320,15 @@ class Route extends Singleton
         self::$controls[] = $controls;
 
         if ($closure instanceof Closure) {
-            $closure();
-            array_pop(self::$prefix);
-            array_pop(self::$controls);
+            // finally: a throwing group closure must never leak its prefix
+            // onto subsequently registered routes (worker re-registration,
+            // try/catch'd conditional registration in App\Booting).
+            try {
+                $closure();
+            } finally {
+                array_pop(self::$prefix);
+                array_pop(self::$controls);
+            }
         } else {
             // Deferred form: ...->group() pops. Until then this instance is a
             // group builder — name()/middleware() collect group attributes.
@@ -341,16 +347,19 @@ class Route extends Singleton
             self::$groupMiddleware[] = $this->pendingMiddleware;
         }
 
-        $closure();
-
-        if ($pushedName) {
-            array_pop(self::$namePrefixes);
+        // finally: a throwing group closure must never leak group state.
+        try {
+            $closure();
+        } finally {
+            if ($pushedName) {
+                array_pop(self::$namePrefixes);
+            }
+            if ($pushedMiddleware) {
+                array_pop(self::$groupMiddleware);
+            }
+            array_pop(self::$prefix);
+            array_pop(self::$controls);
         }
-        if ($pushedMiddleware) {
-            array_pop(self::$groupMiddleware);
-        }
-        array_pop(self::$prefix);
-        array_pop(self::$controls);
     }
 
     private function newRoute($name, $path, $controller, $defaults, $method, $wheres): void
