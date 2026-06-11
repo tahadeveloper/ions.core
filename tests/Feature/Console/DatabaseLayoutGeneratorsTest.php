@@ -34,6 +34,26 @@ function removeGeneratorLayoutHost(string $base): void
     rmdir($base);
 }
 
+/**
+ * Run make:model with make:factory also registered on the same console
+ * Application, so the --factory flag's $this->call('make:factory', ...)
+ * delegation resolves. Mirrors runConsoleCommand() but adds both commands.
+ *
+ * @param array<string, mixed> $input
+ */
+function runMakeModelWithFactory(array $input): \Symfony\Component\Console\Tester\CommandTester
+{
+    $proxy = new \Ions\Console\ConsoleContainerProxy(\Ions\Foundation\Kernel::app());
+    $app = new \Illuminate\Console\Application($proxy, new \Illuminate\Events\Dispatcher(), '1.0');
+    $app->add(new ModelCommand());
+    $app->add(new MakeFactoryCommand());
+
+    $tester = new \Symfony\Component\Console\Tester\CommandTester($app->find('make:model'));
+    $tester->execute($input);
+
+    return $tester;
+}
+
 beforeEach(fn () => bootFixtureKernel());
 
 afterEach(function () {
@@ -144,6 +164,176 @@ test('make:factory keeps the legacy {src}/Factories target and App\\Factories na
             ->and((string) file_get_contents($generated))
             ->toContain('namespace App\\Factories;');
     } finally {
+        removeGeneratorLayoutHost($base);
+    }
+});
+
+test('make:model generates into app/Models with the App\\Models namespace and HasIonsFactory', function () {
+    $base = makeGeneratorLayoutHost(['app']);
+
+    try {
+        Path::setBasePath($base);
+
+        $tester = runConsoleCommand(new ModelCommand(), ['name' => 'Widget']);
+
+        $generated = $base . '/app/Models/Widget.php';
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and(is_file($generated))->toBeTrue();
+
+        $contents = (string) file_get_contents($generated);
+
+        expect($contents)
+            ->toContain('namespace App\\Models;')
+            ->toContain('class Widget extends Model')
+            ->toContain('use Ions\\Database\\HasIonsFactory;')
+            ->toContain('use HasIonsFactory;')
+            ->toContain("protected \$table = 'widgets';")
+            ->and($contents)->not->toContain('{{');
+
+        $lint = shell_exec(escapeshellarg(PHP_BINARY) . ' -l ' . escapeshellarg($generated) . ' 2>&1');
+        expect((string) $lint)->toContain('No syntax errors');
+    } finally {
+        removeGeneratorLayoutHost($base);
+    }
+});
+
+test('make:model refuses to overwrite without --force and overwrites with it', function () {
+    $base = makeGeneratorLayoutHost(['app']);
+
+    try {
+        Path::setBasePath($base);
+
+        runConsoleCommand(new ModelCommand(), ['name' => 'Widget']);
+
+        $generated = $base . '/app/Models/Widget.php';
+        file_put_contents($generated, '<?php // sentinel');
+
+        $refused = runConsoleCommand(new ModelCommand(), ['name' => 'Widget']);
+
+        expect($refused->getStatusCode())->toBe(1)
+            ->and($refused->getDisplay())->toContain('already exists')
+            ->and((string) file_get_contents($generated))->toBe('<?php // sentinel');
+
+        $forced = runConsoleCommand(new ModelCommand(), ['name' => 'Widget', '--force' => true]);
+
+        expect($forced->getStatusCode())->toBe(0)
+            ->and((string) file_get_contents($generated))->toContain('class Widget extends Model');
+    } finally {
+        removeGeneratorLayoutHost($base);
+    }
+});
+
+test('make:model rejects a path-traversal name and writes nothing', function () {
+    $base = makeGeneratorLayoutHost(['app']);
+
+    try {
+        Path::setBasePath($base);
+
+        $tester = runConsoleCommand(new ModelCommand(), ['name' => '../../Escaped']);
+
+        expect($tester->getStatusCode())->toBe(1)
+            ->and($tester->getDisplay())->toContain('Invalid class name')
+            ->and(is_file($base . '/app/Models/../../Escaped.php'))->toBeFalse()
+            ->and(is_file(dirname($base) . '/Escaped.php'))->toBeFalse();
+    } finally {
+        removeGeneratorLayoutHost($base);
+    }
+});
+
+test('make:model --factory also generates Database\\Factories\\{Name}Factory on the new layout', function () {
+    $base = makeGeneratorLayoutHost(['app', 'database']);
+
+    try {
+        Path::setBasePath($base);
+
+        $tester = runMakeModelWithFactory(['name' => 'Gizmo', '--factory' => true]);
+
+        $model = $base . '/app/Models/Gizmo.php';
+        $factory = $base . '/database/factories/GizmoFactory.php';
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and(is_file($model))->toBeTrue()
+            ->and(is_file($factory))->toBeTrue();
+
+        expect((string) file_get_contents($factory))
+            ->toContain('namespace Database\\Factories;')
+            ->toContain('class GizmoFactory extends Factory')
+            ->toContain('protected string $model = \\App\\Models\\Gizmo::class;');
+    } finally {
+        removeGeneratorLayoutHost($base);
+    }
+});
+
+test('make:model with no --factory generates only the model', function () {
+    $base = makeGeneratorLayoutHost(['app', 'database']);
+
+    try {
+        Path::setBasePath($base);
+
+        $tester = runMakeModelWithFactory(['name' => 'Gizmo']);
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and(is_file($base . '/app/Models/Gizmo.php'))->toBeTrue()
+            ->and(is_file($base . '/database/factories/GizmoFactory.php'))->toBeFalse();
+    } finally {
+        removeGeneratorLayoutHost($base);
+    }
+});
+
+test('make:model --factory wires factory()->make() end to end on the new layout', function () {
+    $base = makeGeneratorLayoutHost(['app', 'database']);
+
+    // Register runtime PSR-4 loaders for the generated model + factory so the
+    // booted kernel can autoload App\Models\* and Database\Factories\* from the
+    // temp host. Unregistered in finally.
+    $modelLoader = static function (string $class) use ($base): void {
+        if (str_starts_with($class, 'App\\Models\\')) {
+            $file = $base . '/app/Models/' . substr($class, strlen('App\\Models\\')) . '.php';
+            if (is_file($file)) {
+                require $file;
+            }
+        }
+    };
+    $factoryLoader = static function (string $class) use ($base): void {
+        if (str_starts_with($class, 'Database\\Factories\\Wired')) {
+            $file = $base . '/database/factories/' . substr($class, strlen('Database\\Factories\\')) . '.php';
+            if (is_file($file)) {
+                require $file;
+            }
+        }
+    };
+
+    spl_autoload_register($modelLoader);
+    spl_autoload_register($factoryLoader);
+
+    try {
+        Path::setBasePath($base);
+
+        $tester = runMakeModelWithFactory(['name' => 'WiredWidget', '--factory' => true]);
+        expect($tester->getStatusCode())->toBe(0);
+
+        // Give the generated factory a usable definition so make() yields data.
+        $factoryFile = $base . '/database/factories/WiredWidgetFactory.php';
+        $factorySrc = (string) file_get_contents($factoryFile);
+        $factorySrc = str_replace(
+            "return [\n            //\n        ];",
+            "return [\n            'name' => 'Wired',\n        ];",
+            $factorySrc
+        );
+        file_put_contents($factoryFile, $factorySrc);
+
+        /** @var class-string<\Illuminate\Database\Eloquent\Model> $modelClass */
+        $modelClass = 'App\\Models\\WiredWidget';
+
+        $instance = $modelClass::factory()->make();
+
+        expect($instance)->toBeInstanceOf($modelClass)
+            ->and($instance->exists)->toBeFalse()
+            ->and($instance->name)->toBe('Wired');
+    } finally {
+        spl_autoload_unregister($modelLoader);
+        spl_autoload_unregister($factoryLoader);
         removeGeneratorLayoutHost($base);
     }
 });
