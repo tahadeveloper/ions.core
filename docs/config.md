@@ -581,7 +581,9 @@ return [
 **Type:** `string`  **Default:** `'local'`
 
 Name of the disk returned by `Storage::disk()` / `FilesystemManager::disk()` when
-no name is given.
+no name is given. When unset, the manager falls back to the legacy IonDisk key
+`filesystem.disks.default` (traditionally fed from the `FILESYSTEM_DISK` env)
+before defaulting to `'local'`.
 
 ### `filesystem.disks.{name}`
 
@@ -603,11 +605,14 @@ One entry per disk. Each entry MUST contain a `driver` key
   plus a top-level `root`.
 
 Any extra keys (e.g. `public_url`) are forwarded to the Flysystem `Filesystem`
-config, so `Storage::url()` works for disks that declare a `public_url`.
+config, so `Storage::url()` works for disks that declare a `public_url` (or its
+Laravel-style alias `url`); disks with neither fall back to
+`config('app.app_url')` — see [filesystem.md](filesystem.md).
 
 > **Note:** `Ions\Bundles\IonDisk` reads `filesystem.disks.default` (a string under
-> `disks`) to pick its adapter and now delegates its operations to the
-> `FilesystemManager` while keeping its existing static API.
+> `disks`) to pick its disk type and resolves its disks through the shared
+> `FilesystemManager` — so `Storage::fake()` intercepts it — while keeping its
+> existing static API. Removal candidate for 5.0; prefer `Ions\Filesystem\Storage`.
 
 ---
 
@@ -794,6 +799,42 @@ cache(['k' => 'v'], 60);       // put with a TTL (seconds); omit TTL → forever
 cache()->forget('key');        // forget
 cache()->store('array');       // a named store as a repository
 ```
+
+## Logging config (`config/logging.php`)
+
+`LogProvider` binds the channel-based `Ions\Log\LogManager` as `log`, consumed
+through the `Ions\Support\Log` facade. Channels are built lazily and memoized.
+Full guide: [logging.md](logging.md).
+
+```php
+return [
+    'default' => env('LOG_CHANNEL', 'app'),   // channel used by Log::info() etc.
+
+    'channels' => [
+        'app'    => ['driver' => 'single', 'path' => 'app.log', 'level' => 'debug'],
+        'daily'  => ['driver' => 'daily',  'path' => 'app.log', 'days' => 14],
+        'stderr' => ['driver' => 'stderr', 'level' => 'warning'],
+        'stack'  => ['driver' => 'stack',  'channels' => ['app', 'stderr']],
+    ],
+];
+```
+
+### `logging.default`
+
+Channel used when none is named (`Log::info()`, `Log::channel()` with no
+argument). Defaults to `app`.
+
+### `logging.channels`
+
+Map of channel name → definition. Drivers: `single` (one file), `daily`
+(`RotatingFileHandler`, pruned after `days`, default 7), `stderr`
+(`php://stderr`), `stack` (fan-out to the named member `channels`). Relative
+`path` values resolve under `var/logs/`; absolute paths are kept. `level`
+defaults to `debug`. Unknown channels/drivers/levels throw
+`InvalidArgumentException`. When the whole file is absent, a built-in `app`
+channel (single → `var/logs/app.log`) keeps zero-config logging working.
+Every channel masks secret context values and stamps `extra.request_id`
+(see [logging.md](logging.md)).
 
 ## Events config (`config/events.php`)
 

@@ -11,6 +11,7 @@ parameters:
         - src/Auth/Http
         - src/Auth/Gate.php
         - src/Filesystem
+        - src/Log
         - src/Providers
         - src/Schedule
         - src/Session

@@ -26,7 +26,7 @@ skeleton/
 │   └── lang/              # Translation files (public/lang/{locale}/web.php)
 ├── bin/ions               # Console entry: Ions\Console\Kernel::boot()->run()
 ├── config/                # app / auth / cache / database / filesystem /
-│                          # queue / session / events / console
+│                          # logging / queue / session / events / console
 ├── routes/
 │   ├── web.php            # '/' -> App\Http\Controllers\HomeController::index
 │   └── api.php            # '/api/ping' sample + commented JWT auth surface

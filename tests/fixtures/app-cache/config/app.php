@@ -7,6 +7,14 @@ return [
     'templates' => [],
     'localization' => ['locale' => 'en'],
 
+    // Route::view() through route:cache (10.7): committed templates live in
+    // views/; the compiled-Twig cache goes to the system temp dir so the
+    // fixture tree stays clean across runs.
+    'twig' => [
+        'source' => dirname(__DIR__) . '/views',
+        'cache'  => sys_get_temp_dir() . '/ions-app-cache-twig',
+    ],
+
     // Public API paths — bypass AuthMiddleware (they authenticate rather than
     // require a prior token, or are test fixtures for security probes).
     'auth' => [

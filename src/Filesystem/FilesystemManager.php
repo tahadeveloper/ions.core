@@ -41,6 +41,14 @@ class FilesystemManager
     private array $customCreators = [];
 
     /**
+     * Disk names whose instances were injected via {@see set()} (e.g. by
+     * Storage::fake()) rather than resolved from configuration.
+     *
+     * @var array<string, true>
+     */
+    private array $overridden = [];
+
+    /**
      * Resolve a named disk (defaults to config('filesystem.default')).
      */
     public function disk(?string $name = null): Filesystem
@@ -62,11 +70,23 @@ class FilesystemManager
     }
 
     /**
-     * The default disk name from config('filesystem.default', 'local').
+     * The default disk name from config('filesystem.default'), falling back
+     * to the legacy IonDisk key config('filesystem.disks.default') — a string
+     * hosts traditionally feed from the FILESYSTEM_DISK env — then 'local'.
      */
     public function getDefaultDriver(): string
     {
-        return (string) config('filesystem.default', 'local');
+        $default = config('filesystem.default');
+        if (is_string($default) && $default !== '') {
+            return $default;
+        }
+
+        $legacy = config('filesystem.disks.default');
+        if (is_string($legacy) && $legacy !== '') {
+            return $legacy;
+        }
+
+        return 'local';
     }
 
     /**
@@ -91,6 +111,18 @@ class FilesystemManager
     public function set(string $name, Filesystem $filesystem): void
     {
         $this->disks[$name] = $filesystem;
+        $this->overridden[$name] = true;
+    }
+
+    /**
+     * Whether the named disk was injected via {@see set()} (e.g. swapped by
+     * Storage::fake()) instead of being resolved from configuration. Legacy
+     * surfaces (IonDisk/IonUpload) consult this to route their otherwise
+     * native local-file operations through the injected disk.
+     */
+    public function isOverridden(string $name): bool
+    {
+        return isset($this->overridden[$name]);
     }
 
     /**
@@ -100,10 +132,11 @@ class FilesystemManager
     {
         if ($name === null) {
             $this->disks = [];
+            $this->overridden = [];
             return;
         }
 
-        unset($this->disks[$name]);
+        unset($this->disks[$name], $this->overridden[$name]);
     }
 
     /**
@@ -133,6 +166,12 @@ class FilesystemManager
     private function makeFilesystem(array $config): Filesystem
     {
         $driver = (string) ($config['driver'] ?? '');
+
+        // Laravel-style alias: a disk's 'url' key feeds Flysystem's public
+        // URL generator unless an explicit 'public_url' is already set.
+        if (!isset($config['public_url']) && isset($config['url'])) {
+            $config['public_url'] = $config['url'];
+        }
 
         if (isset($this->customCreators[$driver])) {
             $adapter = ($this->customCreators[$driver])($config);

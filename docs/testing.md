@@ -260,17 +260,19 @@ configured as `s3` or `local` never sees test writes. Files written through
 normal `Storage` calls land in the fake; assertions live on the returned
 handle.
 
-> **Warning — what `Storage::fake()` does and does not intercept.**
-> `Storage::fake()` covers `Ions\Filesystem\Storage` — the disks resolved
-> through the container's `filesystem.manager` — **only**. The legacy
-> `Ions\Bundles\IonDisk` and `Ions\Bundles\IonUpload` helpers, and the
-> Illuminate-facade shim `Ions\Support\Storage`, are **not** intercepted:
-> code going through them in a test will hit the real local disk (or S3).
+> **What `Storage::fake()` intercepts.** `Storage::fake()` swaps the disk in
+> the container's `filesystem.manager`, and since 4.3 the legacy
+> `Ions\Bundles\IonDisk` and `Ions\Bundles\IonUpload` helpers resolve their
+> disks through that same manager — so their reads and writes (including
+> `IonDisk::put()`/`putFile()` and `IonUpload::store()`) land in the fake
+> too, and the real disk stays untouched. Upload validation (extension
+> allow-list + magic-bytes) still runs in full under a fake.
 >
-> **Import trap:** the correct import is `use Ions\Filesystem\Storage;`.
-> `use Ions\Support\Storage;` is a different class (an Illuminate facade
-> shim) — its `::fake()` is Laravel's facade fake and fails confusingly in
-> an Ions app because there is no Laravel application behind it.
+> **Import trap (still applies):** the correct import is
+> `use Ions\Filesystem\Storage;`. `use Ions\Support\Storage;` is a different
+> class (an Illuminate facade shim) — its `::fake()` is Laravel's facade fake
+> and fails confusingly in an Ions app because there is no Laravel
+> application behind it.
 
 ```php
 use Ions\Filesystem\Storage;

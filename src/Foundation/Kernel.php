@@ -165,6 +165,10 @@ class Kernel extends Singleton
         // proxies.
         Request::setTrustedProxies([], Request::HEADER_X_FORWARDED_FOR);
         \Ions\Bundles\Path::resetBasePath();
+        // Route facade statics (prefix/name/middleware stacks, deferred
+        // fallback) — a test that aborts mid-group must not leak into the
+        // next boot.
+        \Ions\Bundles\Route::resetForTesting();
         Discovery::reset();
         // ORM strict mode (10.6) flips Eloquent CLASS statics; restore the
         // library defaults so a strict-mode test can never pollute the next
@@ -195,7 +199,9 @@ class Kernel extends Singleton
      *   - the per-request Twig globals (_csrf_token, _trans, appUrl) on the
      *     shared 'view.env' Environment (only when already built),
      *   - the Eloquent query log, when config('database.query_log') is enabled
-     *     (otherwise it would accumulate unbounded across worker requests).
+     *     (otherwise it would accumulate unbounded across worker requests),
+     *   - the log correlation id (RequestIdProcessor::reset()) so every
+     *     channel stamps the next request with a fresh extra.request_id.
      *
      * Kept (boot state):
      *   - the Config object and the container with ALL its singletons
@@ -211,6 +217,10 @@ class Kernel extends Singleton
         static::$request = null;
         static::$response = null;
         self::structureBone();
+
+        // Fresh log correlation id: the next log write (any channel) mints a
+        // new extra.request_id for the new request.
+        \Ions\Bundles\RequestIdProcessor::reset();
 
         if (!self::isBooted()) {
             return;
@@ -335,6 +345,7 @@ class Kernel extends Singleton
     {
         return [
             \Ions\Providers\ConfigProvider::class,
+            \Ions\Providers\LogProvider::class,
             \Ions\Providers\FilesystemProvider::class,
             \Ions\Providers\SessionProvider::class,
             \Ions\Providers\DatabaseProvider::class,
@@ -1117,6 +1128,21 @@ class Kernel extends Singleton
             $routes->add(Str::random(10) . '_health', new Route(
                 '/up',
                 ['_controller' => \Ions\Http\HealthController::class . '::up']
+            ));
+        }
+
+        // Route::fallback() catch-all (10.7) — appended LAST so every real
+        // route wins (the UrlMatcher tries routes in definition order;
+        // '/{fallback}' with a '.*' requirement matches any GET path,
+        // including '/'). Consuming (not peeking) scopes the fallback to the
+        // group whose routes file registered it.
+        $fallbackHandler = \Ions\Bundles\Route::consumeFallback();
+        if ($fallbackHandler !== null) {
+            $routes->add(Str::random(10) . '_fallback', new Route(
+                path: '/{fallback}',
+                defaults: ['_controller' => $fallbackHandler],
+                requirements: ['fallback' => '.*'],
+                methods: ['GET']
             ));
         }
 
