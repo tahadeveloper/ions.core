@@ -13,17 +13,6 @@ php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
 php -S localhost:8000 -t public
 ```
 
-> **Pre-release note:** the skeleton's `composer.json` requires
-> `ionzile/core:^4.2` (it uses 4.2 features — the `app/` layout,
-> `$this->view()`, the scheduler), which is not yet tagged (4.1.0 is the
-> latest release). Until 4.2.0 is tagged, point a `vcs` repository at
-> ions.core and require the dev branch instead:
->
-> ```bash
-> composer config repositories.ions vcs https://github.com/tahadeveloper/ions.core
-> composer require "ionzile/core:dev-main"
-> ```
-
 `http://localhost:8000/` renders the Twig welcome page; `GET /api/ping`
 returns the framework's JSON envelope.
 
