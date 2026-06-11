@@ -65,6 +65,9 @@ class DumpCommand extends Command
     protected function schemaState(Connection $connection): mixed
     {
         // to use for migration table $table_name = Kernel::appConfig()->get('database.migrations', 'migrations');
+        // getSchemaState() is implemented on the concrete driver connections
+        // (MySql/Postgres/SQLite/...) but not on the base Connection type hint.
+        /** @phpstan-ignore method.notFound */
         return $connection->getSchemaState()
             ->withMigrationTable('') // $connection->getTablePrefix() . $table_name to only output migration table
             ->handleOutputUsing(function ($type, $buffer) {

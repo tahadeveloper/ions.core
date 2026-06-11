@@ -25,7 +25,7 @@ Tests live in `tests/`, match `*Test.php`, and use Pest's `test()`/`expect()` sy
 **The full CI gate set (`.github/workflows/ci.yml`) is more than pest** — local pest+phpstan passing does NOT mean CI is green. Before pushing, run all four:
 ```bash
 php83 vendor/bin/pest                                   # zero warnings
-php83 vendor/bin/phpstan analyse                        # level 5, src
+php83 vendor/bin/phpstan analyse                        # level 5, src (baseline is empty)
 php83 vendor/bin/phpstan analyse -c phpstan-core.neon   # level 8, core (no baseline)
 php83 vendor/bin/php-cs-fixer fix --dry-run             # composer cs — must report 0 files
 ```
@@ -90,5 +90,5 @@ Illuminate `Console\Command` classes, autoloaded via the `classmap` entry in `co
 - New host-facing globals go in `src/helpers.php` behind `function_exists` guards.
 - Errors that should halt a request use `abort($code, $message)` (throws Symfony `HttpException`) — Kernel renders JSON for API requests and HTML otherwise.
 - Illuminate is `^12` and Symfony `^7`; composer `platform` is locked to **8.3**. Keep new deps compatible with PHP 8.3.
-- New PSR-4 code uses `declare(strict_types=1)` and must pass PHPStan level 8 under `phpstan-core.neon` (no baseline). The legacy `src/Auth/Guard` (Sentinel wrapper) is the remaining baseline debt.
-- Static analysis/style ARE checked in: `phpstan.neon` (level 5, all src, with `phpstan-baseline.neon`), `phpstan-core.neon` (level 8, core dirs, no baseline), `.php-cs-fixer.dist.php` (@PSR12 + short arrays + ordered/no-unused imports). CI enforces all three plus the MySQL suite.
+- New PSR-4 code uses `declare(strict_types=1)` and must pass PHPStan level 8 under `phpstan-core.neon` (no baseline). The `phpstan-baseline.neon` is now **empty** (Phase 12.2): the old level-5 suppressions were fixed or replaced with commented inline `@phpstan-ignore` at the call site for irreducible vendor/optional-dependency seams (Cartalyst Sentinel's untyped `__callStatic` facade, `illuminate/redis`, base-vs-driver `Connection` methods). Keep it empty — fix new first-party type debt, don't baseline it.
+- Static analysis/style ARE checked in: `phpstan.neon` (level 5, all src, empty `phpstan-baseline.neon`), `phpstan-core.neon` (level 8, core dirs, no baseline), `.php-cs-fixer.dist.php` (@PSR12 + short arrays + ordered/no-unused imports). CI enforces all three plus the MySQL suite. (Raising main to level 6+ is blocked by ~360 pre-existing `missingType.*` issues across legacy `src/` — a separate migration, not baseline debt.)

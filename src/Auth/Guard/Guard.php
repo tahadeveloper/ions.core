@@ -23,6 +23,9 @@ class Guard extends Singleton
     public static function constructStatic(): void
     {
         $config = new ConfigRepository(Path::auth('Sentinel/config.php'));
+        // SentinelBootstrapper's constructor declares `array $config` but its
+        // body explicitly accepts a ConfigRepository too — vendor docblock bug.
+        /** @phpstan-ignore argument.type */
         $bootstrapper = new SentinelBootstrapper($config);
         Sentinel::instance($bootstrapper);
     }
@@ -32,6 +35,7 @@ class Guard extends Singleton
      */
     public static function check(): mixed
     {
+        /** @phpstan-ignore staticMethod.notFound */
         return Sentinel::check();
     }
 
@@ -43,16 +47,19 @@ class Guard extends Singleton
     public static function login(array $credentials, bool $is_remember = false): bool|array
     {
 
+        /** @phpstan-ignore staticMethod.notFound */
         $user = Sentinel::findByCredentials($credentials);
         if (!$user) {
             return ['error' => 'wrong_data', 'error_no' => 1];
         }
 
+        /** @phpstan-ignore staticMethod.notFound */
         $Activation = Sentinel::getActivationRepository();
         if (!$Activation->completed($user)) {
             return ['error' => 'not_active', 'error_no' => 2];
         }
 
+        /** @phpstan-ignore staticMethod.notFound */
         $result = Sentinel::authenticate($credentials, $is_remember, true);
         if (!$result) {
             return ['error' => 'wrong_credentials', 'error_no' => 3];
@@ -66,6 +73,7 @@ class Guard extends Singleton
      */
     public static function logout(): mixed
     {
+        /** @phpstan-ignore staticMethod.notFound */
         return Sentinel::logout(null, true);
     }
 
@@ -77,8 +85,10 @@ class Guard extends Singleton
     {
 
         $reset_obj = null;
+        /** @phpstan-ignore staticMethod.notFound */
         $user = Sentinel::findByCredentials($credentials);
         if ($user) {
+            /** @phpstan-ignore staticMethod.notFound */
             $Reminder = Sentinel::getReminderRepository();
             $reset_obj = ($Reminder->create($user))->code;
         }
@@ -103,7 +113,9 @@ class Guard extends Singleton
      */
     public static function completeReset($user_id, $key, $password): mixed
     {
+        /** @phpstan-ignore staticMethod.notFound */
         $user = Sentinel::findById($user_id);
+        /** @phpstan-ignore staticMethod.notFound */
         return Sentinel::getReminderRepository()->complete($user, $key, $password);
     }
 

@@ -71,6 +71,9 @@ class GuardUser extends Singleton
     public static function constructStatic(): void
     {
         $config = new ConfigRepository(Path::auth('Sentinel/config.php'));
+        // SentinelBootstrapper's constructor declares `array $config` but its
+        // body explicitly accepts a ConfigRepository too — vendor docblock bug.
+        /** @phpstan-ignore argument.type */
         $bootstrapper = new SentinelBootstrapper($config);
         Sentinel::instance($bootstrapper);
     }
@@ -100,10 +103,13 @@ class GuardUser extends Singleton
 
             $role_id = $params->role_id;
             if ((int)$params->status === 1) {
+                /** @phpstan-ignore staticMethod.notFound */
                 $register = Sentinel::registerAndActivate($user_data);
             } else {
+                /** @phpstan-ignore staticMethod.notFound */
                 $register = Sentinel::register($user_data);
             }
+            /** @phpstan-ignore staticMethod.notFound */
             $role = Sentinel::findRoleById($role_id);
             $role->users()->attach($register);
 
@@ -174,6 +180,7 @@ class GuardUser extends Singleton
      */
     public static function delete(int $id): mixed
     {
+        /** @phpstan-ignore staticMethod.notFound */
         return (Sentinel::findById($id))->delete();
     }
 
@@ -185,6 +192,7 @@ class GuardUser extends Singleton
     {
         $result = [];
         foreach (explode(',', $ids) as $id) {
+            /** @phpstan-ignore staticMethod.notFound */
             $del = Sentinel::findById($id)->delete();
             if (!$del) {
                 $result[] = ['ids' => $id];
@@ -201,6 +209,7 @@ class GuardUser extends Singleton
     public static function update($params): mixed
     {
         return DB::connection(self::$connection_name)->transaction(function () use ($params) {
+            /** @phpstan-ignore staticMethod.notFound */
             $user = Sentinel::findById($params->id);
 
             $user_data = [
@@ -222,6 +231,7 @@ class GuardUser extends Singleton
 
             if (isset($params->status)) {
                 $status = $params->status;
+                /** @phpstan-ignore staticMethod.notFound */
                 $Activation = Sentinel::getActivationRepository();
                 $user_data['status'] = $status;
 
@@ -235,14 +245,17 @@ class GuardUser extends Singleton
                 }
             }
 
+            /** @phpstan-ignore staticMethod.notFound */
             Sentinel::update($user, $user_data);
 
             if (isset($params->role_id)) {
                 $role_id = $params->role_id;
                 $user_role = DB::connection(self::$connection_name)->table(self::$tables_names['role_users'])->where('user_id', $params->id)->latest()->first();
                 if ($user_role && (int)$user_role->role_id !== (int)$role_id) {
+                    /** @phpstan-ignore staticMethod.notFound */
                     $old_role = Sentinel::findRoleById($user_role->role_id);
                     $old_role->users()->detach($user);
+                    /** @phpstan-ignore staticMethod.notFound */
                     $role = Sentinel::findRoleById($role_id);
                     $role->users()->attach($user);
                 }

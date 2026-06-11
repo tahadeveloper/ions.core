@@ -310,6 +310,10 @@ class Kernel extends Singleton
     private static function Container(): void
     {
         static::$app = new Container();
+        // Facade::setFacadeApplication() is typed for the Illuminate Foundation
+        // Application, but the framework intentionally drives Illuminate facades
+        // with its own container, which satisfies the contracts they actually use.
+        /** @phpstan-ignore argument.type */
         Facade::setFacadeApplication(static::$app);
 
         // Bind the container to itself under its concrete class and the PSR /

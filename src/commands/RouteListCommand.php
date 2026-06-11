@@ -291,15 +291,17 @@ class RouteListCommand extends Command
 
             $spaces = str_repeat(' ', max($maxMethod + 6 - mb_strlen($method), 0));
 
+            // $action is always non-empty here (a ' › <domain>' suffix is
+            // appended above), so the per-action padding is always 1.
             $dots = str_repeat('.', max(
-                $terminalWidth - mb_strlen($method.$spaces.$uri.$action) - 6 - ($action ? 1 : 0),
+                $terminalWidth - mb_strlen($method.$spaces.$uri.$action) - 6 - 1,
                 0
             ));
 
             $dots = empty($dots) ? $dots : " $dots";
 
 
-            if ($action && ! $this->output->isVerbose() && mb_strlen($method.$spaces.$uri.$action.$dots) > ($terminalWidth - 6)) {
+            if (! $this->output->isVerbose() && mb_strlen($method.$spaces.$uri.$action.$dots) > ($terminalWidth - 6)) {
                 $action = substr($action, 0, $terminalWidth - 7 - mb_strlen($method.$spaces.$uri.$dots)).'…';
             }
 
