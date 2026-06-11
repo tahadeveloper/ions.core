@@ -33,12 +33,23 @@ skeleton/
 ├── app/                   # App\ (PSR-4)
 │   ├── Booting.php        # Optional Kernel::boot() hook
 │   ├── Schedule.php       # Scheduled tasks: boot(Scheduler) (docs/scheduler.md)
+│   ├── Models/            # App\Models — Eloquent models (make:model)
 │   ├── Http/Controllers/  # Web controllers (extend Ions\Foundation\BaseController)
 │   └── Commands/          # Auto-discovered console commands
+├── database/              # Standard data layout (4.4+)
+│   ├── migrations/        # Schema classes (ions migrate)
+│   ├── seeders/           # Database\Seeders (make:seeder)
+│   ├── factories/         # Database\Factories (make:factory)
+│   ├── schemas/           # Schema dumps
+│   └── backups/           # DB backups (gitignored)
 ├── views/home/index.twig  # Twig templates (app.twig.source; HomeController -> views/home/)
 ├── var/                   # Writable: cache/, logs/, templates/ (compiled Twig)
 └── .env.example
 ```
+
+The host `composer.json` PSR-4 maps `Database\Factories\` → `database/factories/`
+and `Database\Seeders\` → `database/seeders/` (the sub-namespace form — a single
+`"Database\\": "database/"` map breaks on case-sensitive filesystems).
 
 ## Secure defaults (4.1)
 
