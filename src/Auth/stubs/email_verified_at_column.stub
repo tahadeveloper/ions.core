@@ -1,0 +1,36 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * Host column for Ions email verification (Ions\Auth\EmailVerification).
+ *
+ * Copy this into your host `src/Database` (or `app/Database`) migrations and
+ * adjust the target table name. The framework provides only the verifier and
+ * the `verified` middleware — the host owns persistence: your user model
+ * implements Ions\Auth\Contracts\VerifiesEmail, reading/writing this column in
+ * hasVerifiedEmail()/markEmailVerified()/getEmailVerifiedAt().
+ */
+return new class () extends Migration {
+    private string $table = 'users';
+
+    public function up(): void
+    {
+        Schema::table($this->table, function (Blueprint $table): void {
+            // Null while unverified; set to now() when the signed link is
+            // confirmed (Ions\Auth\EmailVerification::verify()).
+            $table->timestamp('email_verified_at')->nullable();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table($this->table, function (Blueprint $table): void {
+            $table->dropColumn('email_verified_at');
+        });
+    }
+};

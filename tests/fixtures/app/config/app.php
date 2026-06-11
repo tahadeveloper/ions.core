@@ -29,6 +29,8 @@ return [
     'middleware_aliases' => [
         'throttle' => \Ions\Http\Middleware\RateLimitMiddleware::class,
         'signed' => \Ions\Http\Middleware\ValidateSignatureMiddleware::class,
+        // Requires a verified email on the authenticated user (12.4).
+        'verified' => \Ions\Auth\Http\EnsureEmailVerified::class,
         // PSR-15 adapter pattern (10.8): aliases point at Psr15Adapter
         // subclasses that pin the wrapped PSR-15 middleware in their ctor.
         'psr15' => \IonsFixture\Middleware\FixturePsr15Alias::class,
@@ -71,5 +73,11 @@ return [
             // Unauthenticated echo endpoint used by the Ions\Testing kit tests.
             '/api/echo',
         ],
+        // Email verification (12.4): where EnsureEmailVerified redirects an
+        // unverified web user, and the per-email resend throttle for
+        // EmailVerification::sendVerification(). EXPLICIT mirror of the skeleton
+        // defaults (drift guard); tests override these per-case.
+        'email_verification_redirect' => '/email/verify',
+        'verify_throttle' => ['max' => 3, 'decay' => 600],
     ],
 ];

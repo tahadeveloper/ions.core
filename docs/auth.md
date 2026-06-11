@@ -3,6 +3,10 @@
 > Adding a second factor? See [two-factor.md](two-factor.md) for the RFC 6238
 > TOTP verifier (`Ions\Auth\TwoFactor`), recovery codes, and the
 > challenge-after-password login pattern.
+>
+> Requiring a verified email? See [email-verification.md](email-verification.md)
+> for `Ions\Auth\EmailVerification` (signed links bound to the current email),
+> the `VerifiesEmail` contract, and the `verified` middleware.
 
 ## UserProvider and Authenticatable
 

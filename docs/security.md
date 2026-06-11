@@ -97,3 +97,7 @@ the route with `signed`, and the link is self-authenticating — no token
 table required. Anything secret inside the URL should additionally be
 encrypted with the `Encrypter` (signatures prove integrity, not
 confidentiality).
+
+For the full email-verification feature built on this — links bound to the
+user's current email, the `VerifiesEmail` contract, the `verified` middleware,
+and the resend throttle — see [email-verification.md](email-verification.md).
