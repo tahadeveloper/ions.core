@@ -45,6 +45,8 @@ return [
     'middleware_aliases' => [
         'throttle' => \Ions\Http\Middleware\RateLimitMiddleware::class,
         'signed' => \Ions\Http\Middleware\ValidateSignatureMiddleware::class,
+        // Requires a verified email on the authenticated user (12.4).
+        'verified' => \Ions\Auth\Http\EnsureEmailVerified::class,
     ],
 
     // Rate-limit window for the 'throttle' alias (defaults shown).
@@ -63,6 +65,15 @@ return [
             '/api/auth/refresh',
             '/api/ping', // sample route — remove together with routes/api.php's ping
         ],
+
+        // Email verification (12.4, Ions\Auth\EmailVerification):
+        // - email_verification_redirect: where the 'verified' middleware
+        //   (Ions\Auth\Http\EnsureEmailVerified) sends an unverified WEB user;
+        //   API/JSON requests get a 403 instead.
+        // - verify_throttle: per-email resend limiter for
+        //   EmailVerification::sendVerification() (mirrors forgot_throttle).
+        'email_verification_redirect' => '/email/verify',
+        'verify_throttle' => ['max' => 3, 'decay' => 600],
     ],
 
     // Built-in GET /up health endpoint (10.6): 200 'ok' liveness for load

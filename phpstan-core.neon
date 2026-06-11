@@ -12,6 +12,8 @@ parameters:
         - src/Auth/Gate.php
         - src/Auth/TwoFactor.php
         - src/Auth/TwoFactorReplayStore.php
+        - src/Auth/EmailVerification.php
+        - src/Auth/Notifications
         - src/Filesystem
         - src/Log
         - src/Providers

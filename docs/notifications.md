@@ -7,6 +7,9 @@ built-in channels are **mail** (delivers a [`Mailable`](mail.md)) and
 binds the dispatcher as a lazy `notifications` singleton — nothing resolves on
 a normal request.
 
+> A built-in mail notification: `Ions\Auth\Notifications\VerifyEmail` delivers a
+> signed email-verification link — see [email-verification.md](email-verification.md).
+
 ## Defining a notification
 
 Subclasses take their data through the constructor, declare target channels in
