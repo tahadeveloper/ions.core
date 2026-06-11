@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ions\Bundles;
 
+use Ions\Filesystem\Storage as ManagedStorage;
 use Ions\Foundation\Kernel;
 use Ions\Foundation\Singleton;
 use Ions\Media\Image;
@@ -11,12 +12,47 @@ use Ions\Media\ImageException;
 use Ions\Security\UploadValidator;
 use Ions\Support\Storage;
 use Ions\Support\Str;
+use League\Flysystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Throwable;
 
+/**
+ * Upload handling (validation + store/move/remove).
+ *
+ * Storage writes flow through the shared {@see \Ions\Filesystem\FilesystemManager}
+ * when a disk has been swapped in by Ions\Filesystem\Storage::fake(), so tests
+ * intercept IonUpload writes; real requests keep their native move semantics.
+ */
 class IonUpload extends Singleton
 {
     private static mixed $output;
+
+    /**
+     * The faked default disk when Storage::fake() is active, null otherwise.
+     */
+    private static function fakeDisk(): ?Filesystem
+    {
+        try {
+            $manager = ManagedStorage::manager();
+            $name = $manager->getDefaultDriver();
+
+            return $manager->isOverridden($name) ? $manager->disk($name) : null;
+        } catch (Throwable) {
+            // No booted container (legacy direct usage) — no fake to honour.
+            return null;
+        }
+    }
+
+    /**
+     * Existence check that honours an active Storage::fake() disk.
+     */
+    private static function existsOnDisk(string $path): bool
+    {
+        $fake = self::fakeDisk();
+
+        return $fake !== null ? $fake->has($path) : Storage::exists($path);
+    }
 
     public static function store(mixed $file, string $path, array $options = []): self
     {
@@ -52,6 +88,21 @@ class IonUpload extends Singleton
         $randomName = Str::random(15);
         $storeName = $randomName . '.' . $ext;
 
+        // Storage::fake() active: write the (already validated) upload through
+        // the faked manager disk instead of moving it onto the real disk. The
+        // image hook is skipped — it operates on a real stored path.
+        if (($fake = self::fakeDisk()) !== null) {
+            $fake->write($path . '/' . $storeName, (string) file_get_contents($file->getPathname()));
+            self::$output = [
+                'error' => 0,
+                'message' => 'file uploaded',
+                'original_name' => $originalName,
+                'store_name' => $storeName,
+            ];
+
+            return new self();
+        }
+
         try {
             $file->move($path, $storeName);
             if (is_callable($image)) {
@@ -72,6 +123,14 @@ class IonUpload extends Singleton
 
     public static function remove(string $fileName, string $path): self
     {
+        if (($fake = self::fakeDisk()) !== null) {
+            if ($fake->has($path . '/' . $fileName)) {
+                $fake->delete($path . '/' . $fileName);
+            }
+
+            return new self();
+        }
+
         if (file_exists($path . '/' . $fileName)) {
             unlink($path . '/' . $fileName);
         }
@@ -86,11 +145,11 @@ class IonUpload extends Singleton
             $url_array = explode('/', $image_url);
             $count_url_array = count($url_array);
             $file_name = $url_array[$count_url_array - 1];
-            if (str_contains($image_url, $old_destination) && Storage::exists(Path::files($old_destination . '/' . $file_name))) {
+            if (str_contains($image_url, $old_destination) && self::existsOnDisk(Path::files($old_destination . '/' . $file_name))) {
                 static::moveLocal($old_destination, $destination, $file_name);
                 $image_ext = $url_array[$count_url_array - 1];
             }
-            if ((str_contains($image_url, $old_destination) || str_contains($image_url, $destination)) && Storage::exists(Path::files($destination . '/' . $file_name))) {
+            if ((str_contains($image_url, $old_destination) || str_contains($image_url, $destination)) && self::existsOnDisk(Path::files($destination . '/' . $file_name))) {
                 $image_ext = $url_array[$count_url_array - 1];
             }
         }
@@ -101,9 +160,17 @@ class IonUpload extends Singleton
 
     public static function moveLocal($from, $to, $file_name, $new_name = null): self
     {
+        $source = Path::files($from . '/' . $file_name);
+        $target = Path::files($to . '/' . ($new_name ?? $file_name));
+
         $result = false;
-        if (Storage::exists(Path::files($from . '/' . $file_name))) {
-            $result = Storage::move(Path::files($from . '/' . $file_name), Path::files($to . '/' . ($new_name ?? $file_name)));
+        if (($fake = self::fakeDisk()) !== null) {
+            if ($fake->has($source)) {
+                $fake->move($source, $target);
+                $result = true;
+            }
+        } elseif (Storage::exists($source)) {
+            $result = Storage::move($source, $target);
         }
         self::$output = $result;
 

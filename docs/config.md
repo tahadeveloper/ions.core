@@ -581,7 +581,9 @@ return [
 **Type:** `string`  **Default:** `'local'`
 
 Name of the disk returned by `Storage::disk()` / `FilesystemManager::disk()` when
-no name is given.
+no name is given. When unset, the manager falls back to the legacy IonDisk key
+`filesystem.disks.default` (traditionally fed from the `FILESYSTEM_DISK` env)
+before defaulting to `'local'`.
 
 ### `filesystem.disks.{name}`
 
@@ -603,11 +605,14 @@ One entry per disk. Each entry MUST contain a `driver` key
   plus a top-level `root`.
 
 Any extra keys (e.g. `public_url`) are forwarded to the Flysystem `Filesystem`
-config, so `Storage::url()` works for disks that declare a `public_url`.
+config, so `Storage::url()` works for disks that declare a `public_url` (or its
+Laravel-style alias `url`); disks with neither fall back to
+`config('app.app_url')` — see [filesystem.md](filesystem.md).
 
 > **Note:** `Ions\Bundles\IonDisk` reads `filesystem.disks.default` (a string under
-> `disks`) to pick its adapter and now delegates its operations to the
-> `FilesystemManager` while keeping its existing static API.
+> `disks`) to pick its disk type and resolves its disks through the shared
+> `FilesystemManager` — so `Storage::fake()` intercepts it — while keeping its
+> existing static API. Removal candidate for 5.0; prefer `Ions\Filesystem\Storage`.
 
 ---
 

@@ -18,12 +18,29 @@ use RuntimeException;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
+/**
+ * Legacy static disk API, kept for backwards compatibility.
+ *
+ * Disk acquisition is routed through the shared {@see FilesystemManager}
+ * (container binding 'filesystem.manager'), so disks swapped via
+ * Ions\Filesystem\Storage::fake() intercept IonDisk reads/writes in tests.
+ *
+ * New code should prefer {@see \Ions\Filesystem\Storage} — IonDisk is a
+ * removal candidate for 5.0.
+ */
 class IonDisk
 {
     private static string $type;
-    private static $filesystem;
     private static $basePath;
     private static $bucket;
+
+    /**
+     * Ad-hoc Flysystem disks built from IonDisk's own config view (legacy s3
+     * shape with runtime-mutable bucket/basePath), cached per shape.
+     *
+     * @var array<string, Filesystem>
+     */
+    private static array $builtDisks = [];
 
     public static function init(): void
     {
@@ -31,7 +48,7 @@ class IonDisk
         self::$type = self::getTypeFromEnv();
         self::$basePath = config('filesystem.disks.local.root');
         self::$bucket = config('filesystem.disks.s3.bucket');
-        self::$filesystem = self::initializeFilesystem();
+        self::$builtDisks = [];
     }
 
     private static function getTypeFromEnv()
@@ -40,12 +57,31 @@ class IonDisk
     }
 
     /**
-     * Build the Flysystem instance for the current $type via the shared
-     * FilesystemManager, honouring IonDisk's runtime-mutable bucket/basePath.
+     * Resolve the Flysystem disk for the current $type.
+     *
+     * Resolution order:
+     *  1. a disk swapped into the shared manager (Storage::fake()) always wins;
+     *  2. 'local' resolves as the manager's named 'local' disk when the host
+     *     config declares a driver for it (same root config key as the legacy
+     *     build, now shared/memoized with Storage::disk('local'));
+     *  3. anything else (s3 with runtime-mutable bucket/basePath, driverless
+     *     legacy config shapes) is built from IonDisk's own config view.
      */
-    private static function initializeFilesystem(): Filesystem
+    private static function filesystem(): Filesystem
     {
-        return self::manager()->buildDisk(self::diskConfig());
+        $manager = self::manager();
+
+        if ($manager->isOverridden(self::$type)) {
+            return $manager->disk(self::$type);
+        }
+
+        if (self::$type === 'local' && is_string(config('filesystem.disks.local.driver'))) {
+            return $manager->disk('local');
+        }
+
+        $key = self::$type . '|' . (string) self::$bucket . '|' . (string) self::$basePath;
+
+        return self::$builtDisks[$key] ??= $manager->buildDisk(self::diskConfig());
     }
 
     /**
@@ -118,7 +154,7 @@ class IonDisk
 
         // Upload the file to the specified path
         try {
-            self::$filesystem->write($filePath, $fileContent);
+            self::filesystem()->write($filePath, $fileContent);
             return [
                 'upload_name' => $randomName,
                 'original_name' => $originalFilename,
@@ -134,7 +170,7 @@ class IonDisk
     {
         // Retrieve file content or secure URL
         try {
-            return self::$filesystem->read($filePath);
+            return self::filesystem()->read($filePath);
         } catch (Exception $e) {
             // Handle any errors (e.g., file not found)
             return ['error' => $e->getMessage()];
@@ -145,8 +181,9 @@ class IonDisk
     {
         // Read the stored file from the configured disk and write it to the local destination path.
         try {
-            if (self::$filesystem->has($filePath)) {
-                $stream = self::$filesystem->readStream($filePath);
+            $filesystem = self::filesystem();
+            if ($filesystem->has($filePath)) {
+                $stream = $filesystem->readStream($filePath);
                 $dest = fopen($downloadPath, 'wb');
                 stream_copy_to_stream($stream, $dest);
                 fclose($stream);
@@ -168,7 +205,7 @@ class IonDisk
     {
         // Delete a file
         try {
-            self::$filesystem->delete($filePath);
+            self::filesystem()->delete($filePath);
             return ['success' => true];
         } catch (Exception $e) {
             // Handle any errors (e.g., file not found)
@@ -185,7 +222,10 @@ class IonDisk
         } else {
             self::$type = $defType;
         }
-        self::$filesystem = self::initializeFilesystem();
+        // Drop ad-hoc built disks so the next operation re-resolves against
+        // the (possibly re-booted) config. Named disks are memoized by the
+        // shared FilesystemManager, which is per-container already.
+        self::$builtDisks = [];
         return new self();
     }
 
@@ -213,13 +253,21 @@ class IonDisk
 
     public static function flySystem(): ?Filesystem
     {
+        // A disk swapped into the shared manager (Storage::fake()) routes
+        // every operation — including the local branches that normally use
+        // native PHP file calls — through the faked Flysystem disk, so tests
+        // intercept IonDisk writes and the real disk stays untouched.
+        if (self::manager()->isOverridden(self::$type)) {
+            return self::manager()->disk(self::$type);
+        }
+
         switch (self::$type) {
             case 'local':
                 // Local operations are handled with native PHP/Filesystem calls
                 // by the callers; returning null preserves that BC branch.
                 return null;
             case 's3':
-                return self::manager()->buildDisk(self::diskConfig());
+                return self::filesystem();
             default:
                 throw new InvalidArgumentException("Unsupported disk type: " . self::$type);
         }
