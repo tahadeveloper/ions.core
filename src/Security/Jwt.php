@@ -50,7 +50,7 @@ final class Jwt
     }
 
     /** Reserved claims that callers must not override. */
-    private const RESERVED_CLAIMS = ['typ', 'jti', 'iss', 'aud', 'sub', 'iat', 'nbf', 'exp'];
+    private const RESERVED_CLAIMS = ['typ', 'jti', 'iss', 'aud', 'sub', 'iat', 'nbf', 'exp', 'fid'];
 
     /** @param array<non-empty-string,mixed> $claims */
     public function issue(string $userId, array $claims = []): string
@@ -83,12 +83,32 @@ final class Jwt
      *
      * Refresh tokens have a longer TTL and a `typ` claim of `'refresh'`.
      * They can only be used with `refresh()`, not `verify()`.
+     *
+     * A fresh family id (`fid`) is minted here — at login — and carried forward
+     * onto every rotated refresh token in this lineage so the breach-detection
+     * pattern can revoke the whole family on a replay (see {@see refresh()}).
      */
     public function issueRefresh(string $userId): string
     {
         if ($userId === '') {
             throw new TokenException('userId must not be empty.');
         }
+
+        return $this->buildRefreshToken($userId, bin2hex(random_bytes(16)));
+    }
+
+    /**
+     * Build a refresh token bound to a user and a refresh-token family id.
+     *
+     * `fid` is framework-set (it is a reserved claim and cannot be supplied by
+     * callers), so this stays internal: login mints a new fid; rotation reuses
+     * the presented token's fid.
+     *
+     * @phpstan-param non-empty-string $userId
+     * @phpstan-param non-empty-string $fid
+     */
+    private function buildRefreshToken(string $userId, string $fid): string
+    {
         $now = new DateTimeImmutable();
         $builder = $this->config->builder()
             ->issuedBy($this->issuer)
@@ -98,7 +118,8 @@ final class Jwt
             ->issuedAt($now)
             ->canOnlyBeUsedAfter($now)
             ->expiresAt($now->modify(sprintf('+%d seconds', $this->refreshTtlSeconds)))
-            ->withClaim('typ', 'refresh');
+            ->withClaim('typ', 'refresh')
+            ->withClaim('fid', $fid);
         return $builder->getToken($this->config->signer(), $this->config->signingKey())->toString();
     }
 
@@ -178,17 +199,30 @@ final class Jwt
     }
 
     /**
-     * Exchange a valid refresh token for a new access token (with rotation).
+     * Exchange a valid refresh token for a fresh access + refresh token pair
+     * (rotation with breach detection — the "revoke-all-on-replay" pattern).
      *
      * - Validates signature, time constraints, issuer, audience.
      * - Requires `typ === 'refresh'` (rejects access tokens).
-     * - Checks revocation store so a rotated (used) refresh token is rejected.
-     * - Revokes the presented refresh token (rotation).
-     * - Returns a fresh access token string.
+     * - Family short-circuit: if the token's `fid` family is already revoked
+     *   (a sibling from a compromised lineage) → reject.
+     * - Reuse detection: if the presented `jti` is already revoked (i.e. it was
+     *   already rotated and is being replayed) → revoke the ENTIRE `fid` family
+     *   so every sibling is killed, then reject.
+     * - Happy path: revoke the presented `jti` (rotation) and re-issue BOTH a
+     *   new access token and a new refresh token carrying the SAME `fid`.
      *
-     * @throws TokenException if the refresh token is invalid, expired, revoked, or wrong type.
+     * Backward compatibility: refresh tokens issued before 11.4 carry no `fid`.
+     * For those, the family checks are skipped (there is no lineage to revoke);
+     * the per-jti rotation/reuse semantics still apply, and the rotated token is
+     * minted with a fresh `fid` so it joins the family-aware scheme going forward.
+     *
+     * @return array{access: string, refresh: string} the new token pair
+     *
+     * @throws TokenException if the refresh token is invalid, expired, revoked,
+     *                        replayed, from a revoked family, or the wrong type.
      */
-    public function refresh(string $refreshToken): string
+    public function refresh(string $refreshToken): array
     {
         if ($refreshToken === '') {
             throw new TokenException('Refresh token must not be empty.');
@@ -220,13 +254,32 @@ final class Jwt
             throw new TokenException('Invalid token type: expected refresh token.');
         }
 
-        // Check revocation (handles rotation: used refresh tokens are revoked).
         $jti = (string) $parsed->claims()->get('jti', '');
-        if ($this->revocations !== null && $jti !== '' && $this->revocations->isRevoked($jti)) {
-            throw new TokenException('Refresh token has already been used or revoked.');
+        $fid = (string) $parsed->claims()->get('fid', '');
+
+        if ($this->revocations !== null) {
+            // Family short-circuit: a sibling from a killed lineage is rejected
+            // before doing any work (BC: a legacy token with no fid is never a
+            // family member, so this never fires for it).
+            if ($fid !== '' && $this->revocations->isFamilyRevoked($fid)) {
+                throw new TokenException('Refresh token family has been revoked.');
+            }
+
+            // Reuse detection: an already-revoked jti being presented again is a
+            // replay of a token that was already rotated. Kill the whole family
+            // (so every still-live sibling is invalidated), then reject.
+            if ($jti !== '' && $this->revocations->isRevoked($jti)) {
+                if ($fid !== '') {
+                    $this->revocations->revokeFamily($fid, $this->refreshTtlSeconds);
+                }
+                throw new TokenException('Refresh token has already been used or revoked.');
+            }
         }
 
         $userId = (string) $parsed->claims()->get('sub');
+        if ($userId === '') {
+            throw new TokenException('Refresh token is missing its subject.');
+        }
 
         // Rotate: revoke the presented refresh token so it cannot be reused.
         if ($this->revocations !== null && $jti !== '') {
@@ -238,8 +291,13 @@ final class Jwt
             $this->revocations->revoke($jti, $ttl);
         }
 
-        // Issue and return a fresh access token.
-        return $this->issue($userId);
+        // Carry the family forward; a legacy (no-fid) token starts a fresh family.
+        $nextFid = $fid !== '' ? $fid : bin2hex(random_bytes(16));
+
+        return [
+            'access' => $this->issue($userId),
+            'refresh' => $this->buildRefreshToken($userId, $nextFid),
+        ];
     }
 
     /**

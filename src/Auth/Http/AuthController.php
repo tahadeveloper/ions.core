@@ -94,7 +94,12 @@ class AuthController
     }
 
     /**
-     * Exchange a refresh token for a new access token (rotates + revokes the old one).
+     * Exchange a refresh token for a fresh access + refresh token pair.
+     *
+     * Rotation (11.4): the presented refresh token is revoked and BOTH a new
+     * access and a new refresh token (same family) are issued. Replaying an
+     * already-rotated refresh token revokes the whole family — a sibling token
+     * from a compromised lineage is then rejected too.
      */
     public function refresh(Request $request): JsonResponse
     {
@@ -111,14 +116,15 @@ class AuthController
         }
 
         try {
-            $accessToken = $this->jwt->refresh($token);
+            $tokens = $this->jwt->refresh($token);
         } catch (TokenException) {
             return Json::error('Invalid or expired refresh token', 401);
         }
 
         return Json::ok([
-            'access_token' => $accessToken,
-            'token_type'   => 'Bearer',
+            'access_token'  => $tokens['access'],
+            'refresh_token' => $tokens['refresh'],
+            'token_type'    => 'Bearer',
         ]);
     }
 
