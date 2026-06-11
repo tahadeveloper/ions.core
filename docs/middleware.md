@@ -175,4 +175,7 @@ native Ions middleware for hot paths and reserve the adapter for reusing
 existing PSR-15 packages. One fidelity note: the request handed to the
 controller is **rebuilt** from the PSR-7 request; the session and locale are
 carried over explicitly, other live object state attached to the original
-request is not.
+request is not. On the response side, a `StreamedResponse`/`BinaryFileResponse`
+returned from inside the adapter is **buffered** by the PSR-7 conversion —
+content is preserved, streaming semantics are not; keep streaming routes off
+PSR-15-adapted stacks.

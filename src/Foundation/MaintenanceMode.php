@@ -98,13 +98,21 @@ final class MaintenanceMode
         }
 
         if ($secretHash !== null) {
-            // Visiting /{secret} sets the bypass cookie and bounces home.
+            // The bypass token is HMAC-bound to THIS down cycle (its
+            // activation time), so a cookie minted before `up` never replays
+            // into a later maintenance window even when the secret is reused.
+            $downTime = isset($data['time']) && is_int($data['time']) ? $data['time'] : 0;
+            $bypassToken = hash_hmac('sha256', (string) $downTime, $secretHash);
+
+            // Visiting /{secret} sets the bypass cookie and bounces home
+            // (base-path aware for APP_FOLDER subfolder deployments).
             $candidate = hash('sha256', rawurldecode(ltrim($path, '/')));
             if (hash_equals($secretHash, $candidate)) {
-                $redirect = new RedirectResponse('/', 302);
+                $base = $request->getBasePath();
+                $redirect = new RedirectResponse($base !== '' ? $base . '/' : '/', 302);
                 $redirect->headers->setCookie(Cookie::create(
                     self::COOKIE,
-                    $secretHash,
+                    $bypassToken,
                     time() + self::COOKIE_TTL,
                     '/',
                     null,
@@ -117,7 +125,7 @@ final class MaintenanceMode
 
             // A request carrying the valid bypass cookie passes through.
             $cookie = (string) $request->cookies->get(self::COOKIE, '');
-            if ($cookie !== '' && hash_equals($secretHash, $cookie)) {
+            if ($cookie !== '' && hash_equals($bypassToken, $cookie)) {
                 return null;
             }
         }

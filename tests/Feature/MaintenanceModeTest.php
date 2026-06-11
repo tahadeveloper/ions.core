@@ -85,17 +85,24 @@ test('visiting /{secret} sets the bypass cookie and redirects home', function ()
     expect($response->getStatusCode())->toBe(302)
         ->and($response->headers->get('Location'))->toBe('/');
 
+    // The cookie is HMAC-bound to this down cycle (activation time), so it
+    // never replays into a later maintenance window.
+    $flag = require Path::var('maintenance.php');
+    $expected = hash_hmac('sha256', (string) $flag['time'], hash('sha256', 'letmein'));
     $cookie = collect($response->headers->getCookies())
         ->first(fn ($c) => $c->getName() === MaintenanceMode::COOKIE);
     expect($cookie)->not->toBeNull()
-        ->and($cookie->getValue())->toBe(hash('sha256', 'letmein'));
+        ->and($cookie->getValue())->toBe($expected);
 });
 
 test('a request carrying a valid bypass cookie passes through to the app', function () {
     runConsoleCommand(new DownCommand(), ['--secret' => 'letmein']);
 
+    $flag = require Path::var('maintenance.php');
+    $token = hash_hmac('sha256', (string) $flag['time'], hash('sha256', 'letmein'));
+
     $request = Request::create('/ping');
-    $request->cookies->set(MaintenanceMode::COOKIE, hash('sha256', 'letmein'));
+    $request->cookies->set(MaintenanceMode::COOKIE, $token);
 
     $response = Kernel::handle($request);
     expect($response->getStatusCode())->toBe(200)
@@ -155,4 +162,19 @@ test('doctor reports maintenance OK when the app is live', function () {
 
     expect($row)->not->toBeNull()
         ->and($row['status'])->toBe('ok');
+});
+
+test('a bypass cookie from a previous down cycle never replays into a new one', function () {
+    runConsoleCommand(new DownCommand(), ['--secret' => 'letmein']);
+    $flag = require Path::var('maintenance.php');
+    $oldToken = hash_hmac('sha256', (string) $flag['time'], hash('sha256', 'letmein'));
+
+    runConsoleCommand(new UpCommand());
+    sleep(1); // new cycle gets a different activation time
+    runConsoleCommand(new DownCommand(), ['--secret' => 'letmein']);
+
+    $request = Request::create('/ping');
+    $request->cookies->set(MaintenanceMode::COOKIE, $oldToken);
+
+    expect(Kernel::handle($request)->getStatusCode())->toBe(503);
 });
