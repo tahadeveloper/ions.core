@@ -28,4 +28,16 @@ return [
         // Redis (requires a host-bound redis factory / predis):
         // 'redis' => ['driver' => 'redis', 'connection' => 'cache'],
     ],
+
+    // Full-page response cache (12.5). Only consulted on routes carrying the
+    // 'cache.response' middleware (opt-in). Bypassed entirely on APP_DEBUG.
+    // A tag-capable store (redis/memcached) lets `cache:clear-responses` purge
+    // ONLY these entries; on array/file it falls back to a full store flush.
+    'response' => [
+        'enabled' => true,
+        'ttl' => 300,        // store TTL (seconds) when the response sets none
+        'max_ttl' => 86400,  // hard ceiling on any requested TTL
+        'prefix' => 'response_cache:',
+        'tag' => 'ions_response_cache',
+    ],
 ];
