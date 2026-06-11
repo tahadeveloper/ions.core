@@ -283,6 +283,11 @@ class Path extends Singleton
      *
      * @var array<string, string>
      */
+    // NOTE: the new layout normalizes the latent legacy case mismatch where
+    // DumpCommand WROTE schema dumps to `Migrations/` but reads expected
+    // `migrations/` — both fold to lowercase `migrations` here. On the legacy
+    // `{app|src}/Database` fallback the exact legacy names are preserved, so
+    // that bug stays latent there (flagged for the 11.4 changelog).
     private const DATABASE_SUB_MAP = [
         'Schema' => 'schemas',     // MigrateCommand / SchemaCommand / DumpCommand --prune
         'Schemas' => 'schemas',

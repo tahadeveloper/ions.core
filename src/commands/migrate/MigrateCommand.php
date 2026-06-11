@@ -72,12 +72,29 @@ class MigrateCommand extends Command
      * stub-style files that `return new class extends Migration {}` (the
      * shipped jobs/notifications stubs). Loading the file directly is what
      * lets the host-root database/schemas layout (4.4) run without a
-     * dedicated autoload mapping; require_once is a no-op when the class was
-     * already autoloaded from the same file.
+     * dedicated autoload mapping.
+     *
+     * The included value is cached per realpath: `require_once` returns the
+     * file's return value ONLY on first inclusion — a SECOND `require_once`
+     * of the same path in one process returns int(1), which would drop an
+     * anonymous-class stub (`return new class extends Migration {}`) and
+     * fall through to `new App\Database\Schema\{basename}` (Class not found).
+     * The cache keeps the object alive so the same file resolves identically
+     * however many times it is re-resolved in one process (refresh+migrate,
+     * queue workers, host scripts running migrate twice). `require_once` runs
+     * at most once per file here, so a named-class file never redeclares.
      */
     private function resolveSchema(string $file, string $class): object
     {
-        $loaded = require_once $file;
+        static $cache = [];
+
+        $key = realpath($file) ?: $file;
+
+        if (!array_key_exists($key, $cache)) {
+            $cache[$key] = require_once $file;
+        }
+
+        $loaded = $cache[$key];
 
         if (is_object($loaded)) {
             return $loaded;
