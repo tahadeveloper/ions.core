@@ -25,9 +25,7 @@ use Ions\Http\Middleware\SecurityHeadersMiddleware;
 use Ions\Http\Middleware\StartSessionMiddleware;
 use Ions\Http\Middleware\TrustedHostMiddleware;
 use Ions\Http\ResponseNormalizer;
-use Ions\Security\ArrayRevocationStore;
 use Ions\Security\Jwt;
-use Ions\Security\RevocationStore;
 use Ions\Security\SecurityHeaders;
 use Ions\Support\Arr;
 use Ions\Support\Request;
@@ -886,41 +884,7 @@ class Kernel extends Singleton
      */
     public static function buildJwt(): ?Jwt
     {
-        $secret = (string) env('APP_KEY', '');
-        if (strlen($secret) < 32) {
-            return null;
-        }
-
-        // Resolve an optional RevocationStore from the container.
-        // When a 'revocation_store' binding is present (e.g. a cache-backed
-        // CacheRevocationStore registered by the app), it is used; otherwise
-        // the in-memory ArrayRevocationStore is used as the default.
-        // Note: ArrayRevocationStore only persists within a single request.
-        // For cross-request revocation (e.g. logout that survives restart),
-        // bind a persistent RevocationStore implementation as 'revocation_store'.
-        $store = null;
-        if (isset(static::$app)) {
-            if (static::$app->has('revocation_store')) {
-                /** @var RevocationStore $store */
-                $store = static::$app->get('revocation_store');
-            } else {
-                $store = new ArrayRevocationStore();
-            }
-        }
-
-        try {
-            return new Jwt(
-                $secret,
-                (string) env('APP_NAME', 'ions'),
-                (string) env('APP_NAME', 'ions'),
-                (int) config('app.jwt.ttl', 3600),
-                (int) config('app.jwt.leeway', 0),
-                $store,
-                (int) config('app.jwt.refresh_ttl', Jwt::DEFAULT_REFRESH_TTL),
-            );
-        } catch (\Throwable) {
-            return null;
-        }
+        return JwtFactory::build(isset(static::$app) ? static::$app : null);
     }
 
     /**
