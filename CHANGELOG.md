@@ -4,7 +4,8 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-For migration instructions see [UPGRADE-4.4.md](UPGRADE-4.4.md) (4.3 → 4.4),
+For migration instructions see [UPGRADE-4.5.md](UPGRADE-4.5.md) (4.4 → 4.5),
+[UPGRADE-4.4.md](UPGRADE-4.4.md) (4.3 → 4.4),
 [UPGRADE-4.3.md](UPGRADE-4.3.md) (4.2 → 4.3),
 [UPGRADE-4.2.md](UPGRADE-4.2.md) (4.1 → 4.2),
 [UPGRADE-4.1.md](UPGRADE-4.1.md) (4.0 → 4.1),
@@ -12,6 +13,107 @@ For migration instructions see [UPGRADE-4.4.md](UPGRADE-4.4.md) (4.3 → 4.4),
 [UPGRADE-3.0.md](UPGRADE-3.0.md) (2.1.x → 3.0).
 
 ## [Unreleased]
+
+## [4.5.0] - 2026-06-11
+
+The Phase 12 release: hardening, debt paydown, and three additive feature
+sets. It closes the legacy `Bundles/` security audit (path-traversal
+containment for upload/disk writes/moves/copies/downloads, SVG/HTML/JS/XML
+added to the upload deny-list, fail-closed upload content validation, and a
+genuinely presigned `IonDisk::getSignedUrl()`), then ships TOTP two-factor
+auth, email verification, and opt-in HTTP response caching — and promotes
+worker mode from experimental to **stable**. The PHPStan baseline is now empty
+and `Kernel` was decomposed into focused collaborators (a pure refactor). The
+security audit also carries a few **behavior changes** for hosts — fail-closed
+upload validation, `Path::files()`/`filesRoot()` now reject `..`/absolute
+arguments, and `getSignedUrl()` now signs — detailed in
+[UPGRADE-4.5.md](UPGRADE-4.5.md). No new dependencies.
+
+### Added
+
+- **TOTP two-factor authentication** — `Ions\Auth\TwoFactor`, a dependency-free
+  RFC 6238 verifier (static, stateless): `generateSecret()`, `code()`,
+  `verify()` with a configurable drift window, `otpauthUri()` for authenticator
+  QR provisioning, `generateRecoveryCodes()` / `hashRecoveryCode()` /
+  `verifyRecoveryCode()` single-use recovery codes, and Base32 codec helpers. A
+  `Ions\Auth\TwoFactorReplayStore` (`verifyOnce()` / `markUsed()` /
+  `wasUsed()`) blocks the same time-step code being replayed within its window,
+  backed by the cache store. Ships a `two_factor_columns` migration stub. These
+  are additive building blocks — no login flow is changed unless the host wires
+  them in. See [docs/two-factor.md](docs/two-factor.md).
+- **Email verification** — `Ions\Auth\EmailVerification` issues and validates
+  signed verification links **bound to the current email** (changing the email
+  invalidates outstanding links); a `Ions\Auth\Contracts\VerifiesEmail` user
+  contract (`getEmailForVerification()` / `getKeyForVerification()` /
+  `hasVerifiedEmail()` / `markEmailVerified()` / `getEmailVerifiedAt()`); the
+  `Ions\Auth\Http\EnsureEmailVerified` middleware (register under the
+  `verified` alias) to gate routes; a `VerifyEmail` notification; and a resend
+  throttle. Ships an `email_verified_at_column` migration stub. Additive — a
+  user model that does not implement `VerifiesEmail` is never gated. See
+  [docs/email-verification.md](docs/email-verification.md).
+- **HTTP response caching** — `Ions\Http\ResponseCache` + the
+  `Ions\Http\Middleware\CacheResponseMiddleware` (register under the
+  `cache.response` alias), opt-in **per route**. Caches only safe, shareable
+  responses (idempotent GET 200s with no session, no resolved auth user and no
+  `Set-Cookie`), strips per-client/hop-by-hop headers, and serves an
+  `ETag`/`304 Not Modified` revalidation path. A `cache:clear-responses`
+  command purges only the response-cache tag on a tag-capable store
+  (redis/memcached). Benchmarks show ≈ **10–12× faster** per cached request.
+  See [docs/response-cache.md](docs/response-cache.md) and
+  [docs/performance.md](docs/performance.md).
+- **Worker mode promoted to stable** — `Ions\Runtime\WorkerRunner` and
+  `Kernel::resetForRequest()` are no longer experimental. A multi-subsystem
+  isolation matrix (`WorkerLeakMatrixTest`) proves per-request state is reset
+  across config, container, session, auth, DB and request subsystems, and
+  `ions doctor` gained a worker-readiness check. Documented **FrankenPHP** and
+  **RoadRunner** worker recipes (both doc-only, neither a dependency). See
+  [docs/worker-mode.md](docs/worker-mode.md).
+
+### Changed
+
+- **Upload content validation is now fail-closed** — when an extension is on
+  the allow-list but has **no entry in the MIME map**, `UploadValidator` now
+  **rejects** the upload (previously it accepted it — fail-open). Hosts that
+  allow-list an extension absent from `app.uploads.mime_map` must add a mapping.
+  See [UPGRADE-4.5.md](UPGRADE-4.5.md).
+- **`Path::files()` / `Path::filesRoot()` now reject traversal** — relative
+  subpaths are still allowed, but a `..` segment, an absolute path, or a
+  null-byte argument now throws a `RuntimeException` instead of resolving.
+  Hosts passing such values must stop. See [UPGRADE-4.5.md](UPGRADE-4.5.md).
+- **`IonDisk::getSignedUrl()` now returns a presigned, expiring URL** — it
+  previously returned an unsigned permanent URL. Callers relying on the old
+  always-public link must adjust. See [UPGRADE-4.5.md](UPGRADE-4.5.md).
+- **Worker mode is stable** — `WorkerRunner` is no longer marked
+  `@experimental`; the reset lifecycle is covered by the isolation matrix.
+- **`Kernel` decomposed (internal, no host impact)** — extracted
+  `TrustedProxies`, `JwtFactory`, `MiddlewareStack` and `ControllerResolver`
+  collaborators from `Foundation\Kernel` (Kernel shrunk ≈ 15%). Pure refactor;
+  no behavior change.
+- **PHPStan baseline burned down to empty (internal)** — the static-analysis
+  baseline now holds zero entries; remaining vendor seams are inline-documented.
+  No host impact.
+
+### Security
+
+- **Upload/disk path-traversal closed across write/move/copy/download** — the
+  legacy `Bundles/` audit centralized containment in `Path`: `Path::files()` /
+  `Path::filesRoot()` reject `..`/absolute/null-byte arguments, and
+  `IonUpload`/`IonDisk` write, move, copy and download paths are constrained to
+  their configured root. A crafted target path can no longer escape the
+  uploads/disk root.
+- **SVG/HTML/JS/XML added to the upload deny-list** — these stored-XSS vectors
+  (`svg`, `svgz`, `xml`, `html`, `htm`, `xhtml`, `js`, `mhtml`) are now on the
+  hard-coded `UploadValidator` deny-list and can never be accepted, even if
+  allow-listed.
+- **Upload content validation fails closed** — an allow-listed extension with
+  no MIME-map signature is now rejected rather than accepted (no fail-open
+  gap).
+- **`IonDisk::getSignedUrl()` now actually presigns** — it issues a genuinely
+  signed, time-limited URL instead of the previous unsigned permanent link, and
+  no longer leaks static bucket/base-path state between calls.
+
+  See [docs/security-audit-bundles.md](docs/security-audit-bundles.md) and
+  [UPGRADE-4.5.md](UPGRADE-4.5.md).
 
 ## [4.4.0] - 2026-06-11
 
@@ -404,7 +506,8 @@ is additive. See [UPGRADE-4.0.md](UPGRADE-4.0.md).
 - **CSRF enforced by default** — `CsrfMiddleware` is in the default web stack; all state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`) require a valid `_ion_token` field or `X-CSRF-TOKEN` header (HTTP 419 otherwise).
 - **Query-filter allow-listing** — `QueryBuilder::allowFilters()` now enforces a strict allow-list; unrecognised filter columns throw `InvalidFilterQuery`; passing a non-array argument throws `TypeError` (fail-closed).
 
-[Unreleased]: https://github.com/tahadeveloper/ions.core/compare/4.4.0...HEAD
+[Unreleased]: https://github.com/tahadeveloper/ions.core/compare/4.5.0...HEAD
+[4.5.0]: https://github.com/tahadeveloper/ions.core/compare/4.4.0...4.5.0
 [4.4.0]: https://github.com/tahadeveloper/ions.core/compare/4.3.1...4.4.0
 [4.3.1]: https://github.com/tahadeveloper/ions.core/compare/4.3.0...4.3.1
 [4.3.0]: https://github.com/tahadeveloper/ions.core/compare/4.2.0...4.3.0

@@ -159,8 +159,8 @@ Both directory names are supported: `app/` is checked first (the convention sinc
   `extra.ions.providers`; escape hatches `app.providers` / `app.discovery` / `app.dont_discover`
 - **Production caches** — `ions optimize` (`route:cache` + `config:cache` + `discover:cache`), `optimize:clear`,
   `preload:generate`; all bypassed while `APP_DEBUG` is on
-- **Worker mode (experimental)** — `Kernel::resetForRequest()` + `Ions\Runtime\WorkerRunner` for boot-once/handle-many
-  runtimes (FrankenPHP/RoadRunner style)
+- **Worker mode (stable)** — `Kernel::resetForRequest()` + `Ions\Runtime\WorkerRunner` for boot-once/handle-many
+  runtimes (FrankenPHP/RoadRunner recipes)
 - **Middleware pipeline** — `MiddlewareInterface`, `Pipeline`, per-route `->middleware([...])`
 - **Default stacks**: web (TrustedHost + SecurityHeaders + CORS + CSRF), api (+ AuthMiddleware)
 - **Routing** — `Route::get/post/put/patch/delete/any/match/resource`, fluent `->name()` / `->where()` /
@@ -173,6 +173,10 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 - **JWT auth** (`Ions\Security\Jwt`) — access + refresh tokens, revocation deny-list, clock leeway
 - **HTTP auth endpoints** — `Ions\Auth\Http\AuthController` (login / refresh / logout / password reset); per-user-bound
   tokens; refresh-token rotation with family reuse detection (replay revokes the whole family) (4.4)
+- **TOTP two-factor** (`Ions\Auth\TwoFactor`) — RFC 6238 verifier with drift window, recovery codes, otpauth URI for
+  QR provisioning, single-use replay store (4.5)
+- **Email verification** (`Ions\Auth\EmailVerification`) — signed links bound to the current email, `VerifiesEmail`
+  contract, `verified` middleware, `VerifyEmail` notification, resend throttle (4.5)
 - **Pluggable auth** — `UserProvider` contract; `SentinelUserProvider` (default) or `EloquentUserProvider`
 - **Authorization** — `Ions\Auth\Gate` abilities + model policies: `allows`/`denies`/`authorize` (403 on deny),
   `can()` helper + Twig `can()` function, `$this->authorize()` in controllers, guest auto-deny
@@ -275,12 +279,15 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 | [docs/media.md](docs/media.md)                           | Image processing over `intervention/image` v3                                                                                                                      |
 | [docs/http-client.md](docs/http-client.md)               | Outbound HTTP: `Http` facade over `symfony/http-client`, response wrapper, `Http::fake()`                                                                          |
 | [docs/security.md](docs/security.md)                     | `Encrypter` (sodium AEAD), `UrlSigner`, `signedRoute()`/`signedUrl()`, `signed` middleware                                                                         |
+| [docs/security-audit-bundles.md](docs/security-audit-bundles.md) | Legacy `Bundles/` security audit: upload/disk path-traversal containment in `Path`, SVG/HTML/JS/XML deny-list, fail-closed upload content validation, `IonDisk::getSignedUrl()` presigning |
+| [docs/response-cache.md](docs/response-cache.md)         | Opt-in HTTP response caching: `ResponseCache`, `cache.response` middleware, ETag/304 revalidation, auth/session-safe rules, `cache:clear-responses`                |
 | [docs/config.md](docs/config.md)                         | All `app.*`, `auth.*`, `filesystem.*`, `session.*`, `cache.*`, `logging.*`, `queue.*`, `events.*`, `media.*`, `notifications.*` config keys                        |
 | [docs/packages.md](docs/packages.md)                     | Building Ions packages: `extra.ions.providers` zero-config discovery, provider conventions, package commands                                                       |
 | [docs/performance.md](docs/performance.md)               | Production caches (`optimize`, route/config/discover), opcache preload, N+1 detector, measured numbers                                                             |
-| [docs/worker-mode.md](docs/worker-mode.md)               | Experimental worker mode: `Kernel::resetForRequest()`, `WorkerRunner`, state table, FrankenPHP example                                                             |
+| [docs/worker-mode.md](docs/worker-mode.md)               | Worker mode (stable): `Kernel::resetForRequest()`, `WorkerRunner`, per-request state isolation matrix, FrankenPHP + RoadRunner recipes                             |
 | [docs/deploy.md](docs/deploy.md)                         | Deployment: nginx/Apache configs, `public/.htaccess`, PHP-FPM pool notes, TLS-proxy caveat, deploy checklist                                                       |
 | [CHANGELOG.md](CHANGELOG.md)                             | What changed in each release                                                                                                                                       |
+| [UPGRADE-4.5.md](UPGRADE-4.5.md)                         | Behavior changes and migration guide for 4.4 → 4.5.0                                                                                                               |
 | [UPGRADE-4.4.md](UPGRADE-4.4.md)                         | Behavior changes and migration guide for 4.3 → 4.4.0                                                                                                               |
 | [UPGRADE-4.3.md](UPGRADE-4.3.md)                         | Behavior changes and migration guide for 4.2 → 4.3.0                                                                                                               |
 | [UPGRADE-4.2.md](UPGRADE-4.2.md)                         | Behavior changes and migration guide for 4.1 → 4.2.0                                                                                                               |

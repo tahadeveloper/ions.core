@@ -354,6 +354,18 @@ them. Before going live:
   password resets, verification, unsubscribe: `signedRoute('name', [...],
   new DateTimeImmutable('+48 hours'))` + the `signed` middleware. Tamper-proof
   and expiring, no token table.
+- [ ] **Gate sensitive routes on a verified email** — implement
+  `Ions\Auth\Contracts\VerifiesEmail` on the user model and attach the
+  `verified` middleware (`Ions\Auth\Http\EnsureEmailVerified`) to the routes
+  that require it. `Ions\Auth\EmailVerification` issues signed links **bound to
+  the current email**, so changing the address invalidates pending links; the
+  resend path is throttled. See [email-verification.md](email-verification.md).
+- [ ] **Offer TOTP two-factor for privileged accounts** — `Ions\Auth\TwoFactor`
+  is an RFC 6238 verifier (drift window, `otpauthUri()` for the QR, single-use
+  recovery codes). Pair it with `Ions\Auth\TwoFactorReplayStore` so the same
+  time-step code can't be replayed, encrypt the secret at rest, and store
+  recovery codes hashed (`hashRecoveryCode()`). See
+  [two-factor.md](two-factor.md).
 - [ ] **Uploads: keep the built-in validation on** — the extension
   allow-list, the hard-coded executable deny-list, and magic-bytes content
   checks run by default through `IonUpload`/`IonDisk`
@@ -393,10 +405,18 @@ them. Before going live:
   build frontend assets in CI, not on the server.
 - [ ] **opcache + preload** — `preload:generate` writes an `opcache.preload`
   file covering the framework hot path ([performance.md](performance.md#opcache-preload-optional)).
+- [ ] **Response-cache hot anonymous pages** — attach the `cache.response`
+  middleware (`Ions\Http\ResponseCache`) to routes that render the same payload
+  for every client (public pages, anonymous API reads). It is opt-in per route,
+  serves an `ETag`/`304` revalidation path, and **never** caches auth/session/
+  flash responses — so it can't leak per-user data. ≈ 10–12× faster on cache
+  hits ([response-cache.md](response-cache.md)). Prefer a tag-capable store
+  (redis/memcached) so `cache:clear-responses` purges only the response tag;
+  `--force` on a non-tag store also wipes shared JWT revocations and throttles.
 - [ ] **Measure before optimizing** — the framework's hot path is already
   sub-millisecond on the fixture; your queries and external calls dominate.
-  When PHP-FPM itself becomes the bottleneck, see the experimental
-  [worker mode](worker-mode.md).
+  When PHP-FPM itself becomes the bottleneck, reach for the now-stable
+  [worker mode](worker-mode.md) (see deployment below).
 
 ## Scheduling & deployment
 
@@ -420,3 +440,11 @@ Three ops facilities to wire in from day one (all 4.3):
   keeps answering for the monitors.
 - **Locally, `ions serve`** — PHP's built-in dev server on `public/`; never
   in production.
+
+When PHP-FPM cold-boot cost dominates, **worker mode** (stable as of 4.5) runs
+the framework boot-once / handle-many under a persistent runtime:
+`Ions\Runtime\WorkerRunner` drives the loop and `Kernel::resetForRequest()`
+isolates per-request state (config, container, session, auth, DB and request
+subsystems — proven by the worker leak matrix, checked by `ions doctor`). Use
+the documented [FrankenPHP or RoadRunner recipes](worker-mode.md); both are
+doc-only and neither is a dependency.
