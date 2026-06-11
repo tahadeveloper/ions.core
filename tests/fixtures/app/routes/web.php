@@ -84,6 +84,18 @@ Route::get('/session-read', function () {
     return new Response((string) (session('leak') ?? 'clean'));
 });
 
+// --- PSR-15 adapter fixtures (Phase 10.8) ---
+// 'psr15' wraps a real PSR-15 middleware (request attribute + response
+// header); 'psr15.short' short-circuits with a 418 before the terminal runs.
+Route::get('/psr15/echo', function (Request $request) {
+    return new Response('attr:' . $request->attributes->get('psr15_note', 'missing'));
+})->middleware(['psr15']);
+
+Route::get('/psr15/short', function () {
+    \IonsFixture\Middleware\FixturePsr15ShortCircuit::$terminalRan = true;
+    return new Response('terminal reached');
+})->middleware(['psr15.short']);
+
 // --- Debug toolbar fixtures (Phase 10.6) ---
 // Full HTML documents (with </body>) so DebugToolbarMiddleware injects;
 // /toolbar-query runs one statement so the query counter has data.

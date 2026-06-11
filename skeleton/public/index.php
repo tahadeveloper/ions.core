@@ -11,7 +11,7 @@ declare(strict_types=1);
 | routes; Kernel::run() captures the request, sends it through the
 | middleware pipeline and emits the response.
 |
-| Serve locally with:  php -S localhost:8000 -t public
+| Serve locally with:  php bin/ions serve   (or: php -S localhost:8000 -t public)
 */
 
 require __DIR__ . '/../vendor/autoload.php';

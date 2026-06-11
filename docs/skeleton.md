@@ -10,7 +10,7 @@ cp -R skeleton my-app && cd my-app
 composer install
 cp .env.example .env          # then set APP_KEY (64-char hex):
 php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
-php -S localhost:8000 -t public
+php bin/ions serve            # or raw: php -S localhost:8000 -t public
 ```
 
 `http://localhost:8000/` renders the Twig welcome page; `GET /api/ping`
