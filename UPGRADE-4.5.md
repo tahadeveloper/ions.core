@@ -53,7 +53,11 @@ Legitimate nested **relative** subpaths still work exactly as before.
 
 **Action:** if your host passes user-influenced or absolute values into
 `Path::files()` / `Path::filesRoot()`, stop — pass a relative subpath inside the
-uploads/disk root instead. This is the same containment that closes the
+uploads/disk root instead. In particular, a host that *computed an absolute
+path* (e.g. `Path::files('/var/www/app/public/uploads/x')` or
+`Path::files(base_path('uploads').'/x')`) must now pass only the **root-relative
+subpath** (`Path::files('x')` / `Path::files('avatars/2024/x.jpg')`) and let
+`Path` resolve it under the root. This is the same containment that closes the
 write/move/copy/download path-traversal vectors in `IonUpload`/`IonDisk`.
 
 ### `IonDisk::getSignedUrl()` now returns a presigned, expiring URL
