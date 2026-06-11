@@ -181,7 +181,10 @@ balancer this is what makes `Request::isSecure()`, `getClientIp()`, HSTS
 ```
 
 Only list proxies **you** control — trusting arbitrary peers lets clients
-spoof their IP and scheme. An empty array (the default) trusts nothing:
+spoof their IP and scheme. `'*'` is only safe when the app is **never**
+directly reachable (a private-network load balancer fronts every request):
+a client that connects directly then *is* the trusted proxy and can spoof
+its IP and scheme. An empty array (the default) trusts nothing:
 `X-Forwarded-*` headers from clients are ignored.
 
 ---
@@ -199,8 +202,10 @@ Which forwarded headers to trust from the proxies above:
 | `'traefik'` | all `X-Forwarded-*` headers sent by Traefik |
 | `'forwarded'` | the RFC 7239 `Forwarded` header |
 
-Power users can pass any `Request::HEADER_*` int bitmask directly; unknown
-strings fall back to the `'xff'` combination.
+Power users can pass any `Request::HEADER_*` int bitmask directly. Strings
+are matched case-insensitively; unknown strings throw at boot
+(`InvalidArgumentException`) rather than silently falling back to the wider
+`'xff'` set.
 
 ---
 

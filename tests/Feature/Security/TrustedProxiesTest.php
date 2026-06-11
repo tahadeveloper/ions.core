@@ -50,6 +50,16 @@ PHP);
         @unlink($dir . '/config/app.php');
         @unlink($dir . '/config/database.php');
         @rmdir($dir . '/config');
+        // A failed boot leaves a best-effort var/logs/boot.log behind.
+        if (is_file($dir . '/var/logs/boot.log')) {
+            @unlink($dir . '/var/logs/boot.log');
+        }
+        if (is_dir($dir . '/var/logs')) {
+            @rmdir($dir . '/var/logs');
+        }
+        if (is_dir($dir . '/var')) {
+            @rmdir($dir . '/var');
+        }
         @rmdir($dir);
     };
 
@@ -245,7 +255,39 @@ test('app.trusted_proxy_headers maps friendly names and int bitmasks', function 
         Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO,
         Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO,
     ],
+    // Friendly names are case-insensitive — 'Forwarded' must select RFC 7239,
+    // not throw (and certainly not fall back to the wider 'xff' superset).
+    'Forwarded (mixed case)' => ['Forwarded', Request::HEADER_FORWARDED],
+    'AWS-ELB (upper case)' => ['AWS-ELB', Request::HEADER_X_FORWARDED_AWS_ELB],
+    'XFF (upper case)' => [
+        'XFF',
+        Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST
+            | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
+    ],
 ]);
+
+test('an unknown trusted_proxy_headers string fails boot loudly (no silent xff fallback)', function () {
+    // A typo'd 'aws_elb' must NOT silently widen trust back to the 'xff'
+    // superset (which re-enables X-Forwarded-Host). Fail closed at boot:
+    // testing mode arms failBoot()'s rethrow, so the typo surfaces here.
+    [$dir, $cleanup] = makeProxyFixture(
+        "'trusted_proxies' => ['10.0.0.1'],\n    'trusted_proxy_headers' => 'aws_elb',"
+    );
+
+    try {
+        bootFixtureKernel($dir);
+        $this->fail('Boot should have thrown for the unknown trusted_proxy_headers value.');
+    } catch (InvalidArgumentException $e) {
+        expect($e->getMessage())->toContain("'aws_elb'")
+            ->and($e->getMessage())->toContain("'xff'")
+            ->and($e->getMessage())->toContain("'aws-elb'")
+            ->and($e->getMessage())->toContain("'traefik'")
+            ->and($e->getMessage())->toContain("'forwarded'")
+            ->and($e->getMessage())->toContain('bitmask');
+    } finally {
+        $cleanup();
+    }
+});
 
 test("the 'forwarded' header set honors the RFC 7239 Forwarded header", function () {
     bootFixtureKernel();
@@ -279,11 +321,18 @@ test('resetForTesting clears trusted proxies left behind by a previous boot', fu
 
         expect(Request::getTrustedProxies())->toBe([]);
 
+        // Full pre-4.3 surface with proxies unset: scheme, client IP and
+        // host all come from the direct connection — every X-Forwarded-*
+        // header is ignored, including X-Forwarded-Host.
         $request = Request::create('http://localhost/ping', 'GET', [], [], [], [
             'REMOTE_ADDR' => '10.0.0.1',
             'HTTP_X_FORWARDED_PROTO' => 'https',
+            'HTTP_X_FORWARDED_FOR' => '203.0.113.7',
+            'HTTP_X_FORWARDED_HOST' => 'evil.example',
         ]);
-        expect($request->isSecure())->toBeFalse();
+        expect($request->isSecure())->toBeFalse()
+            ->and($request->getClientIp())->toBe('10.0.0.1')
+            ->and($request->getHost())->toBe('localhost');
     } finally {
         $cleanup();
     }

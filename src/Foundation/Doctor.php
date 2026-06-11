@@ -457,6 +457,17 @@ final class Doctor extends Singleton
     {
         $proxies = (array) config('app.trusted_proxies', []);
 
+        if ($proxies === ['*']) {
+            // '*' trusts whatever peer connects directly — only safe when a
+            // proxy fronts EVERY request; flag the assumption in the OK line.
+            return self::result(
+                'trusted_proxies',
+                'Trusted proxies',
+                self::OK,
+                "Trusted proxies configured ('*' — ensure the app is not directly reachable: a directly-connecting client would be the trusted proxy and could spoof its IP and scheme)."
+            );
+        }
+
         if ($proxies !== []) {
             return self::result('trusted_proxies', 'Trusted proxies', self::OK, sprintf('Trusted proxies configured (%d entr%s).', count($proxies), count($proxies) === 1 ? 'y' : 'ies'));
         }

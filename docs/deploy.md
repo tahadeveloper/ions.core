@@ -180,7 +180,10 @@ configurable via
 like plain HTTP: do **not** use `cookie_secure => 'auto'` there — keep the
 4.1 default `true`, and emit HSTS from the proxy that actually speaks TLS.
 Only ever list proxies you control: trusting arbitrary peers lets clients
-spoof their IP and scheme.
+spoof their IP and scheme. `'*'` is only safe when the app is **never**
+directly reachable (a private-network load balancer fronts every request) —
+a client that connects directly then *is* the trusted proxy and can spoof
+its IP and scheme.
 
 When PHP-FPM sits directly behind the TLS-speaking nginx above (same box,
 `fastcgi_param HTTPS on;` set by nginx on the TLS vhost), none of this

@@ -759,6 +759,9 @@ class Kernel extends Singleton
     {
         $proxies = (array) config('app.trusted_proxies', []);
         if ($proxies === []) {
+            // Deliberate early return (not setTrustedProxies([])): preserves any
+            // manual setTrustedProxies() call; a config flip to empty takes
+            // effect on the next boot/resetForTesting.
             return;
         }
 
@@ -777,7 +780,7 @@ class Kernel extends Singleton
 
     /**
      * Resolve config('app.trusted_proxy_headers') to a Symfony header-set
-     * bitmask. Friendly strings:
+     * bitmask. Friendly strings (matched case-insensitively):
      *
      *   'xff' (default) -> X-Forwarded-For | -Host | -Port | -Proto
      *   'aws-elb'       -> Request::HEADER_X_FORWARDED_AWS_ELB
@@ -785,10 +788,13 @@ class Kernel extends Singleton
      *   'forwarded'     -> Request::HEADER_FORWARDED (RFC 7239)
      *
      * An int is passed through unchanged so power users can compose any
-     * Request::HEADER_* bitmask directly. Unknown strings fall back to the
-     * 'xff' default combination.
+     * Request::HEADER_* bitmask directly. Unknown strings throw (fail
+     * closed): a typo'd 'aws_elb' silently falling back to the 'xff'
+     * superset would re-enable X-Forwarded-Host trust the operator meant
+     * to exclude.
      *
      * @return int
+     * @throws \InvalidArgumentException on an unrecognized string value
      */
     private static function trustedProxyHeaderSet(): int
     {
@@ -797,12 +803,16 @@ class Kernel extends Singleton
             return $configured;
         }
 
-        return match ((string) $configured) {
+        return match (strtolower((string) $configured)) {
+            'xff' => Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
             'aws-elb' => Request::HEADER_X_FORWARDED_AWS_ELB,
             'traefik' => Request::HEADER_X_FORWARDED_TRAEFIK,
             'forwarded' => Request::HEADER_FORWARDED,
-            default => Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST
-                | Request::HEADER_X_FORWARDED_PORT | Request::HEADER_X_FORWARDED_PROTO,
+            default => throw new \InvalidArgumentException(sprintf(
+                "Unknown app.trusted_proxy_headers value '%s' — use 'xff', 'aws-elb', 'traefik', 'forwarded', or a Request::HEADER_* int bitmask.",
+                (string) $configured
+            )),
         };
     }
 
