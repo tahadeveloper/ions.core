@@ -16,6 +16,9 @@ final class ArrayRevocationStore implements RevocationStore
     /** @var array<string, int> jti → unix-timestamp expiry (0 = no expiry / permanent) */
     private array $revoked = [];
 
+    /** @var array<string, int> fid → unix-timestamp expiry (0 = no expiry / permanent) */
+    private array $revokedFamilies = [];
+
     public function revoke(string $jti, int $ttlSeconds): void
     {
         $this->revoked[$jti] = $ttlSeconds > 0 ? time() + $ttlSeconds : 0;
@@ -23,21 +26,39 @@ final class ArrayRevocationStore implements RevocationStore
 
     public function isRevoked(string $jti): bool
     {
-        if (!array_key_exists($jti, $this->revoked)) {
+        return $this->isExpired($this->revoked, $jti);
+    }
+
+    public function revokeFamily(string $fid, int $ttlSeconds): void
+    {
+        $this->revokedFamilies[$fid] = $ttlSeconds > 0 ? time() + $ttlSeconds : 0;
+    }
+
+    public function isFamilyRevoked(string $fid): bool
+    {
+        return $this->isExpired($this->revokedFamilies, $fid);
+    }
+
+    /**
+     * Shared lookup over a key→expiry map: 0 = permanent; a passed expiry is
+     * cleaned up and treated as not revoked (the JWT itself would be expired).
+     *
+     * @param array<string, int> $map
+     */
+    private function isExpired(array &$map, string $key): bool
+    {
+        if (!array_key_exists($key, $map)) {
             return false;
         }
 
-        $expiry = $this->revoked[$jti];
+        $expiry = $map[$key];
 
-        // 0 means permanent revocation (no ttl).
         if ($expiry === 0) {
             return true;
         }
 
-        // If the entry itself has passed its own TTL we can clean up and treat
-        // it as not revoked (the original JWT would be expired anyway).
         if (time() > $expiry) {
-            unset($this->revoked[$jti]);
+            unset($map[$key]);
             return false;
         }
 

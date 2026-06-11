@@ -97,18 +97,55 @@ test('refresh rotates: the new access token works and the old refresh token is r
     ]));
     expect($refresh->getStatusCode())->toBe(200);
     $newTokens = json_decode((string) $refresh->getContent(), true)['data'];
-    expect($newTokens['access_token'])->toBeString()->not->toBeEmpty();
+    expect($newTokens['access_token'])->toBeString()->not->toBeEmpty()
+        ->and($newTokens['token_type'])->toBe('Bearer')
+        // 11.4: rotation now re-issues a refresh token, surfaced in the response.
+        ->and($newTokens['refresh_token'])->toBeString()->not->toBeEmpty()
+        ->and($newTokens['refresh_token'])->not->toBe($tokens['refresh_token']);
 
     // The new access token resolves the user on a protected route.
     $protected = Request::create('/api/secret');
     $protected->headers->set('Authorization', 'Bearer ' . $newTokens['access_token']);
     expect(Kernel::handle($protected)->getStatusCode())->toBe(200);
 
+    // The newly issued refresh token works for a further rotation (before any
+    // replay poisons the family).
+    $again = Kernel::handle(jsonPost('/api/auth/refresh', [
+        'refresh_token' => $newTokens['refresh_token'],
+    ]));
+    expect($again->getStatusCode())->toBe(200);
+
     // The OLD refresh token is now revoked (rotation) → 401.
     $reuse = Kernel::handle(jsonPost('/api/auth/refresh', [
         'refresh_token' => $tokens['refresh_token'],
     ]));
     expect($reuse->getStatusCode())->toBe(401);
+});
+
+test('refresh reuse detection: replaying a rotated refresh token kills the family', function () {
+    $login = Kernel::handle(jsonPost('/api/auth/login', [
+        'email'    => 'known@example.com',
+        'password' => 'secret',
+    ]));
+    $tokens = json_decode((string) $login->getContent(), true)['data'];
+
+    // Rotate once → the response carries a sibling refresh token of the same family.
+    $rot = Kernel::handle(jsonPost('/api/auth/refresh', [
+        'refresh_token' => $tokens['refresh_token'],
+    ]));
+    $sibling = json_decode((string) $rot->getContent(), true)['data']['refresh_token'];
+
+    // Attacker replays the already-rotated original refresh token → 401 + family killed.
+    $replay = Kernel::handle(jsonPost('/api/auth/refresh', [
+        'refresh_token' => $tokens['refresh_token'],
+    ]));
+    expect($replay->getStatusCode())->toBe(401);
+
+    // The legitimate sibling token is now also rejected (whole lineage revoked).
+    $siblingReuse = Kernel::handle(jsonPost('/api/auth/refresh', [
+        'refresh_token' => $sibling,
+    ]));
+    expect($siblingReuse->getStatusCode())->toBe(401);
 });
 
 test('logout revokes the access token: a subsequent protected request is rejected', function () {

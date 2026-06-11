@@ -46,7 +46,7 @@ $accessToken = $jwt->issue(string $userId, array $claims = []): string;
 $refreshToken = $jwt->issueRefresh(string $userId): string;
 ```
 
-Custom `$claims` passed to `issue()` are merged into the token; reserved claims (`typ`, `jti`, `iss`, `aud`, `sub`, `iat`, `nbf`, `exp`) are silently ignored to prevent injection.
+Custom `$claims` passed to `issue()` are merged into the token; reserved claims (`typ`, `jti`, `iss`, `aud`, `sub`, `iat`, `nbf`, `exp`, `fid`) are silently ignored to prevent injection. `fid` is the refresh-token *family id*, minted by `issueRefresh()` at login (see [Refreshing tokens](#refreshing-tokens)).
 
 ### Verifying access tokens
 
@@ -61,10 +61,34 @@ $claims = $jwt->verify(string $token): \Ions\Security\Claims;
 ### Refreshing tokens
 
 ```php
-// Exchange a valid refresh token for a new access token.
+// Exchange a valid refresh token for a FRESH access + refresh token pair.
 // The presented refresh token is immediately revoked (rotation).
-$newAccessToken = $jwt->refresh(string $refreshToken): string;
+$tokens = $jwt->refresh(string $refreshToken): array; // ['access' => ..., 'refresh' => ...]
+$newAccessToken  = $tokens['access'];
+$newRefreshToken = $tokens['refresh'];
 ```
+
+**Refresh-token rotation with family reuse detection (the breach-detection pattern).**
+`issueRefresh()` mints a family id (`fid`) at login. Every `refresh()` rotates the
+token: it revokes the presented refresh token and re-issues a new access **and** a
+new refresh token carrying the **same `fid`** (the lineage). This lets the framework
+detect a stolen-and-replayed refresh token:
+
+- **Reuse detection** — presenting an already-rotated (revoked) refresh token is a
+  replay signal. `refresh()` revokes the *entire `fid` family*, then rejects the
+  request. Every still-live sibling token from that login is invalidated, forcing a
+  re-login of both the attacker and the victim.
+- **Family short-circuit** — once a family is revoked, any sibling refresh token of
+  that family is rejected up-front (`isFamilyRevoked`).
+- **Backward compatibility** — refresh tokens issued before 4.4 carry no `fid`. They
+  still rotate (per-`jti` revocation), but family checks are skipped; the rotated
+  token is minted with a fresh `fid` so it joins the family-aware scheme going forward.
+
+Backed by the bound `RevocationStore`, which now exposes a second namespace:
+`revokeFamily(string $fid, int $ttl)` / `isFamilyRevoked(string $fid)`
+(`CacheRevocationStore` uses a `jwt_revoked_family:` key prefix; `ArrayRevocationStore`
+keeps a second in-memory map). When no revocation store is configured, rotation issues
+a new pair but cannot enforce reuse/family detection.
 
 ### Revoking tokens
 
@@ -144,16 +168,18 @@ verification — the 401 semantics for every other route are unchanged.
 | Method & path | Body | Success (200) | Failure |
 |---|---|---|---|
 | `POST /api/auth/login` | `{ "email", "password" }` | `{ status:"success", data:{ access_token, refresh_token, token_type:"Bearer" } }` | `401` invalid credentials |
-| `POST /api/auth/refresh` | `{ "refresh_token" }` *(or Bearer)* | `{ data:{ access_token, token_type:"Bearer" } }` | `401` invalid/expired/revoked |
+| `POST /api/auth/refresh` | `{ "refresh_token" }` *(or Bearer)* | `{ data:{ access_token, refresh_token, token_type:"Bearer" } }` | `401` invalid/expired/revoked/replayed |
 | `POST /api/auth/logout` | — *(Bearer access token)* | `{ data:{ message:"logged out" } }` | — |
 | `POST /api/auth/password/forgot` | `{ "email" }` | `{ data:{ message } }` *(generic — no user enumeration)* | `501` provider lacks reset support |
 | `POST /api/auth/password/reset` | `{ "email", "code", "password" }` | `{ data:{ message:"password reset" } }` | `422` invalid code / missing fields; `501` unsupported |
 
 `login` runs `UserProvider::retrieveByCredentials()` + `validateCredentials()`,
 then issues an access **and** refresh token. `refresh` calls `Jwt::refresh()`,
-which rotates the refresh token (the presented one is immediately revoked) and
-returns a fresh access token. `logout` calls `Jwt::revoke()` on the access token,
-adding its `jti` to the `RevocationStore`.
+which rotates the lineage — the presented refresh token is immediately revoked and
+a **new access *and* refresh token** (same family) are returned; replaying an
+already-rotated refresh token revokes the whole family (see
+[Refreshing tokens](#refreshing-tokens)). `logout` calls `Jwt::revoke()` on the
+access token, adding its `jti` to the `RevocationStore`.
 
 ### Password reset
 
