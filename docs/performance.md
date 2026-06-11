@@ -110,13 +110,18 @@ whitespace collapsed, string/numeric literals replaced with `?`,
 pattern repeated >= threshold times** (default 5) within one request is
 flagged.
 
-This is a **log-based heuristic**, not ORM-level lazy-load detection (compare
-Laravel's `Model::preventLazyLoading()`, which hooks relation loading itself).
-The query log cannot show *where* a query came from — only that the same
+This is a **log-based heuristic**, not ORM-level lazy-load detection. The
+query log cannot show *where* a query came from — only that the same
 single-row-shaped `SELECT` ran many times in one request, which is exactly the
 N+1 signature. Expect occasional false positives from intentional query loops;
 fix real offenders with eager loading (`->with('relation')`) or one
 `WHERE … IN (...)` query.
+
+Since 4.3 the heuristic is **complemented** by ORM strict mode (below), which
+hooks relation loading itself and throws at the exact offending line. Use
+both: strict mode catches lazy loads deterministically in dev, the heuristic
+also catches N+1 shapes that never go through Eloquent relations (manual
+loops, raw queries).
 
 ### Config keys
 
@@ -130,6 +135,47 @@ Production is untouched: with `APP_DEBUG` off (or `query_log` off, or
 `enabled => false`) **no listener is attached at all** — zero hot-path cost.
 The listener itself never throws; diagnostics failures are swallowed so they
 cannot break a response.
+
+## ORM strict mode (debug-only, 4.3)
+
+With `APP_DEBUG` on (and unless `config('database.strict') => false`),
+`DatabaseProvider::boot()` enables Eloquent's own development guards:
+
+- **`Model::preventLazyLoading(true)`** — accessing an unloaded relation on a
+  model hydrated in a multi-model result set throws
+  `Illuminate\Database\LazyLoadingViolationException` naming the model and
+  relation, at the exact line of the lazy access. (Upstream Eloquent
+  deliberately exempts single `first()`/`find()` models — one lazy load is not
+  an N+1.)
+- **`Model::preventSilentlyDiscardingAttributes(true)`** — a `fill()` that
+  `$fillable` would silently drop throws instead.
+
+Production (`APP_DEBUG` off) is always relaxed regardless of config — the
+statics are explicitly re-set on every boot, so worker re-boots self-correct.
+Deterministic where the N+1 log heuristic above is probabilistic; the
+heuristic still covers query loops that bypass relations. See
+[config.md](config.md#databasestrict).
+
+## Debug toolbar (debug-only)
+
+When `APP_DEBUG` is truthy, `Ions\Http\Middleware\DebugToolbarMiddleware` is
+appended to the **web** stack at stack-build time and injects a small
+fixed-position footer bar (inline CSS/JS, dismissable) before `</body>` in
+HTML responses:
+
+| Segment | Source |
+| --- | --- |
+| request wall ms | middleware start → end (covers controller + inner middleware) |
+| method + path (route name) | the matched request |
+| `queries: N (X ms)` | the connection query log; `log off` unless `database.query_log` is on |
+| peak memory MB | `memory_get_peak_usage(true)` |
+| PHP + Ions versions | `PHP_VERSION` + composer runtime metadata |
+
+Guarantees: production never constructs the middleware (zero cost); only
+`text/html` bodies containing `</body>` are touched — JSON/api, redirects,
+streamed and binary responses pass through byte-identical; the whole
+injection is wrapped in a try/catch, so it can never break a response. Hide it
+in debug with `config('app.debug_toolbar') => false`.
 
 ## opcache preload (optional)
 

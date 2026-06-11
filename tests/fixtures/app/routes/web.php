@@ -83,3 +83,15 @@ Route::get('/session-write', function () {
 Route::get('/session-read', function () {
     return new Response((string) (session('leak') ?? 'clean'));
 });
+
+// --- Debug toolbar fixtures (Phase 10.6) ---
+// Full HTML documents (with </body>) so DebugToolbarMiddleware injects;
+// /toolbar-query runs one statement so the query counter has data.
+Route::get('/toolbar-page', fn () => new Response(
+    '<!DOCTYPE html><html><head><title>t</title></head><body><p>toolbar fixture</p></body></html>'
+));
+
+Route::get('/toolbar-query', function () {
+    \Ions\Support\DB::connection()->select('select 1');
+    return new Response('<html><body>queried</body></html>');
+});

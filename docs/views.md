@@ -124,6 +124,35 @@ For JSON APIs the paginator serializes itself (`data`, `current_page`,
 The form-flow Twig functions `errors()` and `old()` are documented in
 [forms.md](forms.md).
 
+## Custom error pages (4.3)
+
+In production (`APP_DEBUG` off) the exception handler renders HTML errors
+through host templates when they exist, looked up through the shared Twig
+environment in this order:
+
+1. `views/errors/{status}.twig` — e.g. `errors/404.twig`, `errors/503.twig`
+2. `views/errors/{4xx|5xx}.twig` — status-class fallback
+3. the built-in minimal page — when neither template exists
+
+Context passed to the template:
+
+| Variable | Meaning |
+| --- | --- |
+| `status` | the HTTP status code (int) |
+| `message` | the client-safe message — exactly what the built-in page would show, so a custom page can never leak more than before (generic exceptions stay generic in production) |
+| `request_path` | the path that errored |
+
+Guarantees:
+
+- **Never throws.** A template failure (syntax error, runtime error, missing
+  Twig config) logs a warning to `var/logs/view.log` and serves the built-in
+  page — a broken error page is worse than a plain one.
+- **Debug mode is unchanged** — the rich debug page always wins under
+  `APP_DEBUG`.
+- **API/JSON errors are unchanged** — templates only apply to the HTML path.
+
+The skeleton ships a commented example at `views/errors/404.twig`.
+
 ## Legacy `render()` helper
 
 The global `render($name, $parameters)` helper (echoes a template via

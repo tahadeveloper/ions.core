@@ -216,6 +216,11 @@ Re-run `php bin/ions optimize` on **every** deploy (stale route/config caches
 ship old code paths); `php bin/ions optimize:clear` undoes it. `doctor` exits
 non-zero on failures, so it slots into CI/CD pipelines (`--json` for machines).
 
+Point load-balancer / uptime health probes at the built-in **`GET /up`**
+endpoint (`200 ok`, `Cache-Control: no-store`); with `HEALTH_TOKEN` set,
+`GET /up?checks=1&token=…` serves the doctor JSON for readiness dashboards —
+see [console.md](console.md#the-up-health-endpoint).
+
 If the app defines scheduled tasks (`App\Schedule`), add the single cron
 entry — see [scheduler.md](scheduler.md):
 

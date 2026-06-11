@@ -6,30 +6,91 @@
     <title>{{ app_name }}</title>
     <style>
         :root { color-scheme: light dark; }
+        * { box-sizing: border-box; }
         body {
+            margin: 0; min-height: 100vh;
             font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+            color: #d8dce3;
+            background: #101218 radial-gradient(60rem 40rem at 80% -10%, rgba(99, 102, 241, 0.22), transparent 60%);
             display: flex; align-items: center; justify-content: center;
-            min-height: 100vh; margin: 0;
+            padding: 2.5rem 1.5rem;
         }
-        main { text-align: center; padding: 2rem; }
-        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
-        p { opacity: 0.7; }
-        a { color: #6366f1; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        code {
-            background: rgba(99, 102, 241, 0.1); border-radius: 4px;
-            padding: 0.15rem 0.4rem; font-size: 0.9em;
+        main { width: 100%; max-width: 52rem; }
+        .wordmark { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.4rem; }
+        .wordmark .logo { font-size: 3rem; font-weight: 800; letter-spacing: -0.03em; color: #fff; }
+        .wordmark .logo span { color: #818cf8; }
+        .version { font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace; color: #8b939f; }
+        .tagline { color: #9aa4b2; margin: 0 0 2rem; }
+        .tagline strong { color: #c7cdd6; font-weight: 600; }
+        .cards {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+            gap: 0.9rem; margin-bottom: 2rem;
+        }
+        .card {
+            display: block; text-decoration: none;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 10px; padding: 1rem 1.1rem;
+            transition: border-color 0.15s ease, background 0.15s ease;
+        }
+        .card:hover { border-color: #818cf8; background: rgba(99, 102, 241, 0.08); }
+        .card h2 { margin: 0 0 0.3rem; font-size: 0.95rem; color: #e7eaf0; }
+        .card p { margin: 0; font-size: 0.82rem; line-height: 1.45; color: #9aa4b2; }
+        .quickstart {
+            background: #0b0d12; border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 10px; padding: 1rem 1.2rem;
+        }
+        .quickstart h2 {
+            margin: 0 0 0.6rem; font-size: 0.75rem; text-transform: uppercase;
+            letter-spacing: 0.08em; color: #8b939f;
+        }
+        .quickstart pre {
+            margin: 0; overflow-x: auto;
+            font: 0.85rem/1.8 ui-monospace, SFMono-Regular, Menlo, monospace; color: #c7cdd6;
+        }
+        .quickstart .c { color: #6b7280; }
+        footer { margin-top: 1.5rem; font-size: 0.78rem; color: #6b7280; }
+        footer code {
+            background: rgba(99, 102, 241, 0.12); border-radius: 4px;
+            padding: 0.1rem 0.35rem; font-size: 0.95em; color: #aab2f0;
         }
     </style>
 </head>
 <body>
 <main>
-    <h1>{{ app_name }}</h1>
-    <p>Welcome — this application runs on the Ions PHP framework.</p>
-    <p>
-        Edit <code>views/home/index.twig</code> and <code>routes/web.php</code> to get started,
-        or read the <a href="https://github.com/tahadeveloper/ions.core/tree/main/docs">documentation</a>.
-    </p>
+    <div class="wordmark">
+        <div class="logo">{{ app_name }}<span>.</span></div>
+        <div class="version">Ions {{ ions_version }}</div>
+    </div>
+    <p class="tagline">Welcome — this application runs on the <strong>Ions PHP framework</strong>.</p>
+
+    <div class="cards">
+        <a class="card" href="https://github.com/tahadeveloper/ions.core/tree/main/docs">
+            <h2>Documentation</h2>
+            <p>Routing, controllers, views, auth, queues — the full framework reference.</p>
+        </a>
+        <a class="card" href="https://github.com/tahadeveloper/ions.core/blob/main/docs/best-practices.md">
+            <h2>Best practices</h2>
+            <p>Conventions for structuring, securing and testing an Ions application.</p>
+        </a>
+        <a class="card" href="https://github.com/tahadeveloper/ions.core/blob/main/docs/deploy.md">
+            <h2>Deploying</h2>
+            <p>Production checklist: caches, proxies, health probes and hardening.</p>
+        </a>
+    </div>
+
+    <div class="quickstart">
+        <h2>Quick start</h2>
+        <pre><span class="c"># serve the app locally</span>
+php -S localhost:8000 -t public
+
+<span class="c"># check the host configuration</span>
+php bin/ions doctor</pre>
+    </div>
+
+    <footer>
+        Edit <code>views/home/index.twig</code> and <code>routes/web.php</code> to make this page yours.
+    </footer>
 </main>
 </body>
 </html>

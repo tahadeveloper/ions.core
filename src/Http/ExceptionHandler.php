@@ -87,9 +87,66 @@ final class ExceptionHandler
                 );
             }
         } else {
-            $body = sprintf('<h1>%d %s</h1>', $status, htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+            // Custom error pages (10.6): hosts may ship errors/{status}.twig
+            // or a status-class errors/{4xx|5xx}.twig; the built-in minimal
+            // page (pre-4.1 byte shape, pinned by tests) stays the fallback.
+            $body = $this->customErrorPage($status, $message, $request)
+                ?? sprintf('<h1>%d %s</h1>', $status, htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
         }
 
         return new Response($body, $status, ['Content-Type' => 'text/html; charset=UTF-8']);
+    }
+
+    /**
+     * Render a host-provided error template through the shared Twig env
+     * (10.6, production HTML path only — debug keeps the DebugPage and the
+     * JSON path is untouched).
+     *
+     * Lookup chain: errors/{status}.twig, then errors/{4xx|5xx}.twig by
+     * status class. Context: 'status' (int), 'message' (the SAME client-safe
+     * message the minimal page would show — no new information is exposed),
+     * 'request_path'.
+     *
+     * NEVER throws — this runs inside the error renderer, and a broken error
+     * page is worse than a plain one (DebugPage::section precedent). Any
+     * failure (missing twig config, template syntax error, runtime error) is
+     * logged to view.log and answered with null so the built-in page renders.
+     */
+    private function customErrorPage(int $status, string $message, Request $request): ?string
+    {
+        try {
+            $env = (new \Ions\View\ViewFactory())->make();
+            $loader = $env->getLoader();
+
+            $candidates = [
+                sprintf('errors/%d.twig', $status),
+                sprintf('errors/%dxx.twig', intdiv($status, 100)),
+            ];
+
+            foreach ($candidates as $template) {
+                if (!$loader->exists($template)) {
+                    continue;
+                }
+
+                return $env->render($template, [
+                    'status' => $status,
+                    'message' => $message,
+                    'request_path' => $request->getPathInfo(),
+                ]);
+            }
+        } catch (Throwable $e) {
+            try {
+                \Ions\Bundles\Logs::create('view.log')->warning(sprintf(
+                    'Custom error page for status %d failed (%s: %s) — built-in page used.',
+                    $status,
+                    $e::class,
+                    $e->getMessage()
+                ));
+            } catch (Throwable) {
+                // Logging must never mask the fallback.
+            }
+        }
+
+        return null;
     }
 }

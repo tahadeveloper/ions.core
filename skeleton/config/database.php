@@ -13,6 +13,11 @@ return [
     // times per request (see docs/performance.md). Tune or disable with:
     // 'nplusone' => ['enabled' => true, 'threshold' => 5],
 
+    // ORM strict mode (10.6) follows APP_DEBUG: in debug, lazy relation
+    // loads and silently discarded fills THROW (Eloquent preventLazyLoading /
+    // preventSilentlyDiscardingAttributes); production is always relaxed.
+    // Opt out while debugging with: 'strict' => false,
+
     'connections' => [
         'mysql' => [
             'driver' => 'mysql',

@@ -65,6 +65,20 @@ return [
         ],
     ],
 
+    // Built-in GET /up health endpoint (10.6): 200 'ok' liveness for load
+    // balancers; /up?checks=1&token=... additionally runs `ions doctor` and
+    // answers its JSON — set a long random token to enable that. Disable the
+    // route entirely with 'enabled' => false. See docs/deploy.md.
+    'health' => [
+        'enabled' => true,
+        'token' => env('HEALTH_TOKEN'),
+    ],
+
+    // Debug toolbar (10.6): with APP_DEBUG on, HTML responses get a footer
+    // bar (request ms, route, query count, memory, versions). Costs nothing
+    // in production (never attached). Set false to hide it while debugging.
+    // 'debug_toolbar' => true,
+
     // Security defaults (4.1) are intentionally NOT overridden here:
     //   - session cookies: secure/httponly/samesite=lax (config/session.php)
     //   - HSTS + Permissions-Policy headers (app.security.*)

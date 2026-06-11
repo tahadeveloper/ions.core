@@ -6,6 +6,7 @@ namespace Ions\Providers;
 
 use Illuminate\Container\Container as IlluminateContainer;
 use Illuminate\Database\Capsule\Manager;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Pagination\Paginator;
 use Ions\Bundles\Logs;
@@ -65,6 +66,17 @@ final class DatabaseProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // ORM strict mode (10.6): debug-only safety nets — lazy relation
+        // access throws LazyLoadingViolationException (naming the relation)
+        // and fills silently dropped by $fillable throw instead of vanishing.
+        // These are Eloquent CLASS statics, so they are set EVERY boot with
+        // the freshly computed value (self-correcting across worker re-boots
+        // and tests). Production (APP_DEBUG off) is ALWAYS relaxed regardless
+        // of config; in debug, 'database.strict' => false is the escape hatch.
+        $strict = (bool) env('APP_DEBUG', false) && config('database.strict', true) !== false;
+        Model::preventLazyLoading($strict);
+        Model::preventSilentlyDiscardingAttributes($strict);
+
         $engines = config('app.database_engine', []);
 
         if (in_array('db', $engines, true) && $this->container->bound('db')) {

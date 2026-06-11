@@ -17,6 +17,20 @@ class HomeController extends BaseController
         // returned View into a 200 HTML response.
         return $this->view('index', [
             'app_name' => config('app.name', 'Ions'),
+            'ions_version' => $this->ionsVersion(),
         ]);
+    }
+
+    /**
+     * The installed framework version for the welcome page's version line —
+     * composer runtime metadata, degrading to 'dev' in odd setups.
+     */
+    private function ionsVersion(): string
+    {
+        try {
+            return \Composer\InstalledVersions::getPrettyVersion('ionzile/core') ?? 'dev';
+        } catch (\Throwable) {
+            return 'dev';
+        }
     }
 }
