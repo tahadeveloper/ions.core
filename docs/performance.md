@@ -190,6 +190,35 @@ opcache.preload_user=www-data
 
 Regenerate after upgrading `ionzile/core`.
 
+## Response cache (12.5)
+
+The compiled caches above shrink the *framework* per-request cost; the response
+cache attacks the **application** cost — the controller, template render and any
+database work behind a page. It is an opt-in, full-page cache for anonymous
+cacheable `GET` 200s, attached per route/group via the `cache.response`
+middleware alias. On a cache HIT the controller never runs; the stored
+status/headers/body are rehydrated and served with `X-Ions-Cache: HIT`.
+
+It is conservative by design (never caches authenticated/session responses or
+anything carrying `Set-Cookie`/`private`/`no-store`), bypasses entirely on
+`APP_DEBUG`, supports ETag/`304 Not Modified` even on the first hit, and never
+breaks a response (every store interaction is guarded). TTL is the primary
+expiry; `ions cache:clear-responses` purges entries (tag-scoped on
+redis/memcached/array, whole-store fallback on file). Full reference:
+[response-cache.md](response-cache.md).
+
+`bench/bench.php` measures a moderately expensive render (~50 KB body) served
+live vs. from the response cache (php83, in-process, array store, N=200):
+
+| | per request |
+| --- | --- |
+| cache off (live render every time) | ~0.46–0.52 ms |
+| cache on (HIT, no render) | ~0.04–0.05 ms |
+
+≈ **10–12× faster** per cached request. The array store has no I/O; a persistent
+store (file/redis) adds store latency but still skips the render and any
+database work behind it.
+
 ## Measured impact (fixtures, php83)
 
 | Step | Metric | Before | After |

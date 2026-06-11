@@ -45,6 +45,16 @@ final class CacheProvider extends ServiceProvider
 
         // Convenience alias used by repositories that type-hint the store.
         $this->container->bind('cache.store', static fn () => $container->get('cache')->store());
+
+        // Response cache (12.5): the pure cache logic behind the
+        // 'cache.response' middleware and `cache:clear-responses`. Bound here so
+        // both resolve a single instance over the default store.
+        $this->container->bind(\Ions\Http\ResponseCache::class, static function () use ($container): \Ions\Http\ResponseCache {
+            /** @var \Illuminate\Cache\Repository $store */
+            $store = $container->get('cache.store');
+
+            return new \Ions\Http\ResponseCache($store);
+        });
     }
 
     /**

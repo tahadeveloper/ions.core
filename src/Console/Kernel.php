@@ -74,6 +74,7 @@ class Kernel
         \Ions\commands\DiscoverClearCommand::class,
         \Ions\commands\OptimizeCommand::class,
         \Ions\commands\OptimizeClearCommand::class,
+        \Ions\commands\CacheClearResponsesCommand::class,
         \Ions\commands\PreloadGenerateCommand::class,
         \Ions\commands\DoctorCommand::class,
         \Ions\commands\DownCommand::class,

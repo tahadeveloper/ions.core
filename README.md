@@ -227,6 +227,9 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 - **Encryption & signed URLs** — `Ions\Security\Encrypter` (XChaCha20-Poly1305 AEAD), `UrlSigner` + `signedRoute()`
   helper + `signed` middleware alias
 - **Rate limiting** — `RateLimitMiddleware` / `throttle` alias, 429 + `Retry-After`
+- **Response cache** — opt-in full-page cache for anonymous GET 200s (`cache.response` alias); ETag/`304`,
+  `Vary`, TTL, `X-Ions-Cache` HIT/MISS, never caches auth/session, debug bypass; `ions cache:clear-responses`
+  (≈10–12× faster cached vs live render in `bench/bench.php`)
 - **Exception handler** — `Ions\Http\ExceptionHandler`; JSON for API (incl. 422 validation), HTML for web with
   host-themeable `views/errors/{status}.twig` pages (4.3); web validation failures redirect back with errors + input;
   safe in production

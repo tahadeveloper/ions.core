@@ -22,4 +22,13 @@ return [
             'driver' => 'file',
         ],
     ],
+
+    // Response cache (12.5). Short TTL keeps the fixture deterministic.
+    'response' => [
+        'enabled' => true,
+        'ttl' => 300,
+        'max_ttl' => 86400,
+        'prefix' => 'response_cache:',
+        'tag' => 'ions_response_cache',
+    ],
 ];

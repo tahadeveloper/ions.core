@@ -47,6 +47,9 @@ return [
         'signed' => \Ions\Http\Middleware\ValidateSignatureMiddleware::class,
         // Requires a verified email on the authenticated user (12.4).
         'verified' => \Ions\Auth\Http\EnsureEmailVerified::class,
+        // Opt-in full-page response cache for anonymous GET 200s (12.5).
+        // Tuning lives in config/cache.php under 'response'.
+        'cache.response' => \Ions\Http\Middleware\CacheResponseMiddleware::class,
     ],
 
     // Rate-limit window for the 'throttle' alias (defaults shown).

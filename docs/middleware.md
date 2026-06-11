@@ -121,6 +121,16 @@ Route::get('/premium', 'ContentController@premium')
 
 The Kernel resolves aliases from `app.middleware_aliases`, then instantiates the class via the container. An unknown alias or unresolvable class **fails the request** (500): per-route middleware is never silently dropped, so a broken alias can't leave a guarded route serving traffic unprotected. In debug mode the error names the middleware; in production the body is generic and the detail goes to the log.
 
+### `cache.response` — opt-in full-page cache (12.5)
+
+The `cache.response` alias (`Ions\Http\Middleware\CacheResponseMiddleware`)
+caches anonymous `GET` 200 responses for a route/group. It is conservative
+(never caches authenticated/session responses or anything carrying
+`Set-Cookie`/`private`/`no-store`), bypasses on `APP_DEBUG`, adds ETag/`304`
+handling, stamps `X-Ions-Cache: HIT`/`MISS`, and never breaks a response.
+Invalidate with `ions cache:clear-responses`. Full reference:
+[response-cache.md](response-cache.md).
+
 ## PSR-15 middleware — `Psr15Adapter`
 
 `Ions\Http\Middleware\Psr15Adapter` runs any [PSR-15](https://www.php-fig.org/psr/psr-15/)

@@ -35,6 +35,8 @@ return [
         // subclasses that pin the wrapped PSR-15 middleware in their ctor.
         'psr15' => \IonsFixture\Middleware\FixturePsr15Alias::class,
         'psr15.short' => \IonsFixture\Middleware\FixturePsr15ShortCircuitAlias::class,
+        // Opt-in response cache (12.5).
+        'cache.response' => \Ions\Http\Middleware\CacheResponseMiddleware::class,
     ],
 
     // Built-in /up health endpoint (10.6). EXPLICIT mirror of the skeleton
