@@ -12,16 +12,21 @@ final class UploadValidator
         'phtm', 'inc', 'php9', 'php10',
         'htaccess', 'htpasswd', 'shtml', 'cgi', 'pl', 'asp', 'aspx', 'jsp', 'jspx',
         'exe', 'com', 'bat', 'cmd', 'sh', 'bash', 'so', 'dll',
+        // FINDING 4: active-content types are stored-XSS vectors when served
+        // from public/uploads (the browser executes script/markup inline).
+        // Denied even if a host allow-lists them.
+        'svg', 'svgz', 'xml', 'html', 'htm', 'xhtml', 'js', 'mhtml',
     ];
 
     /**
      * Default extension -> acceptable finfo MIME types map for content
      * (magic-bytes) validation. A value of 'type/*' matches any subtype.
      *
-     * Extensions NOT present in the map are accepted on the extension gate
-     * alone (isContentValid() returns true) so uncommon types are not bricked;
-     * add them via the $mimeMap constructor argument
-     * (config: app.uploads.mime_map, merged over these defaults).
+     * FINDING 5: an allow-listed extension that is ABSENT from this map (and
+     * from the app.uploads.mime_map override) is REJECTED (fail-closed) by the
+     * content gate — it is not passed through unchecked. Hosts that allow an
+     * uncommon extension must register a content signature for it via
+     * app.uploads.mime_map (merged over these defaults).
      */
     private const DEFAULT_MIME_MAP = [
         'jpg'  => ['image/jpeg'],
@@ -29,7 +34,8 @@ final class UploadValidator
         'png'  => ['image/png'],
         'gif'  => ['image/gif'],
         'webp' => ['image/webp'],
-        'svg'  => ['image/svg+xml', 'text/xml', 'application/xml'],
+        // NOTE: svg/xml/html/js are in DENY (FINDING 4) so they can never reach
+        // content validation; no MIME mapping is provided for them.
         'pdf'  => ['application/pdf'],
         'txt'  => ['text/*'],
         'csv'  => ['text/*', 'application/csv'],
@@ -76,14 +82,14 @@ final class UploadValidator
      * Magic-bytes content check: the finfo MIME of the actual file must agree
      * with the claimed extension via the extension->MIME map.
      *
-     * Extensions absent from the map pass (the extension gate has already
-     * run); a missing/unreadable file fails defensively.
+     * FINDING 5: an extension with no MIME mapping fails closed; a
+     * missing/unreadable file fails defensively.
      */
     public function isContentValid(string $filePath, string $clientName): bool
     {
         $expected = $this->expectedMimes($clientName);
         if ($expected === null) {
-            return true;
+            return false; // no content signature configured ⇒ reject
         }
 
         if (!is_file($filePath)) {
@@ -103,7 +109,7 @@ final class UploadValidator
     {
         $expected = $this->expectedMimes($clientName);
         if ($expected === null) {
-            return true;
+            return false; // FINDING 5: no content signature configured ⇒ reject
         }
 
         $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($content);
