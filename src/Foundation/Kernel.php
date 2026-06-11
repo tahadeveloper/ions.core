@@ -1054,40 +1054,21 @@ class Kernel extends Singleton
      */
     private static function handleRouteRequest(array $matcherParams, string $namespace): array
     {
-        // check if using :: or @ for method
-        if (str_contains($matcherParams['_controller'], '::')) {
-            // action -> as text : NameController::action
-            $exControllerMethod = explode('::', $matcherParams['_controller']);
-        } elseif (str_contains($matcherParams['_controller'], '@')) {
-            // action -> as text : NameController@action
-            $exControllerMethod = explode('@', $matcherParams['_controller']);
-        }
+        // Pure parse + namespacing (controller-string resolution lives in the
+        // ControllerResolver collaborator). The needles list, the config write
+        // and the request-attribute mutations stay here so the per-request
+        // side-effect surface is unchanged. The resolver does not read
+        // config('app._method'), so writing it after the call is behavior-
+        // identical to the original (which wrote it before the filter/adds);
+        // nothing in between observes the key.
+        $needles = array_merge(['super', 'api', 'Api'], static::config()->get('app.needles', []));
 
-        $controller = $exControllerMethod[0] ?? $matcherParams['_controller'];
-        $method = $exControllerMethod[1] ?? $matcherParams['method'];
+        [$controller, $method, $matcherParams] = ControllerResolver::resolve($matcherParams, $namespace, $needles);
 
         static::config()->set('app._method', $method);
 
-        // remove id from parameters when 0 value
-        $matcherParams = Arr::where($matcherParams, static function ($value, $key) {
-            return !($key === 'id' && $value === 0);
-        });
-
         // add matcher to request parameters
         static::$request->attributes->add($matcherParams);
-
-        $needles = array_merge(['super', 'api', 'Api'], static::config()->get('app.needles', []));
-        // add namespace to controller if didn't have — framework-shipped
-        // controllers (Ions\…, e.g. the web-cron controller) and the legacy
-        // 'App\Schedule' special case are absolute and never prefixed.
-        if ($namespace && $controller !== 'App\Schedule' && !str_starts_with($controller, 'Ions\\') && !Str::contains($controller, $namespace)) {
-            // check if super or api
-            if (Str::contains($controller, $needles, true) || Str::contains($namespace, 'Api')) {
-                $controller = $namespace . $controller;
-            } else {
-                $controller = $namespace . 'Controllers\\' . $controller;
-            }
-        }
 
         $slice = Str::afterLast($controller, '\\');
         static::$request->attributes->add(['_controller_name' => $slice, '_method_name' => $method]);
