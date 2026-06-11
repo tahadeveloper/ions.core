@@ -202,6 +202,25 @@ test('a static $factory property overrides the convention', function () {
     expect(Gizmo::factory())->toBeInstanceOf(WidgetFactory::class);
 });
 
+test('Model::factory resolves Database\\Factories\\{Model}Factory first (Laravel parity)', function () {
+    // Gadget has no $factory property and no IonsFixture\Models\Factories\
+    // GadgetFactory, so resolution must fall to the top-level
+    // Database\Factories\GadgetFactory (the new 11.2 first-choice rule).
+    $factory = \IonsFixture\Models\Gadget::factory();
+
+    expect($factory)->toBeInstanceOf(\Database\Factories\GadgetFactory::class);
+
+    $gadget = \IonsFixture\Models\Gadget::factory()->create();
+    expect($gadget->exists)->toBeTrue()
+        ->and($gadget->name)->toBe('Gadget');
+});
+
+test('the {ModelNamespace}\\Factories convention still resolves (BC fallback)', function () {
+    // Widget has a conventional IonsFixture\Models\Factories\WidgetFactory and
+    // no Database\Factories\WidgetFactory — the BC fallback must still win.
+    expect(Widget::factory())->toBeInstanceOf(WidgetFactory::class);
+});
+
 test('factory resolution fails with a helpful message when no factory exists', function () {
     FactoryTestOrphanModel::factory();
 })->throws(RuntimeException::class, 'FactoryTestOrphanModelFactory');

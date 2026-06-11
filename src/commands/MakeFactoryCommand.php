@@ -6,7 +6,7 @@ use Ions\Console\GeneratorCommand;
 class MakeFactoryCommand extends GeneratorCommand
 {
     protected $signature = 'make:factory {name} {--model= : Fully-qualified model class (default: App\{Name} with the Factory suffix stripped)} {--force : Overwrite the file if it already exists}';
-    protected $description = 'Create a new model factory in {app|src}/Factories (resolved by HasIonsFactory for App\\ models).';
+    protected $description = 'Create a new model factory: database/factories (Database\\Factories) on the host-root database/ layout, else {app|src}/Factories (App\\Factories).';
 
     protected function type(): string
     {
@@ -20,7 +20,20 @@ class MakeFactoryCommand extends GeneratorCommand
 
     protected function targetPath(string $name): string
     {
+        if (Path::usesDatabaseLayout()) {
+            return Path::database('factories/' . $name . '.php');
+        }
+
         return Path::src('Factories/' . $name . '.php');
+    }
+
+    /**
+     * PSR-4 namespace matching the target directory: `Database\Factories` on
+     * the host-root database/ layout, the legacy `App\Factories` otherwise.
+     */
+    private function factoryNamespace(): string
+    {
+        return Path::usesDatabaseLayout() ? 'Database\\Factories' : 'App\\Factories';
     }
 
     protected function prepare(string $name): ?int
@@ -48,6 +61,7 @@ class MakeFactoryCommand extends GeneratorCommand
         return [
             '{{ class }}' => $name,
             '{{ model }}' => ltrim($model, '\\'),
+            '{{ namespace }}' => $this->factoryNamespace(),
         ];
     }
 
@@ -56,10 +70,36 @@ class MakeFactoryCommand extends GeneratorCommand
         $result = $this->generate();
 
         if ($result === self::SUCCESS) {
-            $this->noteFactoryNamespaceMismatch();
+            if (Path::usesDatabaseLayout()) {
+                $this->noteDatabaseAutoload();
+            } else {
+                $this->noteFactoryNamespaceMismatch();
+            }
         }
 
         return $result;
+    }
+
+    /**
+     * On the host-root database/ layout the factory lands in the top-level
+     * `Database\Factories` namespace, which only autoloads when the host maps
+     * it. Hint the composer.json entry when it is not yet autoloadable — an
+     * info line, never a failure (the file is already written).
+     */
+    private function noteDatabaseAutoload(): void
+    {
+        $name = $this->argument('name');
+        $name = is_string($name) ? $name : '';
+
+        if ($name !== '' && class_exists('Database\\Factories\\' . $name, false)) {
+            return;
+        }
+
+        $this->info(
+            'Note: this factory uses the Database\\Factories namespace. Ensure your host ' .
+            'composer.json maps it for autoloading: "Database\\\\": "database/" (then run ' .
+            'composer dump-autoload).'
+        );
     }
 
     /**

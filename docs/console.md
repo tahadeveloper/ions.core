@@ -63,7 +63,8 @@ These ship with the framework and are always registered:
 | `make:listener` | `MakeListenerCommand` | Generate an event listener (`--event=` to type-hint the event). |
 | `make:test` | `MakeTestCommand` | Generate a host test in `tests/` (`--unit` for a plain PHPUnit test). |
 | `make:control` | `ControllerCommand` | Generate a controller. |
-| `make:seeder` | `SeederCommand` | Generate a seeder into `database/seeders` (4.4+ layout; legacy: `{app|src}/Database/Seeders`). |
+| `make:factory` | `MakeFactoryCommand` | Generate a model factory into `database/factories` (`Database\Factories`; 4.4+ layout) or `{app|src}/Factories` (`App\Factories`; legacy). See [factories.md](factories.md). |
+| `make:seeder` | `SeederCommand` | Generate a seeder into `database/seeders` (`Database\Seeders`; 4.4+ layout) or `{app|src}/Database/Seeders` (`App\Database\Seeders`; legacy). |
 | `make:schema` | `SchemaCommand` | Generate a schema/migration into `database/schemas` (4.4+ layout; legacy: `{app|src}/Database/Schema`). |
 | `route:list` | `Ions\commands\RouteListCommand` | List the registered routes. |
 | `migrate` / `migrate:rollback` | `MigrateCommand` / `RollBackCommand` | Run / roll back migrations from `database/schemas` (4.4+ layout; legacy: `{app|src}/Database/Schema`). |

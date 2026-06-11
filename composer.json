@@ -67,7 +67,8 @@
       "IonsFixture\\": "tests/fixtures/app/src/",
       "IonsFixture\\Http\\Controllers\\": "tests/fixtures/app/http-controllers/",
       "IonsFixtureCache\\": "tests/fixtures/app-cache/src/",
-      "Acme\\FakePackage\\": "tests/fixtures/fake-vendor-package/src/"
+      "Acme\\FakePackage\\": "tests/fixtures/fake-vendor-package/src/",
+      "Database\\": "tests/fixtures/database/"
     }
   },
   "require-dev": {
