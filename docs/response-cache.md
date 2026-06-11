@@ -47,9 +47,11 @@ A response is stored only when **all** of these hold (see
 - the response status is exactly `200`;
 - the request is **anonymous** — no resolved auth user (`auth_user` /
   `auth_user_id` request attributes from `AuthMiddleware`) and no session
-  *data*. The web stack starts a session on every request, so an empty,
-  just-started session does **not** count as stateful; only a session that
-  actually holds data does;
+  *state*. The web stack starts a session on every request, so an empty,
+  just-started session does **not** count as stateful; a session is stateful
+  when it holds attribute data **or a non-empty flash bag** (flash messages /
+  `errors()` / `old()` — these live in the FlashBag, separate from the attribute
+  bag, and are checked non-destructively);
 - the response carries no `Set-Cookie` (a cookie means per-client state);
 - the response is not explicitly marked `private` or `no-store`.
 
@@ -90,6 +92,15 @@ the first MISS and consulted on subsequent lookups.
 The cache key is otherwise `method + scheme + host + path + sorted query` — query
 parameter order does not matter.
 
+> **Caution — `Vary` largely defeats the cache.** Every distinct value of a
+> varied header produces a *separate* cache entry (per-variant fragmentation). A
+> response that varies on `Cookie` or `Authorization` therefore caches almost
+> nothing useful — those headers are near-unique per client, so each request
+> gets its own entry and the hit rate collapses. (Such responses are usually
+> uncacheable anyway: a `Cookie`/`Authorization` request typically carries a
+> session or auth user, which `shouldCache()` already rejects.) Reserve `Vary`
+> for low-cardinality dimensions like `Accept` or `Accept-Encoding`.
+
 ## TTL
 
 TTL is the primary expiry mechanism. Configure it in `config/cache.php`:
@@ -117,16 +128,32 @@ ions cache:clear-responses
 - On a **tag-capable** store (redis, memcached, and the in-memory array store)
   only the response-cache tag is purged — every other cache entry survives.
 - On a store with **no tag support** (the `file` / `database` drivers expose no
-  key-prefix scan), the command falls back to flushing the **whole default
-  store** and warns that it did so. Point `cache.default` (or a dedicated store)
-  at redis/memcached if you need targeted response-cache invalidation without
-  touching sibling cache data.
+  key-prefix scan), the only way to purge it is a **full store flush** — but
+  with the skeleton defaults `cache.default` and `cache.persistent_store` point
+  at the **same store**, which also holds the **JWT revocation list** and the
+  **rate-limit / forgot-password throttles**. A blind full flush would therefore
+  un-revoke logged-out tokens and reset throttles. The command **refuses** that
+  destructive flush by default — it does nothing and tells you why, naming what
+  would be wiped:
+
+  ```bash
+  ions cache:clear-responses           # non-tag store → NO-OP, prints guidance
+  ions cache:clear-responses --force   # explicitly accept the blast radius
+  ```
+
+  `--force` performs the full store flush and warns loudly that revocations and
+  throttles went with it. The clean fix is to point `cache.default` (or a
+  dedicated response store) at **redis/memcached** so the tag purge is targeted
+  and `--force` is never needed.
 
 ## Safety guarantees
 
 - **Never caches authenticated/session responses.** Detection is dual-sided: the
-  request side (`auth_user` attribute or a session carrying data) and the
-  response side (any `Set-Cookie`). Stored entries have `Set-Cookie` stripped.
+  request side (`auth_user` attribute, a session carrying attribute data, **or a
+  non-empty flash bag** — `errors()`/`old()`/`flash()` write to the FlashBag,
+  which `Session::all()` does *not* cover, so it is peeked separately and
+  non-destructively) and the response side (any `Set-Cookie`). Stored entries
+  have `Set-Cookie` stripped.
 - **Debug bypass.** When `APP_DEBUG` is truthy the middleware short-circuits to
   the live response on every request — nothing is read from or written to the
   cache.

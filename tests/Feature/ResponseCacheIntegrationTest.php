@@ -44,6 +44,32 @@ test('cached route honours a conditional request with 304', function () {
         ->and($second->getContent())->toBe('');
 });
 
+test('cache.response does NOT cache a flash/errors/old response (cross-user leak)', function () {
+    // REGRESSION (CRITICAL-1): an anonymous GET 200 on a cache.response route
+    // that writes a personalised flash value (here a per-request token) must NOT
+    // be cached — Session::all() misses the FlashBag, so before the fix this
+    // response was stored and served verbatim to the NEXT anonymous user.
+    $hits = 0;
+    Route::get('/cached-flash', function () use (&$hits) {
+        $hits++;
+        // Personalised state written to the flash bag (errors()/old()/flash()
+        // all land here). e.g. a guest validation error echoing an email.
+        flash('_ions_errors', ['email' => ["taken: user{$hits}@example.test"]]);
+
+        return new Response("render-{$hits}", 200, ['Content-Type' => 'text/html']);
+    })->middleware(['cache.response']);
+
+    $first = Kernel::handle(Request::create('/cached-flash'));
+    expect($first->getContent())->toBe('render-1')
+        ->and($first->headers->get('X-Ions-Cache'))->not->toBe('MISS'); // not stored
+
+    // A SECOND anonymous user must not be served the first user's flashed body.
+    $second = Kernel::handle(Request::create('/cached-flash'));
+    expect($second->headers->get('X-Ions-Cache'))->not->toBe('HIT')
+        ->and($second->getContent())->toBe('render-2') // freshly rendered
+        ->and($hits)->toBe(2); // the controller ran for BOTH users
+});
+
 test('cache.response never caches a non-200 response', function () {
     $hits = 0;
     Route::get('/cached-500', function () use (&$hits) {

@@ -53,6 +53,44 @@ test('shouldCache: a session carrying data makes it uncacheable', function () {
     expect($cache->shouldCache($req, new Response('hi', 200)))->toBeFalse();
 });
 
+test('shouldCache: a session carrying ONLY flash data is uncacheable (cross-user leak guard)', function () {
+    // REGRESSION (CRITICAL-1): the web flash mechanism (errors()/old()/flash())
+    // writes to the FlashBag, NOT the attribute bag. Session::all() returns only
+    // the attribute bag, so a flash/errors/old value alone left the request
+    // looking anonymous → its personalised HTML got cached and served to OTHER
+    // users. A non-empty flash bag MUST count as stateful.
+    $cache = responseCache();
+    $req = Request::create('/page');
+    $session = new \Symfony\Component\HttpFoundation\Session\Session(
+        new \Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage()
+    );
+    $session->start();
+    // No attribute data — ONLY a flash value (e.g. a guest validation error
+    // echoing an email, or a "Welcome back" message).
+    $session->getFlashBag()->add('_ions_errors', ['email' => ['invalid: a@b.test']]);
+    expect($session->all())->toBe([]); // proves all() misses the flash bag
+    $req->setSession($session);
+    expect($cache->shouldCache($req, new Response('hi', 200)))->toBeFalse();
+});
+
+test('requestIsStateful does NOT consume the flash bag (peek, not get)', function () {
+    // The stateful check must be non-destructive: peekAll(), never get(), so the
+    // flash value still renders on the request that legitimately reads it.
+    $cache = responseCache();
+    $req = Request::create('/page');
+    $session = new \Symfony\Component\HttpFoundation\Session\Session(
+        new \Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage()
+    );
+    $session->start();
+    $session->getFlashBag()->add('notice', 'Welcome back');
+    $req->setSession($session);
+
+    $cache->requestIsStateful($req);
+
+    // Still there — the gate peeked, it did not consume.
+    expect($session->getFlashBag()->peekAll())->toBe(['notice' => ['Welcome back']]);
+});
+
 test('shouldCache: an empty just-started session is still cacheable (anonymous)', function () {
     // The web stack starts a session on every request; an empty one is anonymous.
     $cache = responseCache();
@@ -141,17 +179,18 @@ test('get returns null on a miss', function () {
     expect(responseCache()->get('absent'))->toBeNull();
 });
 
-test('flush returns true (tag purge) on a tag-capable store and empties entries', function () {
+test('flush returns FLUSH_TAGGED (tag purge) on a tag-capable store and empties entries', function () {
     // ArrayStore supports tags, so the response cache uses a targeted tag flush.
     $cache = responseCache();
     $cache->put('k', new Response('x', 200), 300);
     expect($cache->get('k'))->not->toBeNull()
-        ->and($cache->flush())->toBeTrue()
+        ->and($cache->flush())->toBe(ResponseCache::FLUSH_TAGGED)
         ->and($cache->get('k'))->toBeNull();
 });
 
-test('flush returns false (full-store fallback) on a non-tag store', function () {
-    // A bare Store with NO tags() method → documented full-store flush fallback.
+test('flush on a non-tag store is FLUSH_UNSUPPORTED and is a NO-OP without force (shared security state survives)', function () {
+    // A bare Store with NO tags() method → refuse the destructive full flush by
+    // default so it can never wipe sibling revocations/throttles.
     $bare = new class () implements \Illuminate\Contracts\Cache\Store {
         /** @var array<string, mixed> */
         private array $data = [];
@@ -216,7 +255,13 @@ test('flush returns false (full-store fallback) on a non-tag store', function ()
     expect($store->supportsTags())->toBeFalse();
     $cache = new ResponseCache($store);
     $cache->put('k', new Response('x', 200), 300);
+
+    // Default (no force): refuse — entry stays, nothing destructive happened.
     expect($cache->get('k'))->not->toBeNull()
-        ->and($cache->flush())->toBeFalse()
+        ->and($cache->flush())->toBe(ResponseCache::FLUSH_UNSUPPORTED)
+        ->and($cache->get('k'))->not->toBeNull();
+
+    // Explicit force: the whole store is flushed.
+    expect($cache->flush(true))->toBe(ResponseCache::FLUSH_FORCED)
         ->and($cache->get('k'))->toBeNull();
 });

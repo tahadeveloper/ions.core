@@ -82,7 +82,7 @@ These ship with the framework and are always registered:
 | `openapi:generate` | `OpenApiCommand` | Export the routes as an OpenAPI 3.0 spec (see [resources.md](resources.md)). |
 | `doctor` | `Ions\commands\DoctorCommand` | Diagnose the host app (env, APP_KEY, writable `var/`, caches, DB, extensions, security posture) — see [Diagnostics](#diagnostics--doctor). |
 | `serve` | `Ions\commands\ServeCommand` | Run the app on PHP's built-in dev server (`--host=127.0.0.1`, `--port=8000`) — development only. |
-| `cache:clear-responses` | `Ions\commands\CacheClearResponsesCommand` | Flush the HTTP response cache (tag-scoped on redis/memcached/array; whole-store fallback on file) — see [response-cache.md](response-cache.md). |
+| `cache:clear-responses` | `Ions\commands\CacheClearResponsesCommand` | Flush the HTTP response cache (tag-scoped on redis/memcached/array; on a non-tag store like `file` it refuses the destructive full flush unless `--force`, since that shared store also holds JWT revocations/throttles) — see [response-cache.md](response-cache.md). |
 | `down` | `Ions\commands\DownCommand` | Enter maintenance mode: every request gets a themeable 503 (`--retry=N` for Retry-After, `--secret=S` for a bypass URL) — see [deploy.md](deploy.md#maintenance-mode). |
 | `up` | `Ions\commands\UpCommand` | Leave maintenance mode (removes `var/maintenance.php`). |
 

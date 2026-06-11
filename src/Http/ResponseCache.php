@@ -7,6 +7,7 @@ namespace Ions\Http;
 use Illuminate\Cache\Repository;
 use Ions\Support\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Throwable;
 
 /**
@@ -150,6 +151,16 @@ final class ResponseCache
      */
     private function explicitlyUncacheable(Response $response): bool
     {
+        // NOTE (fragile-but-correct): this opt-out detection is a raw string
+        // match on the Cache-Control header rather than a structured directive
+        // read, because Symfony's hasCacheControlDirective() can't distinguish a
+        // deliberate `private`/`no-cache` from the conservative default it emits
+        // for an unmarked response. The exact-string allowlist below is therefore
+        // load-bearing: if a future Symfony version changes the default
+        // Cache-Control string, this must be revisited (a default that no longer
+        // matches would be treated as an explicit `private` opt-out, harmlessly
+        // disabling the cache; a NEW default containing `no-store` would wrongly
+        // opt out). Covered by the shouldCache() private/no-store matrix tests.
         $raw = $response->headers->get('Cache-Control');
         if ($raw === null || $raw === '') {
             return false;
@@ -181,6 +192,16 @@ final class ResponseCache
      * cookie for it, and the response carries no per-user state). The
      * response-side Set-Cookie check in shouldCache() is the companion guard
      * for the moment a handler writes to the session.
+     *
+     * CRITICAL: Session::all() returns ONLY the attribute bag — NOT the
+     * FlashBag. The framework's web flash mechanism (src/Session/Flash.php:
+     * flash messages, errors() '_ions_errors', old() '_ions_old_input') writes
+     * to the FlashBag. So an anonymous GET 200 that renders a flash/error/old
+     * value (e.g. a guest validation error echoing an email, or a "Welcome
+     * back" flash) would otherwise pass every gate and be cached, then served
+     * to OTHER users. We therefore ALSO treat a non-empty flash bag as stateful.
+     * The flash bag is inspected with peekAll() — peek is NON-consuming, so the
+     * value still renders on the request that legitimately reads it.
      */
     public function requestIsStateful(Request $request): bool
     {
@@ -192,7 +213,18 @@ final class ResponseCache
         try {
             if ($request->hasSession()) {
                 $session = $request->getSession();
-                if ($session->isStarted() && $session->all() !== []) {
+                if (!$session->isStarted()) {
+                    return false;
+                }
+
+                if ($session->all() !== []) {
+                    return true;
+                }
+
+                // A non-empty flash bag is per-user state too (errors/old/flash).
+                // peekAll() must NOT consume — the flash still renders downstream.
+                if ($session instanceof FlashBagAwareSessionInterface
+                    && $session->getFlashBag()->peekAll() !== []) {
                     return true;
                 }
             }
@@ -338,28 +370,60 @@ final class ResponseCache
         $this->repository()->put($key, $payload, $ttl);
     }
 
+    /** flush() result: a targeted tag purge — only response-cache entries gone. */
+    public const FLUSH_TAGGED = 'tagged';
+
     /**
-     * Flush response-cache entries. Returns true when a targeted tag-flush was
-     * used (the store supports tags — only the response-cache tag is purged,
-     * other entries survive); false when the store has no tag support and the
-     * documented fallback of flushing the whole store was used (file/database
-     * stores expose no key-prefix scan, so a full flush is the only option).
+     * flush() result: the store can't scope a purge (file/database — no tags,
+     * no key-prefix scan) and $force was NOT given, so NOTHING was cleared. The
+     * caller must surface guidance; a forced full flush is the only alternative.
      */
-    public function flush(): bool
+    public const FLUSH_UNSUPPORTED = 'unsupported';
+
+    /** flush() result: $force given on a non-tag store — the WHOLE store was wiped. */
+    public const FLUSH_FORCED = 'forced';
+
+    /**
+     * Flush response-cache entries — security-isolated by default.
+     *
+     * IMPORTANT (cross-store safety): with the skeleton defaults `cache.default`
+     * and `cache.persistent_store` are BOTH the `file` store, i.e. the SAME
+     * store also holds the JWT CacheRevocationStore and the rate-limit /
+     * forgot-password throttles. A blanket `$store->clear()` would therefore
+     * UN-REVOKE logged-out JWTs and reset throttles on a routine response-cache
+     * purge. So:
+     *
+     *   - tag-capable store (redis/memcached/array) → purge ONLY the response
+     *     tag; every other entry survives. Returns FLUSH_TAGGED.
+     *   - non-tag store (file/database), $force === false → DO NOTHING and
+     *     return FLUSH_UNSUPPORTED. We refuse the destructive full flush rather
+     *     than silently wiping shared security state; the command then tells the
+     *     operator to re-run with --force (and what that also clears).
+     *   - non-tag store, $force === true → the operator explicitly accepted the
+     *     blast radius: clear the whole store. Returns FLUSH_FORCED.
+     *
+     * @return self::FLUSH_* one of the FLUSH_* constants.
+     */
+    public function flush(bool $force = false): string
     {
         try {
             if ($this->store->supportsTags()) {
                 $this->store->tags([$this->tag()])->flush();
 
-                return true;
+                return self::FLUSH_TAGGED;
             }
         } catch (Throwable) {
-            // Fall through to a full flush.
+            // Fall through to the non-tag handling below.
+        }
+
+        if (!$force) {
+            // Refuse to nuke a shared store (revocations/throttles live here).
+            return self::FLUSH_UNSUPPORTED;
         }
 
         $this->store->clear();
 
-        return false;
+        return self::FLUSH_FORCED;
     }
 
     /**
