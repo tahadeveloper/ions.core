@@ -276,14 +276,53 @@ class Path extends Singleton
     }
 
     /**
-     * database folder ({app|src}/Database): app/ first, src/ fallback.
+     * Maps the legacy `{app|src}/Database` subfolder names (the exact names
+     * the framework commands pass into database()) onto the lowercase
+     * standard directories of the host-root `database/` layout. Applied ONLY
+     * on the new layout — the legacy path keeps the exact legacy names.
+     *
+     * @var array<string, string>
+     */
+    private const DATABASE_SUB_MAP = [
+        'Schema' => 'schemas',     // MigrateCommand / SchemaCommand / DumpCommand --prune
+        'Schemas' => 'schemas',
+        'Migrations' => 'migrations', // DumpCommand schema dumps
+        'Seeders' => 'seeders',    // SeederCommand
+        'Factories' => 'factories',
+        'Backups' => 'backups',
+    ];
+
+    /**
+     * Database folder. Since 4.4 the Laravel-standard host-root `database/`
+     * directory wins whenever it exists (migrations/, seeders/, schemas/,
+     * factories/, backups/ — legacy-cased sub-names are normalized onto it);
+     * legacy `{app|src}/Database` is the preserved fallback, byte-identical
+     * to the pre-4.4 resolution including the exact subfolder names.
      *
      * @param string $file
      * @return string
      */
-    public static function database(string $file): string
+    public static function database(string $file = ''): string
     {
+        $root = self::base() . DIRECTORY_SEPARATOR . 'database';
+
+        if (is_dir($root)) {
+            return $root . DIRECTORY_SEPARATOR . self::databaseSub($file);
+        }
+
         return self::appDir() . DIRECTORY_SEPARATOR . 'Database' . DIRECTORY_SEPARATOR . $file;
+    }
+
+    /**
+     * Normalize the FIRST segment of a database sub-path via DATABASE_SUB_MAP
+     * (new-layout resolution only); lowercase/unknown names pass through.
+     */
+    private static function databaseSub(string $file): string
+    {
+        $segments = explode('/', $file, 2);
+        $segments[0] = self::DATABASE_SUB_MAP[$segments[0]] ?? $segments[0];
+
+        return implode(DIRECTORY_SEPARATOR, $segments);
     }
 
     /**

@@ -74,6 +74,38 @@ test('migrate --install creates the migrations table', function () {
         ->and($schema->hasTable('migrations'))->toBeTrue();
 });
 
+/**
+ * Create a throwaway host root whose schema directory contains $files
+ * (name => php source). $schemaDir is relative to the host root, e.g.
+ * 'database/schemas' (new layout) or 'src/Database/Schema' (legacy).
+ *
+ * @param array<string, string> $files
+ */
+function makeMigrateHost(string $schemaDir, array $files): string
+{
+    $base = sys_get_temp_dir() . '/ions-migrate-' . bin2hex(random_bytes(4));
+    $dir = $base . '/' . $schemaDir;
+    mkdir($dir, 0777, true);
+
+    foreach ($files as $name => $source) {
+        file_put_contents($dir . '/' . $name, $source);
+    }
+
+    return $base;
+}
+
+function removeMigrateHost(string $base): void
+{
+    $it = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+    foreach ($it as $path) {
+        $path->isDir() ? rmdir($path->getPathname()) : unlink($path->getPathname());
+    }
+    rmdir($base);
+}
+
 test('migrate --install is idempotent when table already exists', function () {
     $schema = Kernel::app()->get('db')->connection()->getSchemaBuilder();
     $schema->dropIfExists('migrations');
@@ -90,4 +122,164 @@ test('migrate --install is idempotent when table already exists', function () {
     $tester->execute(['--install' => true]);
     expect($tester->getStatusCode())->toBe(0)
         ->and($tester->getDisplay())->toContain('Migrations table exits.');
+});
+
+// ---------------------------------------------------------------------------
+// Schema discovery — host-root database/schemas (4.4) vs legacy Database/Schema
+// ---------------------------------------------------------------------------
+
+test('migrate runs schema classes from host-root database/schemas (new layout)', function () {
+    $schema = Kernel::app()->get('db')->connection()->getSchemaBuilder();
+    $schema->dropIfExists('migrations');
+    $schema->dropIfExists('phase11_widgets');
+
+    $base = makeMigrateHost('database/schemas', [
+        '_1000_CreatePhase11Widgets.php' => <<<'PHP'
+            <?php
+
+            namespace App\Database\Schema;
+
+            use Illuminate\Database\Schema\Blueprint;
+            use Ions\Support\DB;
+
+            class _1000_CreatePhase11Widgets
+            {
+                public function up(): void
+                {
+                    DB::connection()->getSchemaBuilder()->create('phase11_widgets', function (Blueprint $table) {
+                        $table->id();
+                        $table->string('name');
+                    });
+                }
+
+                public function down(): void
+                {
+                    DB::connection()->getSchemaBuilder()->dropIfExists('phase11_widgets');
+                }
+            }
+            PHP,
+    ]);
+
+    $app = buildConsoleApp();
+    $app->add(new MigrateCommand());
+    $tester = new CommandTester($app->find('migrate'));
+
+    try {
+        $tester->execute(['--install' => true]);
+
+        \Ions\Bundles\Path::setBasePath($base);
+        $tester->execute([]);
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and($tester->getDisplay())->toContain('_1000_CreatePhase11Widgets installed successfully')
+            ->and($schema->hasTable('phase11_widgets'))->toBeTrue()
+            ->and(
+                \Ions\Support\DB::table('migrations')->where('migration', '_1000_CreatePhase11Widgets')->first()
+            )->not->toBeNull();
+    } finally {
+        \Ions\Bundles\Path::resetBasePath();
+        removeMigrateHost($base);
+    }
+});
+
+test('migrate runs anonymous-class migration stubs (return new class) from database/schemas', function () {
+    $schema = Kernel::app()->get('db')->connection()->getSchemaBuilder();
+    $schema->dropIfExists('migrations');
+    $schema->dropIfExists('phase11_stub_jobs');
+
+    // The shipped jobs/notifications stubs use this exact shape: a file that
+    // `return new class () extends Migration` — no named class to autoload.
+    $base = makeMigrateHost('database/schemas', [
+        'create_phase11_stub_jobs_table.php' => <<<'PHP'
+            <?php
+
+            use Illuminate\Database\Migrations\Migration;
+            use Illuminate\Database\Schema\Blueprint;
+            use Ions\Support\DB;
+
+            return new class () extends Migration {
+                public function up(): void
+                {
+                    DB::connection()->getSchemaBuilder()->create('phase11_stub_jobs', function (Blueprint $table) {
+                        $table->id();
+                        $table->longText('payload');
+                    });
+                }
+
+                public function down(): void
+                {
+                    DB::connection()->getSchemaBuilder()->dropIfExists('phase11_stub_jobs');
+                }
+            };
+            PHP,
+    ]);
+
+    $app = buildConsoleApp();
+    $app->add(new MigrateCommand());
+    $tester = new CommandTester($app->find('migrate'));
+
+    try {
+        $tester->execute(['--install' => true]);
+
+        \Ions\Bundles\Path::setBasePath($base);
+        $tester->execute([]);
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and($schema->hasTable('phase11_stub_jobs'))->toBeTrue()
+            ->and(
+                \Ions\Support\DB::table('migrations')->where('migration', 'create_phase11_stub_jobs_table')->first()
+            )->not->toBeNull();
+    } finally {
+        \Ions\Bundles\Path::resetBasePath();
+        removeMigrateHost($base);
+    }
+});
+
+test('migrate still discovers legacy {src}/Database/Schema classes when no database/ dir exists', function () {
+    $schema = Kernel::app()->get('db')->connection()->getSchemaBuilder();
+    $schema->dropIfExists('migrations');
+    $schema->dropIfExists('phase11_legacy_widgets');
+
+    $base = makeMigrateHost('src/Database/Schema', [
+        '_1001_CreatePhase11LegacyWidgets.php' => <<<'PHP'
+            <?php
+
+            namespace App\Database\Schema;
+
+            use Illuminate\Database\Schema\Blueprint;
+            use Ions\Support\DB;
+
+            class _1001_CreatePhase11LegacyWidgets
+            {
+                public function up(): void
+                {
+                    DB::connection()->getSchemaBuilder()->create('phase11_legacy_widgets', function (Blueprint $table) {
+                        $table->id();
+                    });
+                }
+
+                public function down(): void
+                {
+                    DB::connection()->getSchemaBuilder()->dropIfExists('phase11_legacy_widgets');
+                }
+            }
+            PHP,
+    ]);
+
+    $app = buildConsoleApp();
+    $app->add(new MigrateCommand());
+    $tester = new CommandTester($app->find('migrate'));
+
+    try {
+        $tester->execute(['--install' => true]);
+
+        \Ions\Bundles\Path::setBasePath($base);
+        $tester->execute([]);
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and($schema->hasTable('phase11_legacy_widgets'))->toBeTrue();
+    } finally {
+        \Ions\Bundles\Path::resetBasePath();
+        removeMigrateHost($base);
+    }
 });

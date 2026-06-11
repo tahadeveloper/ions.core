@@ -402,6 +402,52 @@ test('dual_app_dirs is absent when the host has a single layout dir', function (
     expect(array_column(Doctor::run(), 'id'))->not->toContain('dual_app_dirs');
 });
 
+// ------------------------------------------------------ dual database dirs
+
+test('both database/ and a legacy Database dir is a warning (database/ wins since 4.4)', function () {
+    bootFixtureKernel();
+
+    $base = sys_get_temp_dir() . '/ions-doctor-dual-db-' . bin2hex(random_bytes(4));
+    mkdir($base . '/database', 0777, true);
+    mkdir($base . '/app/Database', 0777, true);
+
+    try {
+        \Ions\Bundles\Path::setBasePath($base);
+
+        $check = doctorCheck(Doctor::run(), 'dual_database_dirs');
+
+        expect($check['status'])->toBe(Doctor::WARN)
+            ->and($check['message'])->toContain('database/')
+            ->and($check['message'])->toContain('consolidate');
+    } finally {
+        \Ions\Bundles\Path::resetBasePath();
+        @rmdir($base . '/app/Database');
+        @rmdir($base . '/app');
+        @rmdir($base . '/database');
+        @rmdir($base);
+    }
+});
+
+test('dual_database_dirs is absent when only one database layout exists', function () {
+    bootFixtureKernel(); // the fixture host has no database/ dir and no src/Database
+
+    expect(array_column(Doctor::run(), 'id'))->not->toContain('dual_database_dirs');
+
+    // database/-only host: nothing to warn about either.
+    $base = sys_get_temp_dir() . '/ions-doctor-single-db-' . bin2hex(random_bytes(4));
+    mkdir($base . '/database', 0777, true);
+
+    try {
+        \Ions\Bundles\Path::setBasePath($base);
+
+        expect(array_column(Doctor::run(), 'id'))->not->toContain('dual_database_dirs');
+    } finally {
+        \Ions\Bundles\Path::resetBasePath();
+        @rmdir($base . '/database');
+        @rmdir($base);
+    }
+});
+
 // ----------------------------------------------------------------- summary
 
 test('summary() tallies results by status', function () {

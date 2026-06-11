@@ -39,8 +39,7 @@ class MigrateCommand extends Command
         } elseif ($this->option('refresh')) {
             foreach (glob(Path::database('Schema').'/*.php') as $file) {
                 $class = basename($file, '.php');
-                $load_class = 'App\\Database\Schema\\'.$class;
-                $obj = new $load_class();
+                $obj = $this->resolveSchema($file, $class);
                 Schema::disableForeignKeyConstraints();
                 $obj->down();
 
@@ -55,8 +54,7 @@ class MigrateCommand extends Command
                 //check if migration is already installed
                 $migration_installed = DB::table($table_name)->where('migration', $class)->first();
                 if (!$migration_installed) {
-                    $load_class = 'App\Database\Schema\\'.$class;
-                    $obj = new $load_class();
+                    $obj = $this->resolveSchema($file, $class);
                     Schema::connection($db_name)->enableForeignKeyConstraints();
                     $obj->up();
                     DB::table($table_name)->insert(['migration' => $class, 'batch' => 1]);
@@ -66,5 +64,27 @@ class MigrateCommand extends Command
 
             $this->info('Migrated successfully.');
         }
+    }
+
+    /**
+     * Load a globbed schema file and return its migration object. Supports
+     * both the classic named-class style (App\Database\Schema\{Class}) and
+     * stub-style files that `return new class extends Migration {}` (the
+     * shipped jobs/notifications stubs). Loading the file directly is what
+     * lets the host-root database/schemas layout (4.4) run without a
+     * dedicated autoload mapping; require_once is a no-op when the class was
+     * already autoloaded from the same file.
+     */
+    private function resolveSchema(string $file, string $class): object
+    {
+        $loaded = require_once $file;
+
+        if (is_object($loaded)) {
+            return $loaded;
+        }
+
+        $load_class = 'App\\Database\\Schema\\'.$class;
+
+        return new $load_class();
     }
 }

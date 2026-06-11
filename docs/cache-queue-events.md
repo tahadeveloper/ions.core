@@ -103,7 +103,8 @@ ions queue:work database --stop-when-empty --tries=3 --backoff=10
 
 The `database` connection needs the `jobs`/`failed_jobs` tables. A migration
 stub ships at `src/Queue/stubs/create_jobs_table.stub` — copy it into the host's
-`{app|src}/Database` directory (dropping `.stub`) and run `ions migrate`. See
+`database/schemas/` directory (4.4+ layout; `{app|src}/Database/Schema` on the
+legacy layout), dropping `.stub`, and run `ions migrate`. See
 [console.md](console.md) for the console runner.
 
 ### Retries & backoff
