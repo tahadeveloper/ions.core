@@ -86,8 +86,11 @@ class UsersController extends BaseController
 
 Actions are method-injected (the request, route placeholders by name, services by type-hint) and may return a
 `View` (`view()` / `$this->view()`), a `Symfony\Component\HttpFoundation\Response`, or any `Ions\Http\Responsable`
-(e.g. an API `Resource`) — the framework normalises the return value before sending. API controllers extend
-`Ions\Foundation\ApiController` and return JSON (`Json::ok([...])`). See [docs/controllers.md](docs/controllers.md).
+(e.g. an API `Resource`) — the framework normalises the return value before sending. An Eloquent-typed parameter named
+after a placeholder is route-model-bound (`show(Widget $widget)` on `/widgets/{widget}` — fetched or 404, 4.3). API
+controllers extend `Ions\Foundation\ApiController` and return JSON (`Json::ok([...])`). Authorization is one call:
+`$this->authorize('update', $post)` in an action, `can('update', $post)` anywhere, `{% if can('update', post) %}` in
+Twig ([docs/auth.md](docs/auth.md#authorization-gate--policies)). See [docs/controllers.md](docs/controllers.md).
 
 ### Scheduled tasks (`app/Schedule.php`)
 
@@ -154,21 +157,36 @@ Both directory names are supported: `app/` is checked first (the convention sinc
   runtimes (FrankenPHP/RoadRunner style)
 - **Middleware pipeline** — `MiddlewareInterface`, `Pipeline`, per-route `->middleware([...])`
 - **Default stacks**: web (TrustedHost + SecurityHeaders + CORS + CSRF), api (+ AuthMiddleware)
-- **Routing** — `Route::get/post/put/patch/delete/any/match/resource`, prefix/group nesting, attribute routing (
-  `#[Route]`)
+- **Routing** — `Route::get/post/put/patch/delete/any/match/resource`, fluent `->name()` / `->where()` /
+  `->middleware()`, `Route::redirect`/`view`/`fallback` shortcut routes, prefix/group nesting with name + middleware
+  prefixes, attribute routing (`#[Route]`), `route()` URL helper
+- **Route model binding** — Eloquent-typed, placeholder-named action params resolve to the fetched record
+  (`getRouteKeyName()`) or 404; nullable params get null on a miss
+- **Trusted proxies** — `app.trusted_proxies` (IPs/CIDRs or `'*'`) with fail-closed header sets (`xff`/`aws-elb`/
+  `traefik`/`forwarded`); proxy-aware `isSecure()`, HSTS and `cookie_secure => 'auto'` behind TLS-terminating LBs
 - **JWT auth** (`Ions\Security\Jwt`) — access + refresh tokens, revocation deny-list, clock leeway
 - **HTTP auth endpoints** — `Ions\Auth\Http\AuthController` (login / refresh / logout / password reset); per-user-bound
   tokens
 - **Pluggable auth** — `UserProvider` contract; `SentinelUserProvider` (default) or `EloquentUserProvider`
+- **Authorization** — `Ions\Auth\Gate` abilities + model policies: `allows`/`denies`/`authorize` (403 on deny),
+  `can()` helper + Twig `can()` function, `$this->authorize()` in controllers, guest auto-deny
 - **Multi-driver filesystem** — `Ions\Filesystem\Storage` / `FilesystemManager`; `local`, `s3`, `ftp`, `sftp`,
-  `memory` + custom drivers
+  `memory` + custom drivers; `putFile`/`download()`/`url()`/`temporaryUrl()`/listings; `Storage::fake()` also
+  intercepts the legacy `IonDisk`/`IonUpload` (unified in 4.3)
 - **Session** — `Ions\Session\SessionManager`; `session()` helper; CSRF stored in the session
-- **Console** — `bin/ions` runner + `Ions\Console\Kernel`; command discovery; `make:command`, `queue:work`
+- **Console** — `bin/ions` runner + `Ions\Console\Kernel`; command discovery; `make:command`, `queue:work`, `serve`
+  (PHP dev server), `down`/`up` (maintenance mode)
 - **Cron scheduler** — `App\Schedule::boot(Scheduler)` fluent tasks (`->daily()`, `->withoutOverlapping()`, …);
   `schedule:run` / `schedule:list`; `/cron/schedule` web-cron parity
 - **Host-app diagnostics** — `ions doctor` (env, APP_KEY, writable `var/`, caches, DB, extensions, security posture);
   `--json` for CI; exits non-zero on critical misconfig
 - **Cache / Queue / Events** — `cache()` / `dispatch()` / `event()`+`listen()` helpers; Illuminate-backed providers
+- **Queue resilience** — `$tries`/`$backoff` job properties, failed-jobs store (`queue.failed`),
+  `queue:failed` / `queue:retry` / `queue:forget` / `queue:flush`
+- **Pagination + web form flow** — `$query->paginate(n)` + Twig `pagination()`; session flash, `old()`/`errors()`,
+  fluent `redirect()->back()->withErrors()->withInput()` (same-origin `back()` guard)
+- **Channel logging** — `Ions\Support\Log` facade over `config/logging.php` (`single`/`daily`/`stderr`/`stack`
+  drivers, per-channel levels), secret redaction + per-request id correlation
 - **Outbound HTTP client** — `Ions\Support\Http` facade over `symfony/http-client` (retry/timeout/token builder);
   `Http::fake()` for tests
 - **Mailables** — `Ions\Mail\Mailable` (build/send/queue with Twig views); `Mail::fake()` FQCN assertions
@@ -178,6 +196,14 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 - **Testing kit** — `Ions\Testing\TestCase` + `TestResponse` (verb helpers, `actingAs()` real JWT) plus
   Queue/Event/Storage/Mail/Notifications/Http fakes
 - **N+1 query detector** — debug-only repeated-pattern warnings to `var/logs/performance.log`
+- **ORM strict mode (debug)** — lazy-load and silently-discarded-fill violations throw under `APP_DEBUG`;
+  `database.strict => false` escape hatch
+- **Health endpoint** — built-in `/up` liveness probe + token-gated `?checks=1` doctor JSON; `Cache-Control: no-store`
+- **Debug toolbar** — debug-only footer bar (request ms, route, query count/ms, peak memory) injected into HTML
+  responses; never breaks a response
+- **Maintenance mode** — `ions down [--secret] [--retry]` / `ions up`; themeable 503 (`errors/503.twig`), HMAC-bound
+  bypass cookie, `/up` stays reachable
+- **PSR-15 adapter** — `Psr15Adapter` runs any PSR-15 middleware in the Ions pipeline (nyholm/psr7 + Symfony bridge)
 - **API resources** — `Ions\Http\Resource` / `ResourceCollection` (single `data` envelope, pagination meta/links);
   `FormRequest`; `openapi:generate`
 - **Image processing** — `Ions\Media\Image` over `intervention/image` v3 (resize / crop / cover / watermark / encode)
@@ -191,8 +217,9 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 - **Encryption & signed URLs** — `Ions\Security\Encrypter` (XChaCha20-Poly1305 AEAD), `UrlSigner` + `signedRoute()`
   helper + `signed` middleware alias
 - **Rate limiting** — `RateLimitMiddleware` / `throttle` alias, 429 + `Retry-After`
-- **Exception handler** — `Ions\Http\ExceptionHandler`; JSON for API (incl. 422 validation), HTML for web; safe in
-  production
+- **Exception handler** — `Ions\Http\ExceptionHandler`; JSON for API (incl. 422 validation), HTML for web with
+  host-themeable `views/errors/{status}.twig` pages (4.3); web validation failures redirect back with errors + input;
+  safe in production
 - **Generators** — `make:middleware`, `make:service-provider`, `make:command`, `make:resource`, `make:request`,
   `make:job`, `make:event`, `make:listener`, `make:test`, `make:factory`
 - **Host-app skeleton** — `skeleton/`: a minimal bootable host layout with the 4.1 secure defaults pre-filled
@@ -238,6 +265,7 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 | [docs/worker-mode.md](docs/worker-mode.md)               | Experimental worker mode: `Kernel::resetForRequest()`, `WorkerRunner`, state table, FrankenPHP example                                                             |
 | [docs/deploy.md](docs/deploy.md)                         | Deployment: nginx/Apache configs, `public/.htaccess`, PHP-FPM pool notes, TLS-proxy caveat, deploy checklist                                                       |
 | [CHANGELOG.md](CHANGELOG.md)                             | What changed in each release                                                                                                                                       |
+| [UPGRADE-4.3.md](UPGRADE-4.3.md)                         | Behavior changes and migration guide for 4.2 → 4.3.0                                                                                                               |
 | [UPGRADE-4.2.md](UPGRADE-4.2.md)                         | Behavior changes and migration guide for 4.1 → 4.2.0                                                                                                               |
 | [UPGRADE-4.1.md](UPGRADE-4.1.md)                         | Behavior changes and migration guide for 4.0 → 4.1.0                                                                                                               |
 | [UPGRADE-4.0.md](UPGRADE-4.0.md)                         | Breaking changes and migration guide for 3.x → 4.0.0                                                                                                               |

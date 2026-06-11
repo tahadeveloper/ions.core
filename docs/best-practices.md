@@ -54,10 +54,12 @@ into a response — nothing else. Three habits get you there:
 
 **1. Validate with a [FormRequest](resources.md#form-requests)** instead of
 inline `validate()` calls — the rules become a named, reusable, testable
-class, and a failure is automatically a 422 (API) without any try/catch:
+class, and a failure handles itself without any try/catch: API/JSON requests
+get a 422 error bag, web form POSTs redirect back with the errors and input
+flashed for `errors()`/`old()` (the [form flow](forms.md), 4.3):
 
 ```php
-$data = StoreUserRequest::validate($request);   // array<string, mixed> or a thrown 422
+$data = StoreUserRequest::validate($request);   // array, or a thrown failure (422 / redirect back)
 ```
 
 **2. Inject services through the constructor** — controllers are
@@ -70,7 +72,18 @@ provides it.
 **3. Return values, don't write output** — return a
 [`view()`](views.md#returning-views-from-actions-42) from web actions and an
 [API `Resource`](resources.md#api-resources) (or `Json::ok()`) from API
-actions. Never `echo`; avoid writing to the shared kernel response.
+actions; after a state-changing POST, return a
+[fluent redirect](forms.md#the-fluent-redirect-api)
+(`redirect()->route('users.show', ['id' => $user->id])->with('status', 'Saved.')`)
+rather than rendering in place. Never `echo`; avoid writing to the shared
+kernel response.
+
+Two more 4.3 ergonomics keep list endpoints thin: let an
+[Eloquent-typed, placeholder-named parameter](controllers.md#route-model-binding)
+fetch the record (bound-or-404 — no `find()`/`abort()` boilerplate), and
+return `$query->paginate(15)` to the view, rendering the links with the Twig
+[`pagination()`](views.md#pagination-43) function instead of hand-rolling
+page math.
 
 ```php
 <?php
@@ -215,7 +228,32 @@ not interchangeable ([cache-queue-events.md](cache-queue-events.md),
 They compose: a listener for `OrderPlaced` may `dispatch()` a job, and the
 job may `notify()` the user when it finishes. Start synchronous and simple;
 introduce a job only when a request is measurably waiting on work it doesn't
-need to wait for.
+need to wait for. Once real work runs on a queue, give jobs explicit
+`$tries`/`$backoff` and treat the
+[failed-jobs store](cache-queue-events.md#failed-jobs) as part of operations:
+`queue:failed` in your runbook, `queue:retry` after the fix.
+
+## Logging: channels, not files
+
+Log through the [`Log` facade](logging.md) and shape destinations in
+`config/logging.php` instead of scattering `Logs::create('some.log')` calls:
+
+```php
+Log::info('Order shipped', ['order' => $order->id]);   // default channel
+Log::channel('audit')->notice('Role granted', [...]);  // dedicated stream
+```
+
+Habits that keep logs useful:
+
+- **One default `stack`** — fan the default channel out to a `daily` file
+  (rotation built in, no logrotate config) plus `stderr` in containerized
+  deploys, so the platform's log collector sees everything.
+- **A separate channel per audience** (`audit`, `payments`) beats grepping
+  one giant file; `Log::channel()` is one word at the call site.
+- **Pass context arrays, not interpolated strings** — secret-bearing keys
+  (`password`, `token`, `api_key`, …) are auto-redacted, and every entry
+  carries a per-request `extra.request_id`, so one request's lines correlate
+  across channels.
 
 ## Testing
 
@@ -335,6 +373,10 @@ them. Before going live:
   which logs repeated query patterns to `var/logs/performance.log`. It is
   debug-only by design; leave it **off** in production (it buffers every
   statement in memory).
+- [ ] **Keep [ORM strict mode](config.md#databasestrict) on in debug** (the
+  4.3 default) — lazy loads throw with the offending relation named, so N+1s
+  die in development instead of shipping. Fix the `with()` call rather than
+  reaching for the `database.strict => false` escape hatch.
 - [ ] **Cache-bust assets the built-in way** — `vite()` output is
   content-hashed, `asset()` appends `?v=filemtime` ([assets.md](assets.md));
   build frontend assets in CI, not on the server.
@@ -355,3 +397,15 @@ long-running tasks with `withoutOverlapping()`. Full reference:
 For the server itself — nginx/Apache configs that only expose `public/`,
 PHP-FPM pool sizing, the TLS-proxy guidance (`app.trusted_proxies`), and the deploy checklist ending in
 `ions optimize && ions doctor` — see [deploy.md](deploy.md).
+
+Three ops facilities to wire in from day one (all 4.3):
+
+- **Point the load balancer / uptime monitor at [`/up`](console.md#the-up-health-endpoint)**
+  — a plain 200 liveness probe; add `?checks=1` + `app.health.token` where a
+  monitor should see the full `doctor` JSON.
+- **Deploy risky migrations behind [maintenance mode](deploy.md#maintenance-mode)**
+  — `ions down --retry=120 --secret=…`, deploy, verify through the bypass
+  cookie, `ions up`. The 503 is themeable (`views/errors/503.twig`) and `/up`
+  keeps answering for the monitors.
+- **Locally, `ions serve`** — PHP's built-in dev server on `public/`; never
+  in production.
