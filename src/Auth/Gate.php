@@ -101,8 +101,16 @@ class Gate
             return false;
         }
 
+        // Deny (never throw) on non-public policy methods, and normalize the
+        // case-insensitivity of method_exists: the declared method name must
+        // match the ability exactly.
+        $method = new ReflectionMethod($policy, $ability);
+        if (!$method->isPublic() || $method->getName() !== $ability) {
+            return false;
+        }
+
         return $this->invokeAuthorizer(
-            new ReflectionMethod($policy, $ability),
+            $method,
             fn (mixed ...$callArgs): mixed => $policy->{$ability}(...$callArgs),
             $user,
             $args,

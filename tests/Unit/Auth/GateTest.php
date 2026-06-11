@@ -288,3 +288,44 @@ test('with no request and no forUser scope the gate treats the caller as a guest
     expect($gate->allows('members-only'))->toBeFalse()
         ->and($gate->allows('open-door'))->toBeTrue();
 });
+
+final class GateTestProtectedMethodPolicy
+{
+    // Non-public: the gate must DENY, never throw (fail closed).
+    protected function peek(?\Ions\Auth\Contracts\Authenticatable $user, GateTestArticle $article): bool
+    {
+        return true;
+    }
+}
+
+test('a protected policy method denies instead of throwing', function () {
+    $gate = new Gate();
+    $gate->policy(GateTestArticle::class, GateTestProtectedMethodPolicy::class);
+
+    expect($gate->forUser(gateFixtureUser())->allows('peek', new GateTestArticle()))->toBeFalse();
+});
+
+test('a wrong-case ability never reaches a policy method (exact-name match)', function () {
+    $gate = new Gate();
+    $gate->policy(GateTestArticle::class, GateTestArticlePolicy::class);
+
+    expect($gate->forUser(gateFixtureUser())->allows('View', new GateTestArticle()))->toBeFalse()
+        ->and($gate->forUser(gateFixtureUser())->allows('view', new GateTestArticle()))->toBeTrue();
+});
+
+final class GateTestUntypedUserPolicy
+{
+    /** Untyped $user with no default: guests must auto-deny. */
+    public function ping($user, GateTestArticle $article): bool
+    {
+        return true;
+    }
+}
+
+test('an untyped $user param without a default denies guests', function () {
+    $gate = new Gate();
+    $gate->policy(GateTestArticle::class, GateTestUntypedUserPolicy::class);
+
+    expect($gate->allows('ping', new GateTestArticle()))->toBeFalse()
+        ->and($gate->forUser(gateFixtureUser())->allows('ping', new GateTestArticle()))->toBeTrue();
+});
