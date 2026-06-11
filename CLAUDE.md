@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`ionzile/core` (namespace `Ions\`, PSR-4 from `src/`) is the **core library of the Ions PHP framework** — not an application. It is installed as a Composer dependency into a host application. The framework stitches together Symfony components (Routing, Config, Mailer, Translation, CSRF, YAML) with Laravel's Illuminate packages (Database/Eloquent, Validation, Cache, Console, Filesystem) plus Cartalyst Sentinel for auth, Twig for views, and optionally RedBeanPHP. PHP 8.2+ required.
+`ionzile/core` (namespace `Ions\`, PSR-4 from `src/`) is the **core library of the Ions PHP framework** — not an application. It is installed as a Composer dependency into a host application. The framework stitches together Symfony components (Routing, Config, Mailer, Translation, CSRF, YAML, HttpClient) with Laravel's Illuminate packages (Database/Eloquent, Validation, Cache, Console, Filesystem, Queue, Pagination) plus Cartalyst Sentinel for auth, Twig for views, and optionally RedBeanPHP. **PHP 8.3+ required.**
+
+Current line (4.4.0): Illuminate `^12`, Symfony `^7`. Subsystems added since 4.0 — consult their `docs/*.md` rather than guessing: HTTP client (`Ions\Http\Client`), Encrypter + signed URLs + `Gate`/policies (`src/Security`, `src/Auth/Gate.php`), Mailable + Notifications, model factories + `Ions\Testing` kit with fakes, cron scheduler (`src/Schedule`), channel logging (`src/Log`), the host-app skeleton (`skeleton/`), `ions doctor`/`optimize`/`serve`/maintenance-mode, trusted proxies, route model binding, the web form flow (flash/old/errors + fluent `redirect()`), the `/up` health endpoint, queue resilience, and the standard `app/Models` + host-root `database/` layout.
 
 ## Commands
 
@@ -16,7 +18,18 @@ vendor/bin/pest --filter 'path'         # run a single test by name
 vendor/bin/phpunit            # PHPUnit directly (Pest runs on top of it)
 ```
 
-Tests live in `tests/`, match `*Test.php`, and use Pest's `test()`/`expect()` syntax. `tests/Pest.php` is the Pest bootstrap (custom expectations/helpers go there). There is no lint/static-analysis config checked in.
+Tests live in `tests/`, match `*Test.php`, and use Pest's `test()`/`expect()` syntax. `tests/Pest.php` is the Pest bootstrap (custom expectations/helpers go there).
+
+**Runtime: PHP 8.3** — run every tool via `php83`, not the default `php` (8.2): `php83 vendor/bin/pest`, `php83 vendor/bin/phpstan ...`.
+
+**The full CI gate set (`.github/workflows/ci.yml`) is more than pest** — local pest+phpstan passing does NOT mean CI is green. Before pushing, run all four:
+```bash
+php83 vendor/bin/pest                                   # zero warnings
+php83 vendor/bin/phpstan analyse                        # level 5, src
+php83 vendor/bin/phpstan analyse -c phpstan-core.neon   # level 8, core (no baseline)
+php83 vendor/bin/php-cs-fixer fix --dry-run             # composer cs — must report 0 files
+```
+CI also runs the **same suite against MySQL 8** (`IONS_TEST_MYSQL=1`). SQLite `:memory:` hides two portability traps: (1) tables persist across tests on MySQL — any `Schema::create('x')` must `dropIfExists('x')` first; (2) identifiers quote as `` `col` `` (MySQL) vs `"col"` (SQLite) — never assert on quoted identifiers in `toSql()`. There is no local MySQL; reason about portability, push, then watch `gh run view <id>`.
 
 ## The host-application layout (critical context)
 
@@ -38,7 +51,7 @@ When editing path logic, **always preserve the `app/` → `src/` fallback** in `
 
 1. `Kernel::boot()` — loads `.env`, builds the Illuminate `Container` + Facade root (registers `filesystem`/`files`), reads every file in `config/` into a `Config` object, includes `src/helpers.php`, calls the host's `App\Booting::boot()` if it exists, sets timezone from `TIME_ZONE`, runs `preloads` from `app.preloads` config.
 2. `Kernel::make($namespace)` — routes and dispatches the request:
-   - First URL segment `api` selects the `api` route file + `Api\` namespace + JSON error rendering (`errorDebugApi`/Whoops); otherwise `web` + HTML errors (`errorDebug`/Spatie Ignition when `APP_DEBUG=true`).
+   - First URL segment `api` selects the `api` route file + `Api\` namespace + JSON error rendering; otherwise `web` + HTML errors. All errors render through `Ions\Http\ExceptionHandler` (no Whoops/Ignition): in debug, `Ions\Http\DebugPage` (source frame + redacted request summary); in production, the minimal page or a host `views/errors/{status}.twig` if present.
    - `captureRoute()` loads routes from `routes/{web|api}.php` if present, else `.yaml`, **then merges attribute routes** discovered in `Http/` (web) or `Http/Api` (api) via `AttributeRouteControllerLoader`, plus a `/cron/schedule` route → `App\Schedule::boot`.
    - **Host-header security gate**: the request `host` + `APP_FOLDER` must equal `APP_URL` (protocol stripped) or it throws `EncryptException`. Keep `APP_URL`/`APP_FOLDER` consistent when debugging "App host does not exist" errors.
    - Controller string supports `Controller::method`, `Controller@method`, or closure `_controller`. Namespacing: `super`/`api`/`Api` (and `app.needles`) controllers get `$namespace`; everything else gets `$namespace . 'Controllers\\'`.
@@ -76,4 +89,6 @@ Illuminate `Console\Command` classes, autoloaded via the `classmap` entry in `co
 - Static service classes extending `Singleton` accessed via `ClassName::method()` are the dominant pattern — follow it rather than introducing instance-based services.
 - New host-facing globals go in `src/helpers.php` behind `function_exists` guards.
 - Errors that should halt a request use `abort($code, $message)` (throws Symfony `HttpException`) — Kernel renders JSON for API requests and HTML otherwise.
-- Pinned Illuminate at `v9.52.4` and Symfony at `^6.4`; keep new deps compatible with PHP 8.2 (composer `platform` is locked to 8.2).
+- Illuminate is `^12` and Symfony `^7`; composer `platform` is locked to **8.3**. Keep new deps compatible with PHP 8.3.
+- New PSR-4 code uses `declare(strict_types=1)` and must pass PHPStan level 8 under `phpstan-core.neon` (no baseline). The legacy `src/Auth/Guard` (Sentinel wrapper) is the remaining baseline debt.
+- Static analysis/style ARE checked in: `phpstan.neon` (level 5, all src, with `phpstan-baseline.neon`), `phpstan-core.neon` (level 8, core dirs, no baseline), `.php-cs-fixer.dist.php` (@PSR12 + short arrays + ordered/no-unused imports). CI enforces all three plus the MySQL suite.
