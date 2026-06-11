@@ -210,8 +210,10 @@ class Kernel extends Singleton
      *   - the Twig Environment object itself (globals refreshed, not rebuilt).
      *
      * Subsystems added in 8.x–12.x that are isolated WITHOUT extra reset work
-     * here — proven by the 12.6 leak matrix
-     * (tests/Feature/Runtime/WorkerLeakMatrixTest.php):
+     * here. The per-request-stateful ones (Gate, Flash, trusted proxies,
+     * response cache, IonDisk overrides) are proven isolated by the 12.6 leak
+     * matrix (tests/Feature/Runtime/WorkerLeakMatrixTest.php); the boot-state
+     * ones (Scheduler, ORM-strict) are kept by design with nothing to assert:
      *   - Gate (10.4): the 'gate' singleton resolves the user lazily from
      *     Kernel::request()->attributes['auth_user'] on every check and never
      *     caches it; clearing the request static (re-pointed by handle()) makes
