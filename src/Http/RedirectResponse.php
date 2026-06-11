@@ -34,6 +34,24 @@ class RedirectResponse extends SymfonyRedirectResponse
     private ?Request $sourceRequest = null;
 
     /**
+     * Redirects are per-user (the Location often derives from the Referer or
+     * session state, and the flash side effects are user-specific), so they
+     * must never be publicly cacheable. Symfony's default is the conservative
+     * 'no-cache, private'; we pin 'no-store, private' explicitly — unless the
+     * caller passed an explicit Cache-Control header.
+     *
+     * @param array<string, string|null> $headers
+     */
+    public function __construct(string $url, int $status = 302, array $headers = [])
+    {
+        parent::__construct($url, $status, $headers);
+
+        if (!array_key_exists('cache-control', array_change_key_case($headers, CASE_LOWER))) {
+            $this->headers->set('Cache-Control', 'no-store, private');
+        }
+    }
+
+    /**
      * Pin the request that withInput() reads from (the request being redirected
      * away from). Falls back to Kernel::request() when never called.
      *

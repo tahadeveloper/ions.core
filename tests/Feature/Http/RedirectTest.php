@@ -73,6 +73,78 @@ test('back() follows the Referer header when present', function () {
     expect((new Redirector($request))->back()->getTargetUrl())->toBe('http://localhost/origin');
 });
 
+/*
+| back() open-redirect guard: the Referer is attacker-controlled, so it is
+| only honoured when same-origin (path-only, or http(s) with a host matching
+| the request host / app_url host). Everything else uses the fallback.
+*/
+
+test('back() rejects a hostile absolute Referer and redirects to the fallback', function () {
+    $request = Request::create('/somewhere', 'GET', [], [], [], ['HTTP_REFERER' => 'https://evil.example/phish']);
+
+    expect((new Redirector($request))->back('/safe')->getTargetUrl())->toBe('http://localhost/safe');
+});
+
+test('back() rejects a scheme-relative //host Referer', function () {
+    $request = Request::create('/somewhere', 'GET', [], [], [], ['HTTP_REFERER' => '//evil.example']);
+
+    expect((new Redirector($request))->back()->getTargetUrl())->toBe('http://localhost/');
+});
+
+test('back() rejects a javascript: Referer', function () {
+    $request = Request::create('/somewhere', 'GET', [], [], [], ['HTTP_REFERER' => 'javascript:alert(1)']);
+
+    expect((new Redirector($request))->back()->getTargetUrl())->toBe('http://localhost/');
+});
+
+test('back() honours a Referer matching the request host even when it differs from app_url', function () {
+    $request = Request::create('http://tenant.example/somewhere', 'GET', [], [], [], [
+        'HTTP_REFERER' => 'http://tenant.example/origin',
+    ]);
+
+    expect((new Redirector($request))->back()->getTargetUrl())->toBe('http://tenant.example/origin');
+});
+
+test('back() honours a path-only Referer (same-origin by definition)', function () {
+    $request = Request::create('/somewhere', 'GET', [], [], [], ['HTTP_REFERER' => '/orders?page=2']);
+
+    expect((new Redirector($request))->back()->getTargetUrl())->toBe('/orders?page=2');
+});
+
+/*
+| Redirects must never be publicly cacheable: a CDN honouring the web
+| pipeline's public/max-age headers could serve one user's redirect (and its
+| per-user Location) to other users.
+*/
+
+test('a controller-returned redirect carries no public cache headers through the web pipeline', function () {
+    config(['app.csrf.enabled' => false]);
+    Route::get('/go', fn () => redirect('/dashboard')->with('status', 'saved'));
+
+    $response = \Ions\Foundation\Kernel::handle(Request::create('/go'));
+
+    expect($response->getStatusCode())->toBe(302)
+        ->and($response->headers->hasCacheControlDirective('public'))->toBeFalse()
+        ->and($response->headers->hasCacheControlDirective('max-age'))->toBeFalse()
+        ->and($response->headers->hasCacheControlDirective('private'))->toBeTrue()
+        ->and($response->headers->hasCacheControlDirective('no-store'))->toBeTrue();
+});
+
+test('a 2xx web response still receives the public cache headers (unchanged)', function () {
+    config(['app.csrf.enabled' => false]);
+    Route::get('/page', fn () => new Response('ok'));
+
+    $response = \Ions\Foundation\Kernel::handle(Request::create('/page'));
+
+    expect($response->getStatusCode())->toBe(200)
+        ->and($response->headers->hasCacheControlDirective('public'))->toBeTrue()
+        ->and($response->headers->getCacheControlDirective('max-age'))->toEqual(3600);
+});
+
+test('Ions RedirectResponse defaults to Cache-Control: no-store, private', function () {
+    expect(redirect('/x')->headers->get('Cache-Control'))->toBe('no-store, private');
+});
+
 test('with() flashes a key/value readable via flash()', function () {
     redirect('/x')->with('status', 'saved');
 

@@ -62,7 +62,8 @@ final class Redirector
     }
 
     /**
-     * Redirect back to the request's Referer, or to $fallback when absent.
+     * Redirect back to the request's Referer, or to $fallback when the header
+     * is absent or not same-origin (open-redirect guard — see isSafeReferer()).
      *
      * @param array<string, string|null> $headers
      */
@@ -70,7 +71,7 @@ final class Redirector
     {
         $referer = $this->request()?->headers->get('referer');
 
-        return is_string($referer) && $referer !== ''
+        return is_string($referer) && $referer !== '' && $this->isSafeReferer($referer)
             ? $this->make($referer, $status, $headers)
             : $this->to($fallback, $status, $headers);
     }
@@ -94,6 +95,51 @@ final class Redirector
         $response->setSourceRequest($this->request());
 
         return $response;
+    }
+
+    /**
+     * Open-redirect guard: the Referer header is attacker-controlled, so
+     * back() only honours it when it is same-origin —
+     *
+     *   - a path-only referer ('/orders?page=2') is same-origin by definition;
+     *   - an absolute referer must be http(s) AND its host must match the
+     *     current request's host or the config('app.app_url') host.
+     *
+     * Everything else — foreign hosts, scheme-relative '//evil.example',
+     * non-web schemes (javascript:, data:), unparseable values — is rejected
+     * and back() uses its fallback instead.
+     */
+    private function isSafeReferer(string $referer): bool
+    {
+        $parts = parse_url($referer);
+        if ($parts === false) {
+            return false;
+        }
+
+        $host = $parts['host'] ?? null;
+
+        if ($host === null) {
+            // No authority: accept plain paths only. A scheme (javascript:,
+            // data:) or a '/\' prefix (browsers normalise backslashes to '//',
+            // turning '/\evil' scheme-relative) is rejected.
+            return !isset($parts['scheme'])
+                && str_starts_with($referer, '/')
+                && !str_starts_with($referer, '/\\');
+        }
+
+        // An authority requires an explicit http(s) scheme — this rejects
+        // scheme-relative '//host' referers and every non-web scheme.
+        $scheme = strtolower($parts['scheme'] ?? '');
+        if ($scheme !== 'http' && $scheme !== 'https') {
+            return false;
+        }
+
+        $allowedHosts = array_filter([
+            $this->request()?->getHost(),
+            parse_url((string) config('app.app_url', ''), PHP_URL_HOST),
+        ], static fn ($h): bool => is_string($h) && $h !== '');
+
+        return in_array(strtolower($host), array_map('strtolower', $allowedHosts), true);
     }
 
     private function request(): ?Request

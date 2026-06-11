@@ -103,6 +103,11 @@ return back()
     ->withHeaders(['X-Reason' => 'validation']);
 ```
 
+> **Security:** never pass user input (query parameters, form fields,
+> headers) to `redirect()`/`to()` — validate it first or use named routes,
+> otherwise you create an open redirect. `back()` already guards itself: it
+> only honours same-origin Referers and falls back otherwise.
+
 The legacy static `Ions\Bundles\Redirect` API (`Redirect::back()`,
 `Redirect::away()`, …) is unchanged; prefer the fluent API in new code — it
 returns responses instead of calling `send()`/`exit`.

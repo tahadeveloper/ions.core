@@ -18,8 +18,8 @@ use Twig\TwigFunction;
  * nav > ul.pagination > li.page-item > a/span.page-link — with Previous/Next
  * controls and a windowed page list (current ±2, first/last always shown,
  * gaps as ellipses). Current query parameters are preserved on every link
- * (?page= excluded) via the paginator's query-string resolver, wired in
- * DatabaseProvider::boot().
+ * via the paginator's query-string resolver (wired in DatabaseProvider::
+ * boot()); ?page= itself is excluded by Illuminate's addQuery().
  *
  * Template override: when the Twig loader can resolve `pagination.twig`
  * (i.e. the host committed views/pagination.twig at its template source
@@ -57,9 +57,10 @@ final class PaginationExtension extends AbstractExtension
      */
     public function render(Environment $env, PaginatorContract $paginator): string
     {
-        // Preserve the current query string on every generated link (the
-        // resolver excludes the page parameter itself). A no-op when no
-        // query-string resolver is wired (e.g. isolated unit construction).
+        // Preserve the current query string on every generated link. Our
+        // resolver returns the full query string; Illuminate's addQuery()
+        // excludes the page parameter itself. A no-op when no query-string
+        // resolver is wired (e.g. isolated unit construction).
         $paginator->withQueryString();
 
         if (!$paginator->hasPages()) {
