@@ -359,6 +359,11 @@ class IonDisk
 
     private static function handleCloudUpload(UploadedFile $file, Filesystem $disk, string $path, string $fileNameWithExt, string $randomFilename, string $extension): array
     {
+        // No explicit containment here on purpose: a Flysystem key is relative
+        // within the disk root (callers may pass an absolute-looking prefix that
+        // the adapter treats as a key), and Flysystem's path normalizer already
+        // throws PathTraversalDetected on any `..`. A real-FS escape is not
+        // possible through the managed disk. See docs/security-audit-bundles.md.
         $stream = fopen($file->getRealPath(), 'rb+');
         $disk->writeStream($path . '/' . $randomFilename . '.' . $extension, $stream);
         fclose($stream);

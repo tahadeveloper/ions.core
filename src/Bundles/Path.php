@@ -35,11 +35,11 @@ class Path extends Singleton
                 throw new RuntimeException("Refusing a path containing a null byte: $segment");
             }
 
-            // Absolute prefixes escape the trusted root: POSIX leading slash,
-            // UNC `\\host\share`, or a Windows drive letter `X:\` / `X:/`.
+            // Absolute prefixes escape the trusted root. A leading slash covers
+            // both POSIX absolute and UNC `\\host\share` (normalized to `//`);
+            // the regex covers a Windows drive letter `X:\` / `X:/`.
             $normalized = str_replace('\\', '/', $segment);
             if (str_starts_with($normalized, '/')
-                || str_starts_with($normalized, '//')
                 || preg_match('#^[a-zA-Z]:/#', $normalized) === 1) {
                 throw new RuntimeException("Refusing an absolute path argument: $segment");
             }

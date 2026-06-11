@@ -147,16 +147,13 @@ class IonUpload extends Singleton
             return false;
         }
 
+        // The `..`-segment rejection is the protection here: this method
+        // receives a host-supplied destination directory (which may legitimately
+        // be any absolute real path), so it cannot be bounded to one root the
+        // way IonDisk's local-disk writes are. realpath() containment is not
+        // applicable; rejecting traversal segments is.
         $normalized = str_replace('\\', '/', $path);
         if (in_array('..', explode('/', $normalized), true)) {
-            return false;
-        }
-
-        // Defense in depth: if the parent exists, its canonical path must not
-        // re-introduce a `..` (e.g. via a crafted symlink chain the caller
-        // built). realpath() collapses it; a residual `..` would be anomalous.
-        $realParent = realpath(\dirname($path));
-        if ($realParent !== false && str_contains(str_replace('\\', '/', $realParent), '/../')) {
             return false;
         }
 
