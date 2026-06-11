@@ -94,7 +94,7 @@ email-verification flow, refresh-token family tracking.
 - Acceptance: a job failing N times lands in failed_jobs once; retry re-runs
   it; backoff honored (frozen-clock or sleep-spy); sync driver unaffected.
 
-## 10.6 The smart trio
+## 10.6 The smart trio + custom error pages + welcome page (scope add 2026-06-11)
 
 - **`/up` endpoint:** built-in route (like `/cron/schedule`): 200 "ok"
   liveness, no boot side effects; `?checks=1` + `app.health.token` query
@@ -110,8 +110,24 @@ email-verification flow, refresh-token family tracking.
   decide at execution: default FOLLOW debug, escape hatch
   `database.strict => false`); violations throw in dev with the offending
   relation named. Complements (not replaces) the 8.6 log heuristic.
+- **Custom error pages (user request):** when rendering an HTML error, the
+  ExceptionHandler first looks for a host view: `views/errors/{status}.twig`
+  (e.g. 404, 403, 500, 400, 419, 503), then `views/errors/{4xx|5xx}.twig`
+  class fallback, then the built-in minimal page (debug page unchanged in
+  debug mode). Template receives `status`, `message` (only what the handler
+  deems client-safe today — no leak change), `request_path`. Rendering a
+  custom page must NEVER throw (template error → built-in fallback + log).
+  Skeleton ships commented example `views/errors/404.twig`. API/JSON paths
+  byte-identical.
+- **Welcome/start page (user request):** the skeleton home view becomes a
+  polished, dependency-free landing page (inline CSS, dark-friendly — the
+  DebugPage aesthetic): Ions wordmark, version, links (docs, best-practices,
+  doctor hint), quick-start snippet. Same file path (views/home/index.twig),
+  still rendered via the 9.2 `$this->view()` showcase.
 - Acceptance: /up 200 + token-gated checks; toolbar appears in debug HTML,
-  absent in prod and in JSON; lazy-load in debug throws; off-switches work.
+  absent in prod and in JSON; lazy-load in debug throws; off-switches work;
+  host errors/404.twig renders for a web 404 (api JSON untouched); broken
+  error template falls back + logs; skeleton welcome renders.
 
 ## 10.7 Core services modernization — Route, Logs, Filesystem/IonDisk (user request 2026-06-11)
 

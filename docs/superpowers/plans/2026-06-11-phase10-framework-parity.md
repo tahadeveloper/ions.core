@@ -33,7 +33,8 @@ Commit: `feat(auth): Gate + policies — define/allows/authorize, can() helper a
 Ground what Illuminate's worker already gives (tries/backoff/failed-job provider exists in the queue manager wiring?). Files: failed_jobs stub, failer binding, `queue:failed/retry/forget/flush` commands, Job docblock + docs. Tests per spec (frozen/spy timing for backoff).
 Commit: `feat(queue): failed-jobs table + retries/backoff + queue:failed/retry commands`.
 
-## 10.6 Smart trio
+## 10.6 Smart trio + error pages + welcome page
+Scope add (user request 2026-06-11): custom HTML error pages — ExceptionHandler html() path tries views/errors/{status}.twig then {4xx|5xx}.twig then built-in (never-throw: template failure -> built-in + view.log warning; debug mode keeps DebugPage); skeleton example errors/404.twig; polished skeleton welcome page (views/home/index.twig rewrite, inline CSS, no deps).
 Files: /up route in captureRoute (+ `app.health.*` config + token gate to doctor JSON), `src/Http/Middleware/DebugToolbarMiddleware.php` (debug-only attach in defaultMiddleware; HTML-only injection), ORM strict toggles in DatabaseProvider::boot (debug && database.strict, default true; escape hatch), docs (console.md/performance.md/config.md/deploy.md health probe). Tests per spec.
 Commit: `feat(smart): /up health endpoint, debug toolbar lite, ORM strict mode in debug`.
 
