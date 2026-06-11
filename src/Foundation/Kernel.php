@@ -208,6 +208,27 @@ class Kernel extends Singleton
      *     (cache/db/jwt/session manager binding/view.env/…),
      *   - the 8.1 per-group route memo and compiled route caches,
      *   - the Twig Environment object itself (globals refreshed, not rebuilt).
+     *
+     * Subsystems added in 8.x–12.x that are isolated WITHOUT extra reset work
+     * here — proven by the 12.6 leak matrix
+     * (tests/Feature/Runtime/WorkerLeakMatrixTest.php):
+     *   - Gate (10.4): the 'gate' singleton resolves the user lazily from
+     *     Kernel::request()->attributes['auth_user'] on every check and never
+     *     caches it; clearing the request static (re-pointed by handle()) makes
+     *     the next request a guest. forUser() scope lives on a clone, not the
+     *     singleton.
+     *   - Flash (10.3): consume memo lives on the per-request attribute bag
+     *     (dies with the request); the FlashBag is part of the inner session,
+     *     which renew() above replaces, so un-consumed flash never bleeds.
+     *   - Trusted proxies/hosts (10.1/8.4): handle() re-applies
+     *     applyTrustedProxies() against THIS request, and isSecure()/clientIp()
+     *     read the request's own headers — no cross-request bleed.
+     *   - Response cache (12.5): stateless middleware/ResponseCache instances
+     *     keyed by request; distinct URLs get distinct cache keys.
+     *   - IonDisk per-call overrides (12.1): applied and restored in a finally
+     *     within each call, so the static bucket/basePath never leak.
+     *   - Scheduler (9.4) / ORM-strict flags (10.6): boot-time state, correctly
+     *     kept across worker requests.
      */
     public static function resetForRequest(): void
     {

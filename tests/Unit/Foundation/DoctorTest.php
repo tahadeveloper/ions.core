@@ -111,9 +111,31 @@ test('every advertised check id is present in the results', function () {
         'cors',
         'debug',
         'discovery',
+        'worker_mode',
     ] as $id) {
         expect($ids)->toContain($id);
     }
+});
+
+test('worker readiness is informational and ready on the non-native fixture driver', function () {
+    bootFixtureKernel(); // fixture session.driver = 'array' (non-native)
+
+    $row = current(array_filter(Doctor::run(), fn (array $r): bool => $r['id'] === 'worker_mode'));
+
+    expect($row)->not->toBeFalse()
+        ->and($row['status'])->toBe(Doctor::INFO)
+        ->and($row['message'])->toContain('Worker-mode ready')
+        ->and($row['message'])->toContain('docs/worker-mode.md');
+});
+
+test('worker readiness flags a native session driver', function () {
+    bootFixtureKernel();
+    config(['session.driver' => 'native']);
+
+    $row = current(array_filter(Doctor::run(), fn (array $r): bool => $r['id'] === 'worker_mode'));
+
+    expect($row['status'])->toBe(Doctor::INFO)
+        ->and($row['message'])->toContain('native PHP sessions');
 });
 
 test('every result carries id, label, status and an actionable message', function () {

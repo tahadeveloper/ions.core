@@ -193,9 +193,9 @@ applies — the request is seen as secure without any proxy trust.
 
 Classic php-fpm deployments need nothing from this section. For persistent
 worker runtimes the framework boots once and handles many requests via
-`Kernel::resetForRequest()` / `Ions\Runtime\WorkerRunner` — experimental in
-4.1; read [worker-mode.md](worker-mode.md) for the lifecycle, the state table
-and a FrankenPHP example before using it in production.
+`Kernel::resetForRequest()` / `Ions\Runtime\WorkerRunner` — stable as of 4.5;
+read [worker-mode.md](worker-mode.md) for the lifecycle, the state table, the
+isolation guarantee and FrankenPHP / RoadRunner recipes before deploying.
 
 ## Maintenance mode
 
