@@ -50,6 +50,9 @@ final class TwoFactorReplayStore
         $timestamp ??= time();
         $counter = intdiv($timestamp, $period);
 
+        // Note: this loop deliberately short-circuits (unlike TwoFactor::verify's
+        // constant-time fold). The matched step derives from the public wall
+        // clock, so no secret leaks via timing; the code is still hash_equals'd.
         for ($offset = -$window; $offset <= $window; $offset++) {
             $step = $counter + $offset;
             if (!hash_equals(TwoFactor::code($secret, $step * $period, $period, $digits, $algo), $code)) {
@@ -60,8 +63,12 @@ final class TwoFactorReplayStore
                 return false;
             }
 
-            // Hold the marker until the whole acceptance window has elapsed.
-            $this->markUsed($userId, $step, ($window + 1) * $period);
+            // Hold the marker for the FULL span over which a step-K code stays
+            // acceptable: it verifies at counters K-window..K+window, i.e. up to
+            // (2*window+1)*period seconds. A shorter TTL would let the marker
+            // expire while the code is still accepted at the opposite window
+            // edge — a replay gap.
+            $this->markUsed($userId, $step, (2 * $window + 1) * $period);
 
             return true;
         }
