@@ -40,5 +40,10 @@ issue and its impact, and a proof-of-concept or reproduction steps.
   `docs/config.md`. Configuration that intentionally weakens a default
   (e.g. `cookie_secure => false`) is not considered a framework
   vulnerability.
+- The filesystem/upload bundle audit (path-traversal containment in
+  `Path`/`IonDisk`/`IonUpload`, SVG/active-content deny, fail-closed upload
+  content validation, S3 presigned-URL fix) and its residual risks / host
+  guidance are documented in
+  [`docs/security-audit-bundles.md`](docs/security-audit-bundles.md).
 - Dependency advisories are monitored via `composer audit` in CI and
   Dependabot.
