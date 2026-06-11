@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ions\Providers;
 
+use Ions\Auth\Gate;
 use Ions\Auth\Providers\EloquentUserProvider;
 use Ions\Auth\Providers\SentinelUserProvider;
 use Ions\Container\ServiceProvider;
@@ -55,6 +56,16 @@ final class AuthProvider extends ServiceProvider
                         : new SentinelUserProvider(),
                 };
             });
+        }
+
+        // Authorization gate (10.4): lazy singleton so abilities/policies
+        // defined by host providers (conventionally an auto-discovered
+        // app/Providers/AuthServiceProvider) accumulate on ONE instance.
+        // The class alias lets controllers/actions type-hint Ions\Auth\Gate.
+        if (!$this->container->bound('gate')) {
+            $container = $this->container;
+            $this->container->singleton('gate', static fn (): Gate => new Gate($container));
+            $this->container->alias('gate', Gate::class);
         }
 
         if (!$this->container->bound('csrf')) {

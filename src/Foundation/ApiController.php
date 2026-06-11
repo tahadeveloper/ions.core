@@ -101,6 +101,19 @@ abstract class ApiController implements BluePrint
         return $u instanceof \Ions\Auth\Contracts\Authenticatable ? $u : null;
     }
 
+    /**
+     * Authorize the current request's user against the gate (10.4):
+     * $this->authorize('update', $post). Throws a 403 HttpException when the
+     * ability/policy denies (rendered as JSON on api routes) — see
+     * docs/auth.md "Authorization".
+     */
+    protected function authorize(string $ability, mixed ...$args): void
+    {
+        /** @var \Ions\Auth\Gate $gate */
+        $gate = Kernel::app()->make('gate');
+        $gate->authorize($ability, ...$args);
+    }
+
     public function routeMethod($method, $callback): void
     {
         if ($callback !== null && $this->request_method === strtoupper($method)) {

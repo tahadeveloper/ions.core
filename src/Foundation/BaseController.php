@@ -84,6 +84,18 @@ abstract class BaseController implements BluePrint
     }
 
     /**
+     * Authorize the current request's user against the gate (10.4):
+     * $this->authorize('update', $post). Throws a 403 HttpException when the
+     * ability/policy denies — see docs/auth.md "Authorization".
+     */
+    protected function authorize(string $ability, mixed ...$args): void
+    {
+        /** @var \Ions\Auth\Gate $gate */
+        $gate = Kernel::app()->make('gate');
+        $gate->authorize($ability, ...$args);
+    }
+
+    /**
      * Controller-relative view (9.2): resolves "{folder}/{name}" through the
      * view() helper (dots -> '/', '.twig' appended) where {folder} is
      * $viewPath when set, otherwise derived from the controller FQCN.

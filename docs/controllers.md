@@ -254,6 +254,13 @@ Normalization is shared by controller actions **and** closure routes
 Both implement `callAction()` (actions run through it) and neither defines
 the new hooks — add them per controller as needed.
 
+Both bases also provide `$this->authorize(string $ability, mixed ...$args)`
+(10.4): a gate check that throws a 403 `HttpException` when the
+ability/policy denies — rendered as HTML on web routes and JSON on api
+routes. See [auth.md — Authorization (Gate & policies)](auth.md#authorization-gate--policies)
+for defining abilities/policies, the `can()` helper and the Twig `can()`
+function.
+
 ## Backwards compatibility
 
 - The legacy underscore hooks are untouched in name, order, and signature.

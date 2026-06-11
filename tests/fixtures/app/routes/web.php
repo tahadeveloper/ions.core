@@ -63,6 +63,17 @@ Route::get('/views/controller-root', \IonsFixture\Http\Controllers\PagesControll
 Route::get('/views/controller-nested', \IonsFixture\Http\Controllers\Admin\UserReports\HomeController::class . '::index');
 Route::get('/views/controller-custom', \IonsFixture\Http\Controllers\CustomPathController::class . '::index');
 
+// --- Gate fixtures (Phase 10.4) ---
+// Web routes have NO auth pipeline — every request is a guest. Abilities and
+// the policy are defined by IonsFixture\Providers\FixtureGateProvider.
+Route::get('/gate/web-open', \IonsFixture\Http\Controllers\GatePagesController::class . '::open');
+Route::get('/gate/web-members', \IonsFixture\Http\Controllers\GatePagesController::class . '::members');
+Route::get('/gate/view', fn () => view('gate.check'));
+Route::get('/gate/helper', fn () => new \Symfony\Component\HttpFoundation\JsonResponse([
+    'open' => can('open-door'),
+    'members' => can('members-area'),
+]));
+
 // Session write/read pair used by the WorkerRunner isolation test.
 Route::get('/session-write', function () {
     session(['leak' => 'r1']);
