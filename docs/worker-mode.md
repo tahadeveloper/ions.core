@@ -26,6 +26,7 @@ draws a hard line between per-request state (cleared) and boot state (kept):
 | CSRF token storage | `csrf` via `request_stack` | **Follows the session** — the request on the shared `RequestStack` is re-pointed at the new session, and `SessionTokenStorage` reads through that stack |
 | Per-request Twig globals | `_csrf_token`, `_trans`, `appUrl` on `view.env` | **Re-evaluated** via `ViewFactory::refreshRequestGlobals()` (only when the environment is already built) |
 | Eloquent query log | `config('database.query_log')` | **Flushed** when enabled, so it never grows across worker requests |
+| Log correlation id | `Ions\Bundles\RequestIdProcessor` static | **Cleared** — the next log write (any channel) mints a fresh `extra.request_id` (see [logging.md](logging.md)) |
 | Config | `Kernel::config()` | Kept |
 | Container + singletons | `cache`, `db`, `jwt`, `events`, `queue`, `view.env`, … | Kept |
 | Route memo + compiled route cache | per-group, from 8.1 | Kept — no route re-capture per request |

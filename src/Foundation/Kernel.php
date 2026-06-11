@@ -199,7 +199,9 @@ class Kernel extends Singleton
      *   - the per-request Twig globals (_csrf_token, _trans, appUrl) on the
      *     shared 'view.env' Environment (only when already built),
      *   - the Eloquent query log, when config('database.query_log') is enabled
-     *     (otherwise it would accumulate unbounded across worker requests).
+     *     (otherwise it would accumulate unbounded across worker requests),
+     *   - the log correlation id (RequestIdProcessor::reset()) so every
+     *     channel stamps the next request with a fresh extra.request_id.
      *
      * Kept (boot state):
      *   - the Config object and the container with ALL its singletons
@@ -215,6 +217,10 @@ class Kernel extends Singleton
         static::$request = null;
         static::$response = null;
         self::structureBone();
+
+        // Fresh log correlation id: the next log write (any channel) mints a
+        // new extra.request_id for the new request.
+        \Ions\Bundles\RequestIdProcessor::reset();
 
         if (!self::isBooted()) {
             return;
@@ -339,6 +345,7 @@ class Kernel extends Singleton
     {
         return [
             \Ions\Providers\ConfigProvider::class,
+            \Ions\Providers\LogProvider::class,
             \Ions\Providers\FilesystemProvider::class,
             \Ions\Providers\SessionProvider::class,
             \Ions\Providers\DatabaseProvider::class,

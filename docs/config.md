@@ -795,6 +795,42 @@ cache()->forget('key');        // forget
 cache()->store('array');       // a named store as a repository
 ```
 
+## Logging config (`config/logging.php`)
+
+`LogProvider` binds the channel-based `Ions\Log\LogManager` as `log`, consumed
+through the `Ions\Support\Log` facade. Channels are built lazily and memoized.
+Full guide: [logging.md](logging.md).
+
+```php
+return [
+    'default' => env('LOG_CHANNEL', 'app'),   // channel used by Log::info() etc.
+
+    'channels' => [
+        'app'    => ['driver' => 'single', 'path' => 'app.log', 'level' => 'debug'],
+        'daily'  => ['driver' => 'daily',  'path' => 'app.log', 'days' => 14],
+        'stderr' => ['driver' => 'stderr', 'level' => 'warning'],
+        'stack'  => ['driver' => 'stack',  'channels' => ['app', 'stderr']],
+    ],
+];
+```
+
+### `logging.default`
+
+Channel used when none is named (`Log::info()`, `Log::channel()` with no
+argument). Defaults to `app`.
+
+### `logging.channels`
+
+Map of channel name → definition. Drivers: `single` (one file), `daily`
+(`RotatingFileHandler`, pruned after `days`, default 7), `stderr`
+(`php://stderr`), `stack` (fan-out to the named member `channels`). Relative
+`path` values resolve under `var/logs/`; absolute paths are kept. `level`
+defaults to `debug`. Unknown channels/drivers/levels throw
+`InvalidArgumentException`. When the whole file is absent, a built-in `app`
+channel (single → `var/logs/app.log`) keeps zero-config logging working.
+Every channel masks secret context values and stamps `extra.request_id`
+(see [logging.md](logging.md)).
+
 ## Events config (`config/events.php`)
 
 `EventProvider` binds the Illuminate event `Dispatcher` as `events` and
