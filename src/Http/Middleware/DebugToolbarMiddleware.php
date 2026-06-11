@@ -69,6 +69,8 @@ final class DebugToolbarMiddleware implements MiddlewareInterface
         $bar = $this->render($request, (microtime(true) - $start) * 1000);
 
         $response->setContent(substr($content, 0, $position) . $bar . substr($content, $position));
+        // A controller-set Content-Length would now be stale -> truncated HTML.
+        $response->headers->remove('Content-Length');
 
         return $response;
     }

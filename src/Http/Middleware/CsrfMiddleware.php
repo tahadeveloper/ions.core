@@ -32,7 +32,9 @@ final class CsrfMiddleware implements MiddlewareInterface
         $value = is_string($fromField) ? $fromField : (is_string($fromHeader) ? $fromHeader : '');
 
         if ($value === '' || !$this->tokens->isTokenValid(new CsrfToken($this->tokenId, $value))) {
-            return new Response('CSRF token mismatch.', 419);
+            // Throw (don't return) so the ExceptionHandler renders it — hosts
+            // can then theme it with a views/errors/419.twig page.
+            throw new \Symfony\Component\HttpKernel\Exception\HttpException(419, 'CSRF token mismatch.');
         }
 
         $this->tokens->removeToken($this->tokenId); // one-time use
