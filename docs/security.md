@@ -1,5 +1,8 @@
 # Encryption & signed URLs
 
+> Two-factor auth (`Ions\Auth\TwoFactor`, RFC 6238 TOTP) uses the `Encrypter`
+> below to store its secret at rest — see [two-factor.md](two-factor.md).
+
 Two explicit-use security facilities, both derived from `APP_KEY`:
 
 - `Ions\Security\Encrypter` — authenticated encryption (sodium XChaCha20-Poly1305).

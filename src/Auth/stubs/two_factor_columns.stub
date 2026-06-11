@@ -1,0 +1,50 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * Host columns for Ions TOTP two-factor auth (Ions\Auth\TwoFactor).
+ *
+ * Copy this into your host `src/Database` (or `app/Database`) migrations and
+ * adjust the target table name. The framework provides only the verifier — the
+ * host owns persistence.
+ *
+ * Encrypt-at-rest recommendation: store `two_factor_secret` and
+ * `two_factor_recovery_codes` ciphertext produced by Ions\Security\Encrypter
+ * (Encrypter::fromAppKey(env('APP_KEY'))->encrypt(...)). The columns below are
+ * sized as text to hold the encrypted payload, not the raw base32 secret.
+ */
+return new class () extends Migration {
+    private string $table = 'users';
+
+    public function up(): void
+    {
+        Schema::table($this->table, function (Blueprint $table): void {
+            // Encrypted base32 shared secret (Ions\Security\Encrypter payload).
+            $table->text('two_factor_secret')->nullable();
+
+            // Encrypted JSON array of single-use recovery-code hashes
+            // (Ions\Auth\TwoFactor::hashRecoveryCode).
+            $table->text('two_factor_recovery_codes')->nullable();
+
+            // Set when the user completes the enable→confirm challenge; null
+            // while 2FA is pending/disabled.
+            $table->timestamp('two_factor_confirmed_at')->nullable();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table($this->table, function (Blueprint $table): void {
+            $table->dropColumn([
+                'two_factor_secret',
+                'two_factor_recovery_codes',
+                'two_factor_confirmed_at',
+            ]);
+        });
+    }
+};
