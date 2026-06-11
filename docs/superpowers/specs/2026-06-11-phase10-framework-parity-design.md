@@ -52,6 +52,7 @@ email-verification flow, refresh-token family tracking.
   rendering prev/next + window links (one clean default template, overridable
   via a host view), query-string preservation. JSON: paginator already
   serializes — document with API resources.
+- **Redirect modernization (user request 2026-06-11):** `Ions\Bundles\Redirect` grows a fluent, Laravel-grade API: `redirect($to = null)` helper returning a RedirectResponse builder — `->route($name, $params)` (named-route URL resolution), `->back()`, `->with($key, $value)` (flash), `->withErrors($bag)`, `->withInput()`, `->away($url)` (external, no host check), status/header options. Existing static Redirect API stays BC.
 - **Form flow:** session-backed flash: `flash($key, $value)` / consumed-once
   semantics; `back()` helper (Referer-based redirect Response);
   `->withErrors($bag)->withInput()` on the redirect (store in flash);
@@ -112,7 +113,17 @@ email-verification flow, refresh-token family tracking.
 - Acceptance: /up 200 + token-gated checks; toolbar appears in debug HTML,
   absent in prod and in JSON; lazy-load in debug throws; off-switches work.
 
-## 10.7 Cheap-wins batch (from Slim/Laravel) — easy
+## 10.7 Core services modernization — Route, Logs, Filesystem/IonDisk (user request 2026-06-11)
+
+Bring three legacy service surfaces to big-framework fluency. All BC: existing
+static APIs keep working; new options are additive.
+
+- **Route:** `->name($n)` fluent (replaces 4th-arg-only naming), `->where($param, $regex)` constraints (Symfony route requirements), `Route::redirect($from, $to, $status)` and `Route::view($uri, $template, $data)` shortcut routes, `Route::fallback($handler)` (404 catch-all), group `name`/`middleware` prefixes on `prefix()->group()`, and a plain `route($name, $params)` URL helper (the unsigned sibling of signedRoute()).
+- **Logs:** channel system — `config/logging.php` (`default`, `channels`: drivers `single`, `daily` (RotatingFileHandler, `days`), `stderr`, `stack` (aggregates channels), per-channel `level`); `Ions\Support\Log` facade (`Log::info()`, `Log::channel(x)->error()`, `Log::stack([...])`); RedactionProcessor + request-id on every channel. `Logs::create()` BC (becomes a single-file channel under the hood).
+- **Filesystem/IonDisk:** route `IonDisk`/`IonUpload` storage operations through the shared `FilesystemManager` (closes the documented `Storage::fake()` interception gap from 8.4); richer `Ions\Filesystem\Storage` API parity — `putFile`, `download()` response (StreamedResponse attachment), `url()`, `temporaryUrl()` (S3), `files()`/`directories()` listings, `copy`/`move`. IonDisk statics become thin shims over the manager (deprecation note, removal in 5.0).
+- Acceptance: each surface usable fluently in 1-3 lines; IonDisk writes intercepted by `Storage::fake()` (the 8.4 caveat test flipped); existing Route/Logs/IonDisk tests untouched and green; docs rewritten (routing.md, new logging section, filesystem.md).
+
+## 10.8 Cheap-wins batch (from Slim/Laravel) — easy
 
 - **PSR-15 adapter:** `Ions\Http\Middleware\Psr15Adapter` wrapping any PSR-15
   middleware as an Ions `MiddlewareInterface` via symfony/psr-http-message-bridge
@@ -127,7 +138,7 @@ email-verification flow, refresh-token family tracking.
 - **`ions serve`:** wraps `php -S` with host/port options pointing at public/.
 - Acceptance: each usable in one command/3 lines, tested, documented.
 
-## 10.8 Release 4.3.0
+## 10.9 Release 4.3.0
 
 - CHANGELOG `[4.3.0]`, UPGRADE-4.3 (only real behavior notes: ORM strict in
   debug, FormRequest web redirect behavior — both flagged), docs pass,
@@ -137,9 +148,9 @@ email-verification flow, refresh-token family tracking.
 
 ## Sequencing
 
-10.1 (small, unblocks docs) → 10.2 (resolver extension) → 10.3 (forms+pagination,
-biggest UX) → 10.4 (gate) → 10.5 (queue) → 10.6 (smart trio) → 10.7 (cheap
-wins) → 10.8 release.
+10.1 → 10.2 → 10.3 (forms+pagination+Redirect) → 10.4 (gate) → 10.5 (queue) →
+10.6 (smart trio) → 10.7 (core services: Route/Logs/Filesystem) → 10.8 (cheap
+wins) → 10.9 release.
 
 ## Risks
 

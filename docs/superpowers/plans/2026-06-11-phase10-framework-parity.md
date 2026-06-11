@@ -20,7 +20,8 @@ Commit: `feat(http): trusted proxies — app.trusted_proxies config, doctor chec
 Files: `src/Http/ActionArgumentResolver.php` (Model-subclass + placeholder-name rule before the generic object rule; routeKeyName; nullable→null; miss→404 via abort; no-db→clear error), fixture model + routes, `docs/controllers.md` (+binding section). Tests: bind/miss/nullable/routeKeyName/regression pins for 9.3 rules.
 Commit: `feat(http): implicit route model binding in the action resolver`.
 
-## 10.3 Pagination + web form flow
+## 10.3 Pagination + web form flow + Redirect modernization
+Scope add (user request 2026-06-11): fluent Redirect — `redirect()` helper returning a builder: `->route($name,$params)`, `->back()`, `->with()`, `->withErrors()`, `->withInput()`, `->away()`, status/headers; existing static Redirect BC. Implement alongside the flash machinery (same session plumbing).
 Files: paginator wiring (lazy resolvers → Ions request) in DatabaseProvider or ViewProvider (ground it), `src/View/PaginationExtension.php` + default template, helpers `back()/old()/flash()`, redirect-with-errors/input via session flash, Twig `errors`/`old()`, `src/Http/FormRequest.php` content-negotiated failure (web → 302 back + flash; JSON/api → 422 unchanged — pin existing tests), docs (views.md/controllers.md/best-practices.md + new docs/forms.md if cleaner). Tests per spec acceptance.
 Commit: `feat(http+view): pagination + flash/old/back web form flow; FormRequest web redirects`.
 
@@ -36,12 +37,15 @@ Commit: `feat(queue): failed-jobs table + retries/backoff + queue:failed/retry c
 Files: /up route in captureRoute (+ `app.health.*` config + token gate to doctor JSON), `src/Http/Middleware/DebugToolbarMiddleware.php` (debug-only attach in defaultMiddleware; HTML-only injection), ORM strict toggles in DatabaseProvider::boot (debug && database.strict, default true; escape hatch), docs (console.md/performance.md/config.md/deploy.md health probe). Tests per spec.
 Commit: `feat(smart): /up health endpoint, debug toolbar lite, ORM strict mode in debug`.
 
-## 10.7 Cheap wins
+## 10.7 Core services modernization — Route, Logs, Filesystem/IonDisk
+Scope add (user request 2026-06-11) — see spec §10.7. Files: `src/Bundles/Route.php` (fluent name()/where(), Route::redirect/view/fallback, group name+middleware prefixes), `route()` helper in helpers.php, `config/logging.php` channel system + `Ions\Support\Log` facade (single/daily/stderr/stack drivers, per-channel level; Logs::create BC shim), IonDisk/IonUpload rerouted through FilesystemManager (Storage::fake gap closed — flip the 8.4 caveat test) + richer Storage API (download()/url()/temporaryUrl()/files()/directories()/copy/move/putFile). Each surface its own commit; two-stage review per the cadence. Acceptance per spec §10.7.
+
+## 10.8 Cheap wins
 Files: `src/Http/Middleware/Psr15Adapter.php` (+ nyholm/psr7 + bridge deps), `ions down/up` commands + early 503 check in handle + var/ flag file + doctor row, `ions serve` command, docs. Tests per spec (real PSR-15 middleware fixture; maintenance bypass cookie; serve command arg building — no real server spawn).
 Commit: one per item or one batch — implementer's call, keep reviewable.
 
-## 10.8 Release 4.3.0
-CHANGELOG assembly, UPGRADE-4.3 (ORM strict + FormRequest web behavior), best-practices/README updates, fact-check review (8.7 bar), merge, push, tag 4.3.0 locally — user confirms push.
+## 10.9 Release 4.3.0
+CHANGELOG assembly, UPGRADE-4.3 (ORM strict + FormRequest web behavior + model-binding empty-model note from 10.2 + IonDisk-via-manager note), best-practices/README updates, fact-check review (8.7 bar), merge, push, tag 4.3.0 locally — user confirms push.
 
 ## Self-review
 Spec coverage 10.1–10.8 ✓ task-per-section with files/tests/acceptance; decisions deferred-to-execution are explicit (paginator wiring location, strict default, PSR-15 alias ergonomics, 10.7 commit granularity); no placeholders; types referenced exist as of 4.2.0 (ActionArgumentResolver, Doctor, FormRequest, defaultMiddleware, captureRoute).
