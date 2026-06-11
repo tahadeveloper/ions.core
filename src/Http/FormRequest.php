@@ -21,7 +21,9 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  * Subclasses declare their validation {@see rules()} and, optionally, an
  * {@see authorize()} gate. A failed authorization throws a 403; a failed
  * validation throws Illuminate's {@see ValidationException}, which the
- * {@see ExceptionHandler} renders as a 422 JSON error bag.
+ * {@see ExceptionHandler} renders content-negotiated (10.3): API/JSON
+ * requests get a 422 JSON error bag; web (HTML) requests get a 302 redirect
+ * back with the errors and input flashed for errors()/old().
  *
  * Ergonomic usage inside a controller:
  *

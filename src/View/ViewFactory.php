@@ -113,6 +113,7 @@ final class ViewFactory
 
         $this->addCoreFunctions($env);
         $env->addExtension(new AssetExtension());
+        $env->addExtension(new PaginationExtension());
 
         return $env;
     }
@@ -142,6 +143,13 @@ final class ViewFactory
             'ionToken',
             fn (string $form_name, string $input_name = '_ion_token') => new Markup(ionToken($form_name, $input_name), 'UTF-8')
         ));
+
+        // Web form flow (10.3): errors()/old() are FUNCTIONS, not globals —
+        // they read the session flash lazily at render time, so a shared
+        // per-process Environment always sees the CURRENT request's data
+        // (no refreshRequestGlobals() involvement needed).
+        $env->addFunction(new TwigFunction('errors', static fn (): \Ions\Http\ErrorBag => errors()));
+        $env->addFunction(new TwigFunction('old', static fn (string $key, mixed $default = null): mixed => old($key, $default)));
 
         foreach ($this->requestGlobals() as $name => $value) {
             $env->addGlobal($name, $value);

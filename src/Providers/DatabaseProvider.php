@@ -7,10 +7,12 @@ namespace Ions\Providers;
 use Illuminate\Container\Container as IlluminateContainer;
 use Illuminate\Database\Capsule\Manager;
 use Illuminate\Events\Dispatcher;
+use Illuminate\Pagination\Paginator;
 use Ions\Bundles\Logs;
 use Ions\Bundles\Path;
 use Ions\Container\ServiceProvider;
 use Ions\Foundation\Config;
+use Ions\Foundation\Kernel;
 use Ions\Support\DB;
 use Throwable;
 
@@ -72,6 +74,13 @@ final class DatabaseProvider extends ServiceProvider
                 abort(500, 'No database class connect');
             }
 
+            // Pagination (10.3): wire Illuminate's paginator resolvers so
+            // $query->paginate($n) works out of the box. The closures read
+            // Kernel::request() AT CALL TIME (lazy — correct in worker mode),
+            // and fail safe to page 1 / '/' / no query when no request exists
+            // (CLI, isolated scripts). Setting class statics is idempotent.
+            $this->wirePagination();
+
             // Query logging is opt-in via config('database.query_log') — the
             // log accumulates every statement in memory for the lifetime of
             // the process, so APP_DEBUG alone no longer enables it (4.1
@@ -87,6 +96,41 @@ final class DatabaseProvider extends ServiceProvider
                 "The 'redbean' database engine was removed in v2; ignoring. Use the 'db' (Eloquent) engine."
             );
         }
+    }
+
+    /**
+     * Point the paginator's page/path/query-string resolvers at the Ions
+     * request. LengthAwarePaginator->withQueryString() (called by the
+     * pagination() Twig function) preserves the current query parameters on
+     * every page link via the query-string resolver.
+     */
+    private function wirePagination(): void
+    {
+        Paginator::currentPathResolver(static function (): string {
+            try {
+                return Kernel::request()->url();
+            } catch (Throwable) {
+                return '/';
+            }
+        });
+
+        Paginator::currentPageResolver(static function (string $pageName = 'page'): int {
+            try {
+                $page = Kernel::request()->query($pageName);
+            } catch (Throwable) {
+                return 1;
+            }
+
+            return is_numeric($page) && (int) $page >= 1 ? (int) $page : 1;
+        });
+
+        Paginator::queryStringResolver(static function (): array {
+            try {
+                return (array) Kernel::request()->query();
+            } catch (Throwable) {
+                return [];
+            }
+        });
     }
 
     /**

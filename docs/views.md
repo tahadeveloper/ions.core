@@ -86,6 +86,44 @@ class LegacyController extends BaseController
 Namespaced names (`$this->view('@admin.users.index')`) bypass the controller
 folder entirely.
 
+## Pagination (4.3)
+
+`paginate()` works out of the box — the paginator's page/path/query-string
+resolvers are wired to the current request when the database boots:
+
+```php
+Route::get('/posts', function () {
+    return view('posts.index', ['posts' => Post::query()->latest()->paginate(15)]);
+});
+```
+
+```twig
+{% for post in posts %} ... {% endfor %}
+{{ pagination(posts) }}
+```
+
+The `pagination()` Twig function renders Previous/Next plus a windowed page
+list (current ±2, first/last always shown, ellipses for the gaps) as clean,
+Bootstrap-friendly markup — `nav > ul.pagination > li.page-item >
+a/span.page-link`, with `active`/`disabled` states and `rel="prev"/"next"`.
+It is usable unstyled. The current page comes from `?page=N`; **all other
+query parameters are preserved** on every link. A single page of results
+renders nothing; `simplePaginate()` renders Previous/Next only.
+
+**Override the markup** by committing `views/pagination.twig` (at the root of
+your Twig source). It receives:
+
+- `paginator` — the `LengthAwarePaginator` (`currentPage`, `lastPage`,
+  `total`, `url(page)`, `previousPageUrl`, `nextPageUrl`, …)
+- `elements` — the computed window: a list of `{type: 'page', page, url,
+  active}` and `{type: 'gap'}` entries.
+
+For JSON APIs the paginator serializes itself (`data`, `current_page`,
+`last_page`, `total`, page URLs) — combine with [API resources](resources.md).
+
+The form-flow Twig functions `errors()` and `old()` are documented in
+[forms.md](forms.md).
+
 ## Legacy `render()` helper
 
 The global `render($name, $parameters)` helper (echoes a template via

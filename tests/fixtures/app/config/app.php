@@ -37,6 +37,12 @@ return [
         'decay' => 60,
     ],
 
+    // Input keys never flashed by RedirectResponse::withInput() (10.3).
+    // EXPLICIT here (mirrors the in-code default) per the drift guard above.
+    'forms' => [
+        'dont_flash' => ['password', 'password_confirmation', 'current_password'],
+    ],
+
     // API endpoints that authenticate (rather than require a prior token) and
     // therefore bypass AuthMiddleware.
     'auth' => [

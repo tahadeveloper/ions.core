@@ -50,6 +50,10 @@ return [
     // Rate-limit window for the 'throttle' alias (defaults shown).
     // 'ratelimit' => ['max' => 60, 'decay' => 60],
 
+    // Input keys never flashed by redirect()->withInput() after a failed
+    // web validation (defaults shown) — see docs/forms.md.
+    // 'forms' => ['dont_flash' => ['password', 'password_confirmation', 'current_password']],
+
     'auth' => [
         // API paths that authenticate (rather than require a prior token)
         // and therefore bypass AuthMiddleware. Everything else under /api
