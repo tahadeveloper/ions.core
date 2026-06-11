@@ -46,6 +46,10 @@ class Cache implements CacheInterface
                     'cache.prefix' => config('cache.prefix'),
                     'database.redis' => config('database.redis')
                 ];
+                // illuminate/redis is an optional (suggested) dependency; the
+                // class is only present when the host installs it for the redis
+                // store. PHPStan cannot see it in the core package's deps.
+                /** @phpstan-ignore class.notFound */
                 $container['redis'] = new RedisManager(
                     $container,
                     'predis',
@@ -64,6 +68,10 @@ class Cache implements CacheInterface
                 throw new NotFoundResourceException('Cache store not found.');
         }
 
+        // CacheManager's constructor is typed for the Illuminate Foundation
+        // Application, but only uses the container/array-access surface that the
+        // framework's own Container provides — a deliberate vendor seam.
+        /** @phpstan-ignore argument.type */
         return (new CacheManager($container))->store();
     }
 
@@ -91,6 +99,10 @@ class Cache implements CacheInterface
     public static function clear(): void
     {
         self::ensureInitialized();
+        // CacheManager::store() is annotated to return the Cache\Repository
+        // contract (no flush()), but the concrete store is the full
+        // Illuminate\Cache\Repository which implements flush() — vendor seam.
+        /** @phpstan-ignore method.notFound */
         self::$cache->flush();
     }
 

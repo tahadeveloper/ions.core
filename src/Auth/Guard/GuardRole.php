@@ -77,6 +77,9 @@ class GuardRole extends Singleton
     public static function constructStatic(): void
     {
         $config = new ConfigRepository(Path::auth('Sentinel/config.php'));
+        // SentinelBootstrapper's constructor declares `array $config` but its
+        // body explicitly accepts a ConfigRepository too — vendor docblock bug.
+        /** @phpstan-ignore argument.type */
         $bootstrapper = new SentinelBootstrapper($config);
         Sentinel::instance($bootstrapper);
     }
@@ -89,6 +92,7 @@ class GuardRole extends Singleton
     public static function add($params): mixed
     {
         return DB::connection(self::$connection_name)->transaction(function () use ($params) {
+            /** @phpstan-ignore staticMethod.notFound */
             $role = Sentinel::getRoleRepository()->createModel()->create([
                 'name' => $params->slug,
                 'slug' => $params->slug,
@@ -293,6 +297,7 @@ class GuardRole extends Singleton
                 }
             }
 
+            /** @phpstan-ignore staticMethod.notFound */
             $role = Sentinel::findRoleById($params->id);
             $role->permissions = $controls_actions;
             $role->save();
