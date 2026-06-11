@@ -151,6 +151,11 @@ final class ViewFactory
         $env->addFunction(new TwigFunction('errors', static fn (): \Ions\Http\ErrorBag => errors()));
         $env->addFunction(new TwigFunction('old', static fn (string $key, mixed $default = null): mixed => old($key, $default)));
 
+        // Authorization (10.4): can() defers to the gate AT RENDER TIME (same
+        // lazy pattern as errors()/old()), so a shared per-process Environment
+        // always checks the CURRENT request's user.
+        $env->addFunction(new TwigFunction('can', static fn (string $ability, mixed ...$args): bool => can($ability, ...$args)));
+
         foreach ($this->requestGlobals() as $name => $value) {
             $env->addGlobal($name, $value);
         }

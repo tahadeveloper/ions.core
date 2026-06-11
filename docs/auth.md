@@ -184,6 +184,113 @@ $userId = $request->attributes->get('auth_user_id');
 $user   = $request->attributes->get('auth_user'); // Authenticatable|null
 ```
 
+## Authorization (Gate & policies)
+
+`Ions\Auth\Gate` answers "may THIS user do THAT?". It is bound as the lazy `'gate'`
+singleton (class alias `Ions\Auth\Gate`, so it can be type-hinted or resolved with
+`app('gate')`).
+
+### Defining abilities and policies
+
+Define everything in a service provider's `boot()`. The documented convention is an
+`app/Providers/AuthServiceProvider` in your host app — provider auto-discovery picks
+it up with zero configuration:
+
+```php
+// app/Providers/AuthServiceProvider.php
+namespace App\Providers;
+
+use App\Models\Post;
+use App\Policies\PostPolicy;
+use Ions\Auth\Contracts\Authenticatable;
+use Ions\Auth\Gate;
+use Ions\Container\ServiceProvider;
+
+class AuthServiceProvider extends ServiceProvider
+{
+    public function register(): void {}
+
+    public function boot(): void
+    {
+        /** @var Gate $gate */
+        $gate = $this->container->get('gate');
+
+        // Ability: a named closure check. First parameter is always the user.
+        $gate->define('edit-settings', fn (Authenticatable $user) => $user->isAdmin());
+
+        // Policy: a class whose method names are ability names.
+        $gate->policy(Post::class, PostPolicy::class);
+    }
+}
+```
+
+A policy method receives `($user, $model, ...$extra)`:
+
+```php
+class PostPolicy
+{
+    public function update(Authenticatable $user, Post $post): bool
+    {
+        return $user->getAuthIdentifier() === $post->user_id;
+    }
+
+    public function view(?Authenticatable $user, Post $post): bool
+    {
+        return $post->isPublic() || $user !== null;
+    }
+}
+```
+
+### Checking
+
+```php
+$gate = app('gate');
+
+$gate->allows('edit-settings');          // bool
+$gate->denies('update', $post);          // bool — policy resolved from $post's class
+$gate->authorize('update', $post);       // throws 403 HttpException when denied
+$gate->allows('create', Post::class);    // class-string subject (no instance yet)
+$gate->forUser($someUser)->allows(...);  // check a SPECIFIC user (scoped clone)
+```
+
+Resolution order: an explicitly `define()`d ability wins; otherwise, when the first
+argument is an object (or class-string) with a registered policy, the method named
+after the ability is called on the policy (instantiated through the container, so
+constructor dependencies resolve). Subclasses resolve their parent's policy. An
+unknown ability or missing policy method **denies** — checks never throw.
+
+Sugar, all equivalent to the gate calls above:
+
+```php
+// Anywhere (helpers):
+if (can('update', $post)) { ... }
+
+// Controllers (BaseController and ApiController):
+$this->authorize('update', $post);   // 403 on deny — HTML on web, JSON on api
+```
+
+```twig
+{% if can('update', post) %}<a href="...">Edit</a>{% endif %}
+```
+
+### The current user, and guests
+
+The gate resolves the user lazily per check from the request's `auth_user`
+attribute — the one `AuthMiddleware` sets when a `UserProvider` is configured (see
+above). That means:
+
+- On **api routes** behind `AuthMiddleware` with a `UserProvider`, checks see the
+  authenticated `Authenticatable`.
+- On **web routes** (no auth pipeline) — and whenever only `auth_user_id` is
+  available because no `UserProvider` is bound — the caller is a **guest**.
+  Use `forUser($user)` to check an explicit user you resolved yourself.
+
+Guest semantics follow Laravel: with no user, an ability callback or policy method
+only runs when its first (`$user`) parameter accepts `null` — a nullable type
+(`?Authenticatable $user`) or a `null` default. Otherwise the check auto-denies
+before the callable runs. This makes "members only" the safe default and
+guest-visible abilities an explicit opt-in.
+
 ## Rate limiting
 
 `Ions\Http\Middleware\RateLimitMiddleware` throttles requests by IP + path. It is not in the default stacks — attach it per-route:

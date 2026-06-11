@@ -393,6 +393,21 @@ if (!function_exists('errors')) {
     }
 }
 
+if (!function_exists('can')) {
+    /**
+     * Gate check for the CURRENT request's user (a guest when the request
+     * never went through the auth pipeline): can('update', $post). Sugar for
+     * app('gate')->allows(...) — see docs/auth.md "Authorization".
+     */
+    function can(string $ability, mixed ...$args): bool
+    {
+        /** @var \Ions\Auth\Gate $gate */
+        $gate = Kernel::app()->make('gate');
+
+        return $gate->allows($ability, ...$args);
+    }
+}
+
 if (!function_exists('toObject')) {
     /**
      * @param array $unhandled

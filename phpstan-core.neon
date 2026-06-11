@@ -9,6 +9,7 @@ parameters:
         - src/Auth/Contracts
         - src/Auth/Providers
         - src/Auth/Http
+        - src/Auth/Gate.php
         - src/Filesystem
         - src/Providers
         - src/Schedule

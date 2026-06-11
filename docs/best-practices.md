@@ -113,6 +113,22 @@ exist as middleware, `beforeAction()` for ad-hoc authorization
 short-circuits, `afterAction()` for response decoration. Resist putting
 business logic in hooks; they are HTTP plumbing.
 
+## Authorization
+
+Keep "who may do what" out of controllers and templates: define abilities and
+[policies](auth.md#authorization-gate--policies) once, in an auto-discovered
+`app/Providers/AuthServiceProvider`, and check them everywhere through the one
+gate — `$this->authorize('update', $post)` in actions (403 on deny),
+`can('update', $post)` in services/helpers, `{% if can('update', post) %}` in
+Twig. Prefer policies over loose abilities as soon as a check concerns a model
+class — the policy collects every rule for that model in one named, testable
+place. Write ability/policy signatures with a **non-nullable** `$user`
+parameter unless guests are genuinely allowed: the gate auto-denies guests for
+non-nullable signatures, so "members only" stays the safe default. Remember the
+gate only sees a user where `AuthMiddleware` ran with a configured
+`UserProvider` — on web routes without an auth pipeline every check is a guest
+check unless you scope it with `forUser($user)`.
+
 ## Wiring: providers + the container
 
 Bind your services in a provider under `app/Providers/` — providers there are

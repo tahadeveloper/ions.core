@@ -44,6 +44,18 @@ Route::get('/api/items/{id}', function (Request $request) {
 
 /*
 |--------------------------------------------------------------------------
+| Gate fixtures (Phase 10.4) — protected api routes
+|--------------------------------------------------------------------------
+| Behind AuthMiddleware (not in public_paths): actingAs() issues a real JWT
+| and FixtureUserProvider resolves 'auth_user', which the gate reads. The
+| closures instantiate the controller directly (AuthController precedent) so
+| the api-namespace controller resolution does not prefix the FQCN.
+*/
+Route::get('/api/gate/secret', fn (Request $r) => (new \IonsFixture\Api\GateApiController())->secret($r));
+Route::get('/api/gate/post-update', fn (Request $r) => (new \IonsFixture\Api\GateApiController())->updatePost($r));
+
+/*
+|--------------------------------------------------------------------------
 | Public JSON echo endpoint (Ions\Testing kit feature tests)
 |--------------------------------------------------------------------------
 | Listed in config('app.auth.public_paths') so it bypasses AuthMiddleware.
