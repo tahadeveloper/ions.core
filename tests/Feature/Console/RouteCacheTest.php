@@ -231,6 +231,47 @@ test('cached web POST without a CSRF token returns 419 (CsrfMiddleware runs thro
     expect($response->getStatusCode())->toBe(419);
 });
 
+// ---------------------------------------------------------------------------
+// 10.7 — fluent routes through route:cache (the cacheable subset:
+// name()/where()/redirect()/view(); a Closure fallback is NOT cacheable and
+// is covered by the loud-failure test above, like any closure route).
+// ---------------------------------------------------------------------------
+
+test('fluent name()/where()/redirect()/view() routes compile and match through route:cache', function () {
+    $fx = cacheFixturePath();
+
+    // Live matching first (no cache files exist).
+    bootFixtureKernel($fx);
+    expect(Kernel::handle(Request::create('/fluent/named'))->getContent())->toBe('cached page');
+
+    // Build the cache.
+    bootFixtureKernel($fx);
+    expect(runConsoleCommand(new RouteCacheCommand())->getStatusCode())->toBe(0);
+
+    // The fluent name (not a random key) is what gets compiled.
+    expect((string) file_get_contents($fx . '/var/cache/routes/web.php'))->toContain('fluent.named');
+
+    // Fresh boot: matching goes through the compiled cache.
+    bootFixtureKernel($fx);
+
+    // name(): the renamed route matches.
+    expect(Kernel::handle(Request::create('/fluent/named'))->getContent())->toBe('cached page');
+
+    // where(): the requirement is enforced by the compiled matcher.
+    expect(Kernel::handle(Request::create('/fluent/where/7'))->getStatusCode())->toBe(200)
+        ->and(Kernel::handle(Request::create('/fluent/where/x'))->getStatusCode())->toBe(404);
+
+    // redirect(): target + status travel as compiled defaults.
+    $redirect = Kernel::handle(Request::create('/fluent/old'));
+    expect($redirect->getStatusCode())->toBe(301)
+        ->and($redirect->headers->get('Location'))->toBe('/cached');
+
+    // view(): template + data travel as compiled defaults and render.
+    $view = Kernel::handle(Request::create('/fluent/view'));
+    expect($view->getStatusCode())->toBe(200)
+        ->and($view->getContent())->toBe('hello world');
+});
+
 test('cached throttled route returns 429 after exceeding the rate limit (RateLimitMiddleware runs through cache)', function () {
     $fx = cacheFixturePath();
 
