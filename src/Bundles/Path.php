@@ -5,9 +5,52 @@ declare(strict_types=1);
 namespace Ions\Bundles;
 
 use Ions\Foundation\Singleton;
+use RuntimeException;
 
 class Path extends Singleton
 {
+    /**
+     * Centralized path-containment guard for the uploads/host-root path
+     * builders (files()/filesRoot()). Every caller-controllable segment that
+     * is concatenated onto a trusted root MUST pass through this gate first, so
+     * downstream consumers (read/write/move/delete sinks) are safe by
+     * construction.
+     *
+     * Fail-closed contract: an argument containing a `..` traversal segment or
+     * an absolute prefix (leading `/`, a `\\` UNC prefix, or a `X:\` Windows
+     * drive) throws a RuntimeException. Legitimate nested RELATIVE subpaths —
+     * e.g. `avatars/2024/x.jpg` — pass through untouched so existing structure
+     * keeps working. Empty values are allowed (they resolve to the root).
+     *
+     * @param string ...$segments Each caller-controllable path fragment.
+     */
+    protected static function assertContained(string ...$segments): void
+    {
+        foreach ($segments as $segment) {
+            if ($segment === '') {
+                continue;
+            }
+
+            if (str_contains($segment, "\0")) {
+                throw new RuntimeException("Refusing a path containing a null byte: $segment");
+            }
+
+            // Absolute prefixes escape the trusted root: POSIX leading slash,
+            // UNC `\\host\share`, or a Windows drive letter `X:\` / `X:/`.
+            $normalized = str_replace('\\', '/', $segment);
+            if (str_starts_with($normalized, '/')
+                || str_starts_with($normalized, '//')
+                || preg_match('#^[a-zA-Z]:/#', $normalized) === 1) {
+                throw new RuntimeException("Refusing an absolute path argument: $segment");
+            }
+
+            // Any `..` traversal segment (anywhere in the path) is rejected.
+            if (in_array('..', explode('/', $normalized), true)) {
+                throw new RuntimeException("Refusing a path containing '..': $segment");
+            }
+        }
+    }
+
     protected static string $environmentPath = __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR;
 
     protected static ?string $basePath = null;
@@ -237,6 +280,10 @@ class Path extends Singleton
      */
     public static function files(string $file, bool $url = false, string $mainFolder = ''): string
     {
+        // FINDING 6: containment at the root cause — reject traversal/absolute
+        // arguments before any concatenation, fail-closed for every caller.
+        self::assertContained($file, $mainFolder);
+
         if (env('FILESYSTEM_DISK', 'local') === 's3' && env('AWS_BASE_PATH')) {
             $mainFolder = env('AWS_BASE_PATH');
             $file = $mainFolder . '/' . $file;
@@ -260,6 +307,9 @@ class Path extends Singleton
 
     public static function filesRoot(string $file, bool $url = false, string $mainFolder = '', string $bucket = ''): string
     {
+        // FINDING 6: containment at the root cause (see files()).
+        self::assertContained($file, $mainFolder, $bucket);
+
         if (env('FILESYSTEM_DISK', 'local') === 's3' && $mainFolder) {
             $file = $mainFolder . '/' . $file;
         }
