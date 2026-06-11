@@ -42,6 +42,10 @@ Kernel::run();
 handles the request and sends the response. Existing front controllers that call `Kernel::make()` continue to work — it
 is a thin BC shim around `run()`.
 
+Serve it locally with `php bin/ions serve` (PHP's built-in dev server on
+`http://127.0.0.1:8000`; `--host`/`--port` to change — `php -S localhost:8000 -t public`
+remains the raw alternative).
+
 ### Route (`routes/web.php`)
 
 ```php

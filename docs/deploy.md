@@ -197,6 +197,36 @@ worker runtimes the framework boots once and handles many requests via
 4.1; read [worker-mode.md](worker-mode.md) for the lifecycle, the state table
 and a FrankenPHP example before using it in production.
 
+## Maintenance mode
+
+Take the app down for a deploy or migration with one command:
+
+```bash
+php bin/ions down                       # every request now gets a 503
+php bin/ions down --retry=120           # + "Retry-After: 120" on the 503
+php bin/ions down --secret=letmein      # + a bypass URL for your own browsing
+php bin/ions up                         # back to normal serving
+```
+
+`down` writes `var/maintenance.php`; `Kernel::handle()` checks for it before
+routing (one `file_exists()` per request when the app is live — effectively
+free) and answers with **503 Service Unavailable** through the regular
+exception pipeline:
+
+- **Themeable** — ship a `views/errors/503.twig` and it renders the
+  maintenance page (context: `status`, `message`, `request_path`), exactly
+  like the other [custom error pages](views.md). API requests get the
+  standard `{status, message, code}` JSON shape.
+- **Bypass secret** — with `--secret=letmein`, visiting `/letmein` sets the
+  `ions_maintenance` cookie (a sha256 of the secret, never the secret itself;
+  valid 12 h) and redirects to `/`; requests carrying the cookie pass through
+  so you can verify the deploy while everyone else sees the 503.
+- **`/up` stays reachable** — the liveness probe is deliberately exempt so
+  load balancers and dashboards keep observing the box *during* maintenance
+  (mark planned maintenance in your monitor rather than going dark).
+- `doctor` shows a `[WARN] maintenance` row while the flag file exists —
+  a leftover `down` can't hide.
+
 ## Deploy checklist
 
 ```bash

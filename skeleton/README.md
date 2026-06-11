@@ -19,8 +19,11 @@ php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
 # sanity-check the setup (APP_KEY, writable var/, DB, security posture):
 php bin/ions doctor
 
-php -S localhost:8000 -t public
+php bin/ions serve     # dev server on http://127.0.0.1:8000 (--host/--port)
 ```
+
+(`serve` wraps PHP's built-in server — `php -S localhost:8000 -t public`
+works just as well if you prefer the raw command.)
 
 Open <http://localhost:8000> — you should see the welcome page. `curl localhost:8000/api/ping` returns JSON.
 

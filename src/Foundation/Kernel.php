@@ -597,6 +597,18 @@ class Kernel extends Singleton
         }
 
         try {
+            // Maintenance mode (10.8) — gated BEFORE routing so every route
+            // (web and api) is covered. Costs one file_exists() per request
+            // when the app is live. The 503 throws through this try block so
+            // the ExceptionHandler renders it (errors/503.twig themeable,
+            // standard JSON shape for api); the secret-bypass URL returns a
+            // redirect directly. /up stays reachable (liveness probe).
+            if (MaintenanceMode::active()
+                && ($redirect = MaintenanceMode::gate($request)) !== null) {
+                self::fireRequestHandled($request, $redirect);
+                return $redirect;
+            }
+
             $context = new RequestContext();
             $context->fromRequest($request);
 

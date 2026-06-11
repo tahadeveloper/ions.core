@@ -29,6 +29,10 @@ return [
     'middleware_aliases' => [
         'throttle' => \Ions\Http\Middleware\RateLimitMiddleware::class,
         'signed' => \Ions\Http\Middleware\ValidateSignatureMiddleware::class,
+        // PSR-15 adapter pattern (10.8): aliases point at Psr15Adapter
+        // subclasses that pin the wrapped PSR-15 middleware in their ctor.
+        'psr15' => \IonsFixture\Middleware\FixturePsr15Alias::class,
+        'psr15.short' => \IonsFixture\Middleware\FixturePsr15ShortCircuitAlias::class,
     ],
 
     // Built-in /up health endpoint (10.6). EXPLICIT mirror of the skeleton

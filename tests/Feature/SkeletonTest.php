@@ -110,8 +110,9 @@ test('GET / renders the Twig welcome page', function () {
     expect($response->getStatusCode())->toBe(200)
         ->and((string) $response->getContent())->toContain('Ions PHP framework')
         ->and((string) $response->getContent())->toContain(config('app.name'))
-        // 10.6 landing page: quick-start snippet and doc links ship by default.
-        ->and((string) $response->getContent())->toContain('php -S localhost:8000 -t public')
+        // 10.6 landing page: quick-start snippet and doc links ship by default
+        // (10.8 swapped the raw php -S line for `ions serve`).
+        ->and((string) $response->getContent())->toContain('php bin/ions serve')
         ->and((string) $response->getContent())->toContain('ions doctor')
         ->and($response->headers->get('X-Content-Type-Options'))->toBe('nosniff');
 });

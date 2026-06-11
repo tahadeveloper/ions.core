@@ -141,6 +141,7 @@ final class Doctor extends Singleton
             static fn (): array => [self::checkCors()],
             static fn (): array => [self::checkDebug()],
             static fn (): array => [self::checkDiscovery()],
+            static fn (): array => [self::checkMaintenance()],
         ];
     }
 
@@ -578,5 +579,17 @@ final class Doctor extends Singleton
         }
 
         return self::result('discovery', 'Provider discovery', self::INFO, 'Live discovery at boot — run `ions optimize` in production to freeze the provider list.');
+    }
+
+    // ------------------------------------------------------------ maintenance
+
+    /** @return array{id: string, label: string, status: string, message: string} */
+    private static function checkMaintenance(): array
+    {
+        if (MaintenanceMode::active()) {
+            return self::result('maintenance', 'Maintenance mode', self::WARN, 'Maintenance mode is ACTIVE (var/maintenance.php) — all requests get a 503. Run `ions up` to go live.');
+        }
+
+        return self::result('maintenance', 'Maintenance mode', self::OK, 'Not in maintenance mode.');
     }
 }

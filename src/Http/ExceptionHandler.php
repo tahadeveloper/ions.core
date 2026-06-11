@@ -33,10 +33,26 @@ final class ExceptionHandler
             $extra = $debug && !$isHttp
                 ? ['exception' => $e::class, 'trace' => explode("\n", $e->getTraceAsString())]
                 : [];
-            return Json::error($clientMessage, $status, $extra);
+            return $this->withExceptionHeaders(Json::error($clientMessage, $status, $extra), $e);
         }
 
-        return $this->html($clientMessage, $status, $e, $debug, $request);
+        return $this->withExceptionHeaders($this->html($clientMessage, $status, $e, $debug, $request), $e);
+    }
+
+    /**
+     * Propagate HttpException headers (Retry-After on the maintenance 503,
+     * Allow on a 405, WWW-Authenticate on a 401, ...) onto the rendered
+     * response — deliberate, client-facing metadata must not be lost (10.8).
+     */
+    private function withExceptionHeaders(Response $response, Throwable $e): Response
+    {
+        if ($e instanceof HttpExceptionInterface) {
+            foreach ($e->getHeaders() as $name => $value) {
+                $response->headers->set((string) $name, $value);
+            }
+        }
+
+        return $response;
     }
 
     /**

@@ -80,6 +80,9 @@ These ship with the framework and are always registered:
 | `queue:flush` | `QueueFlushCommand` | Flush all failed queue jobs (`--hours=N` to age-filter). |
 | `openapi:generate` | `OpenApiCommand` | Export the routes as an OpenAPI 3.0 spec (see [resources.md](resources.md)). |
 | `doctor` | `Ions\commands\DoctorCommand` | Diagnose the host app (env, APP_KEY, writable `var/`, caches, DB, extensions, security posture) — see [Diagnostics](#diagnostics--doctor). |
+| `serve` | `Ions\commands\ServeCommand` | Run the app on PHP's built-in dev server (`--host=127.0.0.1`, `--port=8000`) — development only. |
+| `down` | `Ions\commands\DownCommand` | Enter maintenance mode: every request gets a themeable 503 (`--retry=N` for Retry-After, `--secret=S` for a bypass URL) — see [deploy.md](deploy.md#maintenance-mode). |
+| `up` | `Ions\commands\UpCommand` | Leave maintenance mode (removes `var/maintenance.php`). |
 
 The framework commands live in `src/commands` and are autoloaded via the
 Composer `classmap` entry (most are in the global namespace). The console Kernel
