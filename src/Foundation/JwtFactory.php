@@ -53,9 +53,15 @@ final class JwtFactory
         }
 
         try {
+            // env('APP_NAME') reads as plain string at the env boundary, which
+            // PHPStan widens to possibly-'' against Jwt's non-empty-string issuer/
+            // audience. The 'ions' default is non-empty and Jwt tolerates the value
+            // either way; ignored at the boundary rather than mutating the env read.
             return new Jwt(
                 $secret,
+                /** @phpstan-ignore argument.type */
                 (string) env('APP_NAME', 'ions'),
+                /** @phpstan-ignore argument.type */
                 (string) env('APP_NAME', 'ions'),
                 (int) config('app.jwt.ttl', 3600),
                 (int) config('app.jwt.leeway', 0),

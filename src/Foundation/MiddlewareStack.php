@@ -40,6 +40,9 @@ final class MiddlewareStack
         $userProvider = $app->has('user_provider') ? $app->get('user_provider') : null;
         /** @var \Ions\Auth\Contracts\UserProvider|null $userProvider */
 
+        /** @var list<string> $publicPaths */
+        $publicPaths = (array) config('app.auth.public_paths', []);
+
         $web = [
             new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
             new SecurityHeadersMiddleware(),
@@ -71,7 +74,7 @@ final class MiddlewareStack
                 new TrustedHostMiddleware((array) config('app.trusted_hosts', [])),
                 new SecurityHeadersMiddleware(),
                 new CorsMiddleware((array) config('app.cors', [])),
-                new AuthMiddleware($jwt, $userProvider, (array) config('app.auth.public_paths', [])),
+                new AuthMiddleware($jwt, $userProvider, $publicPaths),
             ],
         ];
     }

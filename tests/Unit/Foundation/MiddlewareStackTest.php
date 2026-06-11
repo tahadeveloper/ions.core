@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 use Ions\Foundation\Kernel;
 use Ions\Foundation\MiddlewareStack;
+use Ions\Http\Middleware\AuthMiddleware;
+use Ions\Http\Middleware\CorsMiddleware;
+use Ions\Http\Middleware\CsrfMiddleware;
 use Ions\Http\Middleware\MiddlewareInterface;
 use Ions\Http\Middleware\SecurityHeadersMiddleware;
+use Ions\Http\Middleware\StartSessionMiddleware;
+use Ions\Http\Middleware\TrustedHostMiddleware;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,6 +32,30 @@ test('defaults() returns web and api stacks of MiddlewareInterface instances', f
     expect($stacks)->toHaveKeys(['web', 'api'])
         ->and($stacks['web'])->each->toBeInstanceOf(MiddlewareInterface::class)
         ->and($stacks['api'])->each->toBeInstanceOf(MiddlewareInterface::class);
+});
+
+test('defaults() pins the exact web and api stack ordering/composition', function () {
+    // Ordering is load-bearing: TrustedHost gates spoofed Host headers before
+    // anything trusts them; SecurityHeaders/Cors run next; the session starts
+    // BEFORE CSRF (CSRF reads it); api swaps CSRF for AuthMiddleware. The fixture
+    // binds session + csrf and runs with APP_DEBUG off (no DebugToolbar appended).
+    $stacks = MiddlewareStack::defaults(Kernel::app());
+
+    $web = array_map(static fn ($m) => $m::class, $stacks['web']);
+    $api = array_map(static fn ($m) => $m::class, $stacks['api']);
+
+    expect($web)->toBe([
+        TrustedHostMiddleware::class,
+        SecurityHeadersMiddleware::class,
+        CorsMiddleware::class,
+        StartSessionMiddleware::class,
+        CsrfMiddleware::class,
+    ])->and($api)->toBe([
+        TrustedHostMiddleware::class,
+        SecurityHeadersMiddleware::class,
+        CorsMiddleware::class,
+        AuthMiddleware::class,
+    ]);
 });
 
 test('resolve() returns a MiddlewareInterface for a valid FQCN', function () {

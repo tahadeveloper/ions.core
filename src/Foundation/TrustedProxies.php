@@ -51,6 +51,12 @@ final class TrustedProxies
             $resolved[] = (string) $proxy;
         }
 
+        // Symfony's setTrustedProxies() narrows the header-set to int<0,63>;
+        // headerSet() returns a plain int (it passes power-user int bitmasks
+        // through unchanged). The composed Request::HEADER_* values always fall
+        // in range — ignored at the vendor boundary rather than constraining the
+        // pass-through.
+        /** @phpstan-ignore argument.type */
         Request::setTrustedProxies($resolved, self::headerSet());
     }
 
