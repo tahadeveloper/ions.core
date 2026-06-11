@@ -2,40 +2,13 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Queue\QueueManager;
 use Ions\Foundation\Kernel;
 use IonsFixture\RecordingJob;
 
 beforeEach(fn () => bootFixtureKernel());
 
-/** Create the database queue tables on the in-memory sqlite connection. */
-function createQueueTables(): void
-{
-    $schema = Kernel::app()->get('db')->connection()->getSchemaBuilder();
-    $schema->dropIfExists('jobs');
-    $schema->dropIfExists('failed_jobs');
-
-    $schema->create('jobs', function (Blueprint $t) {
-        $t->bigIncrements('id');
-        $t->string('queue')->index();
-        $t->longText('payload');
-        $t->unsignedTinyInteger('attempts');
-        $t->unsignedInteger('reserved_at')->nullable();
-        $t->unsignedInteger('available_at');
-        $t->unsignedInteger('created_at');
-    });
-
-    $schema->create('failed_jobs', function (Blueprint $t) {
-        $t->id();
-        $t->string('uuid')->unique();
-        $t->text('connection');
-        $t->text('queue');
-        $t->longText('payload');
-        $t->longText('exception');
-        $t->timestamp('failed_at')->useCurrent();
-    });
-}
+// createQueueTables() lives in tests/Pest.php (shared with QueueFailedJobsTest).
 
 test('the queue manager is bound in the container', function () {
     expect(Kernel::app()->has('queue'))->toBeTrue()

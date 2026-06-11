@@ -73,7 +73,11 @@ These ship with the framework and are always registered:
 | `install:assets` | `InstallAssetsCommand` | Scaffold plain CSS/JS starters into `public/assets/` — no build step (see [assets.md](assets.md)). |
 | `schedule:run` | `ScheduleRunCommand` | Run the due scheduled tasks (see [scheduler.md](scheduler.md)). |
 | `schedule:list` | `ScheduleListCommand` | List the scheduled tasks with expression + next run time. |
-| `queue:work` | `QueueWorkCommand` | Process jobs from the queue. |
+| `queue:work` | `QueueWorkCommand` | Process jobs from the queue (`--once`, `--tries`, `--backoff`, …). |
+| `queue:failed` | `QueueFailedCommand` | List the failed queue jobs. |
+| `queue:retry` | `QueueRetryCommand` | Push failed jobs back onto the queue (`{id…}` or `--all`). |
+| `queue:forget` | `QueueForgetCommand` | Delete a failed queue job. |
+| `queue:flush` | `QueueFlushCommand` | Flush all failed queue jobs (`--hours=N` to age-filter). |
 | `openapi:generate` | `OpenApiCommand` | Export the routes as an OpenAPI 3.0 spec (see [resources.md](resources.md)). |
 | `doctor` | `Ions\commands\DoctorCommand` | Diagnose the host app (env, APP_KEY, writable `var/`, caches, DB, extensions, security posture) — see [Diagnostics](#diagnostics--doctor). |
 
