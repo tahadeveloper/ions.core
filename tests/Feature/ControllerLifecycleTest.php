@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use Ions\Bundles\Route;
+use Ions\Foundation\Kernel;
+use Ions\Http\Responsable;
+use Ions\Support\Request;
 use IonsFixture\Http\Controllers\Lifecycle\AfterActionController;
 use IonsFixture\Http\Controllers\Lifecycle\BadMiddlewareController;
 use IonsFixture\Http\Controllers\Lifecycle\BareInstanceMiddlewareController;
@@ -13,10 +17,6 @@ use IonsFixture\Http\Controllers\Lifecycle\LegacyOnlyController;
 use IonsFixture\Http\Controllers\Lifecycle\ProtectedHooksController;
 use IonsFixture\Http\Controllers\Lifecycle\ShortCircuitController;
 use IonsFixture\Lifecycle\Recorder;
-use Ions\Bundles\Route;
-use Ions\Foundation\Kernel;
-use Ions\Http\Responsable;
-use Ions\Support\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /*

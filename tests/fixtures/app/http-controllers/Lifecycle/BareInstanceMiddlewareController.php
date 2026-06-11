@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace IonsFixture\Http\Controllers\Lifecycle;
 
-use IonsFixture\Middleware\RecordingOrderMiddleware;
 use Ions\Http\Middleware\MiddlewareInterface;
 use Ions\Support\Request;
+use IonsFixture\Middleware\RecordingOrderMiddleware;
 use Symfony\Component\HttpFoundation\Response;
 
 /**

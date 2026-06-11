@@ -41,8 +41,12 @@ function bootForFilterTests(): void
     ]);
     Kernel::config()->set('query-builder.request_data_source', 'query');
 
-    // Create a scratch SQLite table so QueryBuilder can bind it.
-    \Ions\Support\DB::connection()->getSchemaBuilder()->create('users', function ($table) {
+    // Create a scratch table the QueryBuilder can bind to. dropIfExists first
+    // so the suite is portable to a persistent connection (MySQL CI), where
+    // tables survive across tests unlike SQLite :memory:.
+    $schema = \Ions\Support\DB::connection()->getSchemaBuilder();
+    $schema->dropIfExists('users');
+    $schema->create('users', function ($table) {
         $table->increments('id');
         $table->string('name');
         $table->string('secret')->nullable();

@@ -44,8 +44,12 @@ function bootForOperatorTests(): void
     ]);
     \Ions\Foundation\Kernel::config()->set('query-builder.request_data_source', 'query');
 
-    // Create a scratch SQLite table for the canonical builder to bind to.
-    \Ions\Support\DB::connection()->getSchemaBuilder()->create('items', function ($table) {
+    // Create a scratch table for the canonical builder to bind to. dropIfExists
+    // first so the suite is portable to a persistent connection (MySQL CI),
+    // where tables survive across tests unlike SQLite :memory:.
+    $schema = \Ions\Support\DB::connection()->getSchemaBuilder();
+    $schema->dropIfExists('items');
+    $schema->create('items', function ($table) {
         $table->increments('id');
         $table->integer('age')->nullable();
         $table->string('name')->nullable();
@@ -112,10 +116,10 @@ test(
         $qb->allowFilters(['age']);
 
         $inner = innerBuilder($qb);
-        $sql   = strtolower($inner->toSql());
+        $sql   = str_replace([chr(34), chr(96)], "", strtolower($inner->toSql()));
 
         // The WHERE clause must mention the column and the operator.
-        expect($sql)->toContain('"age"')
+        expect($sql)->toContain('age')
             ->and($sql)->toContain($sqlOp);
 
         // The binding must include the raw test value.
@@ -130,10 +134,10 @@ test('the in operator builds a whereIn clause (SQL contains "in (")', function (
     $qb->allowFilters(['age']);
 
     $inner = innerBuilder($qb);
-    $sql   = strtolower($inner->toSql());
+    $sql   = str_replace([chr(34), chr(96)], "", strtolower($inner->toSql()));
 
     // Must contain the column and the IN clause.
-    expect($sql)->toContain('"age"')
+    expect($sql)->toContain('age')
         ->and($sql)->toContain('in (');
 
     // All three values must appear in the bindings.
@@ -149,9 +153,9 @@ test('unknown operator falls back to eq (=)', function () {
     $qb->allowFilters(['age']);
 
     $inner = innerBuilder($qb);
-    $sql   = strtolower($inner->toSql());
+    $sql   = str_replace([chr(34), chr(96)], "", strtolower($inner->toSql()));
 
-    expect($sql)->toContain('"age"')
+    expect($sql)->toContain('age')
         ->and($sql)->toContain('= ?');
     expect($inner->getBindings())->toContain('99');
 });
@@ -163,9 +167,9 @@ test('filter without explicit operator defaults to eq (=)', function () {
 
     $qb    = QueryBuilder::for('items', $request)->allowFilters(['age']);
     $inner = innerBuilder($qb);
-    $sql   = strtolower($inner->toSql());
+    $sql   = str_replace([chr(34), chr(96)], "", strtolower($inner->toSql()));
 
-    expect($sql)->toContain('"age"')
+    expect($sql)->toContain('age')
         ->and($sql)->toContain('= ?');
     expect($inner->getBindings())->toContain('7');
 });

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace IonsFixture\Http\Controllers\Lifecycle;
 
-use IonsFixture\Lifecycle\Recorder;
 use Ions\Support\Request;
+use IonsFixture\Lifecycle\Recorder;
 use Symfony\Component\HttpFoundation\Response;
 
 /**

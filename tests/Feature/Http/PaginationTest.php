@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use IonsFixture\Models\Widget;
 use Ions\Bundles\Path;
 use Ions\Bundles\Route;
 use Ions\Foundation\Kernel;
 use Ions\Support\Request;
+use IonsFixture\Models\Widget;
 
 /*
 |--------------------------------------------------------------------------

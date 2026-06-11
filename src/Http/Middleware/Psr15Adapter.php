@@ -69,7 +69,7 @@ class Psr15Adapter implements MiddlewareInterface
         $toPsr = new PsrHttpFactory($psr17, $psr17, $psr17, $psr17);
         $toSymfony = new HttpFoundationFactory();
 
-        $handler = new class($toPsr, $toSymfony, $request, $next) implements RequestHandlerInterface {
+        $handler = new class ($toPsr, $toSymfony, $request, $next) implements RequestHandlerInterface {
             /** @param callable(Request):Response $next */
             public function __construct(
                 private readonly PsrHttpFactory $toPsr,
