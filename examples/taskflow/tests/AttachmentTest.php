@@ -26,8 +26,8 @@ use App\Models\Attachment;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Ions\Filesystem\Storage;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 beforeEach(function () {

@@ -79,12 +79,12 @@ function journeyPngBytes(): string
 }
 
 /** Build an in-memory UploadedFile (test mode bypasses is_uploaded_file). */
-function journeyUpload(string $clientName, string $content): \Symfony\Component\HttpFoundation\File\UploadedFile
+function journeyUpload(string $clientName, string $content): \Illuminate\Http\UploadedFile
 {
     $tmp = tempnam(sys_get_temp_dir(), 'fj');
     file_put_contents($tmp, $content);
 
-    return new \Symfony\Component\HttpFoundation\File\UploadedFile($tmp, $clientName, null, null, true);
+    return new \Illuminate\Http\UploadedFile($tmp, $clientName, null, null, true);
 }
 
 test('the full Taskflow journey threads every subsystem with consistent end state', function () {
