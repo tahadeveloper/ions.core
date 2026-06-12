@@ -1,0 +1,27 @@
+{% extends "layout.twig" %}
+{% block title %}Edit task · Taskflow{% endblock %}
+{% block body %}
+    <h1>Edit task</h1>
+    <p class="note">in <a href="{{ appUrl('projects/' ~ project.id) }}">{{ project.name }}</a></p>
+
+    <form method="post" action="{{ appUrl('projects/' ~ project.id ~ '/tasks/' ~ task.id) }}" enctype="multipart/form-data">
+        {{ ionToken('web') }}
+        <label>Title
+            <input type="text" name="title" value="{{ old('title', task.title) }}" autofocus>
+        </label>
+        <label>Description
+            <textarea name="description" rows="3">{{ old('description', task.description) }}</textarea>
+        </label>
+        <label>Status
+            <select name="status">
+                {% for value in ['todo', 'doing', 'done'] %}
+                    <option value="{{ value }}"{{ task.status == value ? ' selected' : '' }}>{{ value }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Attachment (optional)
+            <input type="file" name="attachment">
+        </label>
+        <button type="submit">Save changes</button>
+    </form>
+{% endblock %}
