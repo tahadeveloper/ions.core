@@ -36,3 +36,28 @@ if (!is_file($root . '/.env')) {
 $_ENV['SESSION_DRIVER'] = $_ENV['SESSION_DRIVER'] ?? 'array';
 $_ENV['APP_DEBUG'] = $_ENV['APP_DEBUG'] ?? 'true';
 $_ENV['APP_KEY'] = $_ENV['APP_KEY'] ?? str_repeat('a', 64);
+// Each test boots a fresh kernel; force the DB onto a throwaway in-memory
+// SQLite so the suite never touches database/database.sqlite and every test
+// starts with empty tables. Tests that need schema call migrateTaskflow().
+$_ENV['DB_CONNECTION'] = $_ENV['DB_CONNECTION'] ?? 'sqlite';
+$_ENV['DB_DATABASE'] = $_ENV['DB_DATABASE'] ?? ':memory:';
+
+/*
+|--------------------------------------------------------------------------
+| migrateTaskflow()
+|--------------------------------------------------------------------------
+| Run the host's real migration files (database/schemas/*.php) against the
+| booted connection. Each schema file `return new class extends Migration`,
+| exactly what `ions migrate` discovers and runs — so exercising them here
+| proves the migrations themselves. Call it from a test's beforeEach() (after
+| the kernel has booted) before touching any model.
+*/
+function migrateTaskflow(): void
+{
+    $schemas = glob(dirname(__DIR__) . '/database/schemas/*.php');
+
+    foreach ($schemas ?: [] as $file) {
+        $migration = require $file;
+        $migration->up();
+    }
+}
