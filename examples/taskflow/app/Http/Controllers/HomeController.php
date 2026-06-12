@@ -22,6 +22,22 @@ class HomeController extends BaseController
     }
 
     /**
+     * A verified-only landing page. The route attaches ['web.auth', 'verified'],
+     * so reaching this action proves the session user is logged in AND verified;
+     * the gate would have redirected an unverified user to /email/verify.
+     */
+    public function dashboard(Request $request): View
+    {
+        $user = $request->attributes->get('auth_user');
+
+        return $this->view('index', [
+            'app_name' => config('app.name', 'Taskflow'),
+            'ions_version' => $this->ionsVersion(),
+            'user_name' => is_object($user) ? ($user->name ?? null) : null,
+        ]);
+    }
+
+    /**
      * The installed framework version for the welcome page's version line —
      * composer runtime metadata, degrading to 'dev' in odd setups.
      */

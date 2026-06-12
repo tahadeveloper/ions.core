@@ -1,0 +1,23 @@
+{% extends "auth/layout.twig" %}
+{% block title %}Sign in · Taskflow{% endblock %}
+{% block body %}
+    <h1>Sign in</h1>
+
+    {% if errors().any() %}
+        <ul class="errors">
+            {% for message in errors().all() %}<li>{{ message }}</li>{% endfor %}
+        </ul>
+    {% endif %}
+
+    <form method="post" action="{{ appUrl('login') }}">
+        {{ ionToken('web') }}
+        <label>Email
+            <input type="email" name="email" value="{{ old('email') }}" autofocus>
+        </label>
+        <label>Password
+            <input type="password" name="password">
+        </label>
+        <button type="submit">Sign in</button>
+    </form>
+    <p class="note">No account yet? <a href="{{ appUrl('register') }}">Register</a>.</p>
+{% endblock %}

@@ -22,6 +22,45 @@ The Eloquent models are `User`, `Project`, `Task`, `Attachment` and `Comment`
 The schema, factories and a `DemoSeeder` live under `database/`
 (`schemas/`, `factories/`, `seeders/`).
 
+## Auth
+
+Taskflow wires the full account journey from the framework's public auth APIs:
+
+**register → verify → (optional 2FA) → login**, plus authorization policies.
+
+- **Registration + email verification** — `RegisterController` creates an
+  *unverified* `User` and calls `EmailVerification::sendVerification()`, which
+  mails a **signed, expiring** link (`Ions\Auth\EmailVerification` + signed URLs
+  + notifications). The link targets the `verification.verify` route guarded by
+  the `signed` middleware; `VerifyController` runs `EmailVerification::verify()`
+  to flip `email_verified_at`. The `verified` middleware then gates
+  verified-only pages (e.g. `/dashboard`), redirecting unverified web users to
+  `config('app.auth.email_verification_redirect')`.
+- **Web session login** — the framework's default `web` middleware group carries
+  no auth, so the host owns it: on a valid password `LoginController` calls
+  `session()->put('auth_user_id', $id)`, and the host
+  `SessionAuthMiddleware` (alias `web.auth`) reads that id, loads the `User`, and
+  publishes it as the request's `auth_user` attribute — exactly what the Gate and
+  the `verified` middleware read. Chain `->middleware(['web.auth', 'verified'])`
+  to gate a route on a verified, logged-in session.
+- **Two-factor (TOTP)** — `TwoFactorController` enrols a user with
+  `Ions\Auth\TwoFactor` (secret + recovery codes + `otpauth://` URI for a QR),
+  confirms with a live code, and stores the secret **encrypted at rest**
+  (`Ions\Security\Encrypter`) with recovery codes hashed. When 2FA is on, login
+  defers to a TOTP challenge before establishing the session.
+- **JWT API login** — `app/Http/Api/AuthController` (over the framework's
+  `Ions\Auth\Http\AuthController`) issues an access + refresh token pair at
+  `POST /api/auth/login`; `AuthMiddleware` then resolves the `User` onto every
+  other `/api/*` request. The host `App\Auth\UserProvider` (config/auth.php)
+  returns the real Eloquent model so policies see relationships.
+- **Gate + policies** — `AuthServiceProvider` (auto-discovered) maps
+  `Project`/`Task` to `ProjectPolicy`/`TaskPolicy` and defines a `create-project`
+  ability. Controllers call `$this->authorize(...)` / `app('gate')->authorize(...)`;
+  views can use `can()`. Policies grant view/update to a project's owner or
+  members and reserve delete for the owner.
+
+The journey is covered end-to-end in `tests/AuthTest.php`.
+
 ## Quick start
 
 ```bash
@@ -80,10 +119,15 @@ throwaway environment (`SESSION_DRIVER=array`, `APP_DEBUG=true`, a dummy
 | `bin/ions` | Console entry point (`migrate`, `serve`, `doctor`, …). |
 | `config/` | Per-file config arrays (secure defaults; SQLite by default). |
 | `app/Models/` | Eloquent models (`User`, `Project`, `Task`, `Attachment`, `Comment`). |
-| `app/Http/Controllers/` | Web controllers (`HomeController` welcome page). |
-| `app/Http/Api/` | JSON API controllers (added in later sub-phases). |
-| `routes/web.php`, `routes/api.php` | Route definitions (`/`, `/api/ping`). |
-| `views/` | Twig templates. |
+| `app/Http/Controllers/` | Web controllers (`HomeController`, `Auth/*` register/verify/login/2FA). |
+| `app/Http/Api/` | JSON API controllers (`AuthController` JWT login). |
+| `app/Http/Middleware/` | Host middleware (`SessionAuthMiddleware`, alias `web.auth`). |
+| `app/Http/Requests/` | FormRequests (`RegisterRequest`, `LoginRequest`). |
+| `app/Auth/` | `UserProvider` resolving the `User` model for JWT/Gate. |
+| `app/Policies/` | `ProjectPolicy`, `TaskPolicy`. |
+| `app/Providers/` | `AuthServiceProvider` (gate policy map + abilities; auto-discovered). |
+| `routes/web.php`, `routes/api.php` | Route definitions (welcome, auth, `/api/ping`, `/api/auth/login`). |
+| `views/` | Twig templates (`auth/*` register/login/2FA forms). |
 | `database/schemas/` | Migrations (`ions migrate` discovers `database/schemas/*.php`). |
 | `database/factories/` | Model factories (`Database\Factories\…`). |
 | `database/seeders/` | Seeders (`Database\Seeders\DemoSeeder`). |

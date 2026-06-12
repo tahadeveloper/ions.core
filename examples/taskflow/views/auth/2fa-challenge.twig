@@ -1,0 +1,14 @@
+{% extends "auth/layout.twig" %}
+{% block title %}Two-factor · Taskflow{% endblock %}
+{% block body %}
+    <h1>Two-factor authentication</h1>
+    <p class="note">Enter the 6-digit code from your authenticator app to finish signing in.</p>
+
+    <form method="post" action="{{ appUrl('login/2fa') }}">
+        {{ ionToken('web') }}
+        <label>Authentication code
+            <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" autofocus>
+        </label>
+        <button type="submit">Verify</button>
+    </form>
+{% endblock %}
