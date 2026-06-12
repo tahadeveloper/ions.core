@@ -6,7 +6,7 @@
 
       views/errors/{status}.twig      e.g. errors/404.twig, errors/503.twig
       views/errors/{4xx|5xx}.twig     status-class fallback
-      built-in minimal page           when neither exists (or a template throws)
+      built-in branded page           when neither exists (or a template throws)
 
   Available context:
       status        the HTTP status code (int)
@@ -14,8 +14,12 @@
       request_path  the path that errored
 
   A template error never breaks the response — it is logged to
-  var/logs/view.log and the built-in page is served instead. In debug mode
-  the rich debug page always wins; API/JSON responses are never templated.
+  var/logs/view.log and the built-in branded page is served instead. In debug
+  mode the rich debug page always wins; API/JSON responses are never templated.
+
+  This example mirrors the framework's built-in branded page
+  (Ions\Http\Ui\ErrorPage), inlining the same dark/indigo palette so a host
+  override stays visually consistent. Edit freely — it is yours.
 #}
 <!DOCTYPE html>
 <html lang="en">
@@ -24,25 +28,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ status }} — {{ message }}</title>
     <style>
-        :root { color-scheme: light dark; }
+        :root {
+            color-scheme: dark light;
+            --ion-bg: #101218;
+            --ion-text: #d8dce3;
+            --ion-muted: #9aa4b2;
+            --ion-accent: #818cf8;
+            --ion-border: #2a2e36;
+        }
+        * { box-sizing: border-box; }
         body {
             margin: 0; min-height: 100vh;
             display: flex; align-items: center; justify-content: center;
             font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-            background: #101218; color: #d8dce3;
+            line-height: 1.5; background: var(--ion-bg); color: var(--ion-text);
         }
-        main { text-align: center; padding: 2rem; }
-        .status { font-size: 5rem; font-weight: 800; margin: 0; color: #818cf8; }
-        p { color: #9aa4b2; }
-        a { color: #818cf8; text-decoration: none; }
-        a:hover { text-decoration: underline; }
+        main { text-align: center; padding: 1.5rem; max-width: 32rem; }
+        .status { font-size: 6rem; font-weight: 800; line-height: 1; margin: 0; color: var(--ion-accent); letter-spacing: -.04em; }
+        .title { font-size: 1.5rem; font-weight: 600; margin: .75rem 0 0; }
+        .message { margin: .5rem 0 1.5rem; color: var(--ion-muted); }
+        .home {
+            display: inline-block; color: var(--ion-accent); text-decoration: none; font-weight: 600;
+            padding: .5rem 1rem; border: 1px solid var(--ion-border); border-radius: 6px;
+        }
+        .home:hover { border-color: var(--ion-accent); }
     </style>
 </head>
 <body>
 <main>
     <p class="status">{{ status }}</p>
-    <p>{{ message }}</p>
-    <p><a href="/">Back to the homepage</a></p>
+    <h1 class="title">Page Not Found</h1>
+    <p class="message">{{ message }}</p>
+    <p><a class="home" href="/">Back to the homepage</a></p>
 </main>
 </body>
 </html>
