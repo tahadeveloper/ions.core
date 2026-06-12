@@ -510,9 +510,14 @@ class Kernel extends Singleton
             } else {
                 static::$session = new Session();
             }
-            if (!static::$session->isStarted()) {
-                static::$session->start();
-            }
+            // NOTE: do NOT eagerly start() here. This placeholder exists only for
+            // pre-container Kernel::session() access; once the container is built
+            // the bound SessionManager owns the (single) session and session()
+            // returns it. Eager-starting a native session at boot would leave
+            // PHP's session globally ACTIVE before StartSessionMiddleware runs,
+            // so the SessionManager's own start() would throw "already started by
+            // PHP" under any non-cli SAPI (php -S, fpm). Tests never saw this:
+            // under the cli SAPI the placeholder above is the in-memory mock.
         }
 
         if (static::$request === null) {
@@ -526,10 +531,28 @@ class Kernel extends Singleton
 
     /**
      * use to access app session
+     *
+     * Once the container is booted the bound SessionManager owns the single
+     * framework session; return its inner Symfony Session so legacy consumers
+     * (BaseController::$session) share the SAME session the web pipeline's
+     * StartSessionMiddleware starts. Falling back to the pre-container
+     * placeholder ($session) only before 'session' is bound. This unification
+     * prevents two independent NativeSessionStorage instances from each calling
+     * session_start() (the "already started by PHP" 500 on real SAPIs).
+     *
      * @return Session
      */
     public static function session(): Session
     {
+        if (isset(static::$app) && static::$app->bound('session')) {
+            /** @var \Ions\Session\SessionManager $manager */
+            $manager = static::$app->get('session');
+            $session = $manager->getSession();
+            if ($session instanceof Session) {
+                return $session;
+            }
+        }
+
         return static::$session;
     }
 

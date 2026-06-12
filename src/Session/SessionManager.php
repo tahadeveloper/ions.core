@@ -31,7 +31,12 @@ final class SessionManager
      */
     public function __construct(private array $config = [], ?Session $session = null)
     {
-        $this->session = $session ?? new Session($this->makeStorage());
+        // Build an Ions\Support\Session (a Symfony Session subtype) so the bound
+        // SessionManager and the legacy Kernel::session() can share ONE object —
+        // Kernel::session() returns this instance once the container is booted.
+        // Two independent native Session objects would each call session_start()
+        // and the second throws "already started by PHP" on real (non-cli) SAPIs.
+        $this->session = $session ?? new \Ions\Support\Session($this->makeStorage());
     }
 
     /**
@@ -225,7 +230,7 @@ final class SessionManager
             $this->session->save();
         }
 
-        $this->session = new Session($this->makeStorage());
+        $this->session = new \Ions\Support\Session($this->makeStorage());
     }
 
     /**
