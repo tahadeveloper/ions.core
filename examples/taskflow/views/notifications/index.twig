@@ -1,0 +1,26 @@
+{% extends 'layout.twig' %}
+
+{% block title %}Notifications · Taskflow{% endblock %}
+
+{% block body %}
+    <h1>Notifications</h1>
+
+    {% if notifications is empty %}
+        <p class="note">You have no notifications.</p>
+    {% else %}
+        <ul class="list">
+            {% for n in notifications %}
+                <li>
+                    {% if not n.read %}<span class="pill">new</span>{% endif %}
+                    {{ n.message }}
+                    {% if not n.read %}
+                        <form method="post" action="/notifications/{{ n.id }}/read" style="display:inline">
+                            {{ ionToken('web') }}
+                            <button type="submit">Mark read</button>
+                        </form>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endblock %}

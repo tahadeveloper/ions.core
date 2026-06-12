@@ -100,6 +100,56 @@ upload tests, which use `Ions\Filesystem\Storage::fake()` so the validated
 write is intercepted onto an in-memory disk and never touches the real
 `public/uploads`.
 
+## Async: jobs, notifications, mail &amp; the scheduler
+
+Taskflow exercises the framework's asynchronous surface — queue jobs,
+notifications, mailables and the cron scheduler. All of it is covered in
+`tests/AsyncTest.php`, which fakes the queue/mailer/notifier and drives a real
+in-process worker against the `database` queue connection.
+
+- **Jobs** (`app/Jobs/`) — `SendTaskAssignedNotification` extends
+  `Ions\Queue\Job` (carries plain ids, re-reads the rows in `handle()`). It is
+  dispatched with the `dispatch()` helper whenever a task is assigned, on both
+  the web (`POST /projects/{project}/tasks/{task}/assign`) and the API
+  (`POST /api/projects/{project}/tasks/{task}/assign`) paths. `FlakyDemoJob`
+  declares `$tries = 2` and always throws, to demonstrate the failed-job flow.
+- **Notifications** (`app/Notifications/`) — `TaskAssigned` / `CommentAdded`
+  extend `Ions\Notifications\Notification` and deliver on the **mail + database**
+  channels: `toMail()` returns a recipient-less mailable that the mail channel
+  routes to the user's address; `toDatabase()` returns the payload the database
+  channel persists as a row in `notifications`. `notify($user, …)` fans both out.
+- **Mailables** (`app/Mail/`) — `WelcomeMail` (sent on register), `DigestMail`
+  (queued weekly by the scheduler) and the notification bodies, all extending
+  `Ions\Mail\Mailable` with a Twig `view()` body (`views/emails/*.twig`). Send
+  inline with `->send()` or defer with `->queue('database')`.
+- **In-app notifications** — `NotificationController` (`GET /notifications`)
+  lists the logged-in user's database-channel rows (newest first), with a
+  mark-read action.
+- **Scheduler** (`app/Schedule.php`) — `App\Schedule::boot(Scheduler $schedule)`
+  is discovered by convention and registers a daily `prune-read-notifications`
+  task (`->withoutOverlapping()`) plus a `weekly-digest` task that queues a
+  `DigestMail` per active user. Both runners drive it:
+
+  ```bash
+  php bin/ions schedule:run        # console runner (wire to crontab, every minute)
+  ```
+
+- **Background processing** — switch `QUEUE_CONNECTION=database` (config in
+  `config/queue.php`), then:
+
+  ```bash
+  php bin/ions queue:work database     # process jobs
+  php bin/ions queue:failed            # list failed jobs (FlakyDemoJob lands here)
+  php bin/ions queue:retry --all       # re-push them
+  php bin/ions queue:forget <uuid>     # drop one
+  php bin/ions queue:flush             # drop all
+  ```
+
+- **Demo data** — `php bin/ions taskflow:demo-seed` (`app/Commands/DemoSeedCommand`,
+  auto-discovered from `app/Commands`) migrates the schema and runs the
+  `DemoSeeder` so you can explore the app with `ions serve`. Demo users
+  `alice@example.com` / `bob@example.com` sign in with the password `password`.
+
 ## Quick start
 
 ```bash
@@ -158,8 +208,13 @@ throwaway environment (`SESSION_DRIVER=array`, `APP_DEBUG=true`, a dummy
 | `bin/ions` | Console entry point (`migrate`, `serve`, `doctor`, …). |
 | `config/` | Per-file config arrays (secure defaults; SQLite by default). |
 | `app/Models/` | Eloquent models (`User`, `Project`, `Task`, `Attachment`, `Comment`). |
-| `app/Http/Controllers/` | Web controllers (`HomeController`, `Auth/*`, `ProjectController`, `TaskController`). |
+| `app/Http/Controllers/` | Web controllers (`HomeController`, `Auth/*`, `ProjectController`, `TaskController`, `NotificationController`). |
 | `app/Http/Api/` | JSON API controllers (`AuthController`, `ProjectApiController`, `TaskApiController`). |
+| `app/Jobs/` | Queue jobs (`SendTaskAssignedNotification`, `FlakyDemoJob`). |
+| `app/Notifications/` | Notifications (`TaskAssigned`, `CommentAdded`; mail + database channels). |
+| `app/Mail/` | Mailables (`WelcomeMail`, `DigestMail`, notification bodies). |
+| `app/Commands/` | Console commands (`DemoSeedCommand` → `taskflow:demo-seed`). |
+| `app/Schedule.php` | Cron schedule (`App\Schedule::boot(Scheduler)`). |
 | `app/Http/Middleware/` | Host middleware (`SessionAuthMiddleware`, alias `web.auth`). |
 | `app/Http/Requests/` | FormRequests (`RegisterRequest`, `LoginRequest`, `Store/Update{Project,Task}Request`). |
 | `app/Http/Resources/` | API resources (`ProjectResource`, `TaskResource`). |
@@ -167,7 +222,7 @@ throwaway environment (`SESSION_DRIVER=array`, `APP_DEBUG=true`, a dummy
 | `app/Policies/` | `ProjectPolicy`, `TaskPolicy`. |
 | `app/Providers/` | `AuthServiceProvider` (gate policy map + abilities; auto-discovered). |
 | `routes/web.php`, `routes/api.php` | Route definitions (welcome, auth, projects/tasks CRUD, API). |
-| `views/` | Twig templates (`layout.twig`, `auth/*`, `projects/*`, `tasks/*`). |
+| `views/` | Twig templates (`layout.twig`, `auth/*`, `projects/*`, `tasks/*`, `notifications/*`, `emails/*`). |
 | `database/schemas/` | Migrations (`ions migrate` discovers `database/schemas/*.php`). |
 | `database/factories/` | Model factories (`Database\Factories\…`). |
 | `database/seeders/` | Seeders (`Database\Seeders\DemoSeeder`). |

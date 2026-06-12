@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Auth\VerifyController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use Ions\Bundles\Route;
@@ -62,3 +63,11 @@ Route::get('/projects/{project}/tasks/{task}', TaskController::class . '::show')
 Route::get('/projects/{project}/tasks/{task}/edit', TaskController::class . '::edit')->middleware($crud);
 Route::post('/projects/{project}/tasks/{task}', TaskController::class . '::update')->middleware($crud);
 Route::post('/projects/{project}/tasks/{task}/delete', TaskController::class . '::destroy')->middleware($crud);
+// Assigning a task dispatches SendTaskAssignedNotification (13.5).
+Route::post('/projects/{project}/tasks/{task}/assign', TaskController::class . '::assign')->middleware($crud);
+Route::post('/projects/{project}/tasks/{task}/comment', TaskController::class . '::comment')->middleware($crud);
+
+// --- In-app notifications (13.5) --------------------------------------------
+// Lists the logged-in user's database-channel notifications.
+Route::get('/notifications', NotificationController::class . '::index')->middleware($crud);
+Route::post('/notifications/{id}/read', NotificationController::class . '::markRead')->middleware($crud);
