@@ -37,6 +37,15 @@ use Throwable;
  */
 final class DebugToolbarMiddleware implements MiddlewareInterface
 {
+    /**
+     * Soft cap on the number of query rows rendered into the queries panel. The
+     * header count + total time still reflect ALL queries; only the rendered
+     * row list is truncated so a pathological N+1 page cannot inject thousands
+     * of <tr>s into the response.
+     */
+    private const QUERY_RENDER_CAP = 100;
+
+
     public function handle(Request $request, callable $next): Response
     {
         $start = microtime(true);
@@ -141,8 +150,9 @@ final class DebugToolbarMiddleware implements MiddlewareInterface
         } elseif ($log === []) {
             $body = '<p class="idt-hint">no queries</p>';
         } else {
+            $total = count($log);
             $rows = '';
-            foreach ($log as $i => $entry) {
+            foreach (array_slice(array_values($log), 0, self::QUERY_RENDER_CAP) as $i => $entry) {
                 $sql = $e((string) ($entry['query'] ?? ''));
                 $time = sprintf('%.2f ms', (float) ($entry['time'] ?? 0));
                 $bindings = count($entry['bindings'] ?? []);
@@ -150,6 +160,13 @@ final class DebugToolbarMiddleware implements MiddlewareInterface
                     . '<td class="idt-q-sql"><code>' . $sql . '</code>'
                     . '<span class="idt-q-meta">' . $bindings . ' binding' . ($bindings === 1 ? '' : 's') . '</span></td>'
                     . '<td class="idt-q-t">' . $time . '</td></tr>';
+            }
+            if ($total > self::QUERY_RENDER_CAP) {
+                $more = $total - self::QUERY_RENDER_CAP;
+                $rows .= '<tr><td class="idt-q-n">…</td>'
+                    . '<td class="idt-q-sql idt-q-more" colspan="2">'
+                    . $e('… ' . $more . ' more quer' . ($more === 1 ? 'y' : 'ies'))
+                    . '</td></tr>';
             }
             $body = '<table class="idt-q-table">' . $rows . '</table>';
         }
@@ -288,6 +305,7 @@ final class DebugToolbarMiddleware implements MiddlewareInterface
             #ions-debug-toolbar .idt-q-sql code{color:#d8dce3;white-space:pre-wrap;word-break:break-word;
               font:inherit;display:block;}
             #ions-debug-toolbar .idt-q-meta{display:block;margin-top:.15rem;color:#6b7280;}
+            #ions-debug-toolbar .idt-q-more{color:#9aa4b2;font-style:italic;}
             #ions-debug-toolbar .idt-q-t{color:#818cf8;text-align:right;white-space:nowrap;width:6rem;}
             CSS;
     }

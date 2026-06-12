@@ -213,8 +213,10 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 - **ORM strict mode (debug)** — lazy-load and silently-discarded-fill violations throw under `APP_DEBUG`;
   `database.strict => false` escape hatch
 - **Health endpoint** — built-in `/up` liveness probe + token-gated `?checks=1` doctor JSON; `Cache-Control: no-store`
-- **Debug toolbar** — debug-only footer bar (request ms, route, query count/ms, peak memory) injected into HTML
-  responses; never breaks a response
+- **Debugging UX** — interactive debug page (clickable frames, server-side syntax highlighting, redacted
+  request/headers/params/cookies/session/context tabs, copy-as-markdown, open-in-editor) + expandable debug toolbar
+  (query/request/timing panels, query cap) + branded production error pages (400–503, host-template override); shared
+  `Ions\Http\Ui` design system, dependency-free + self-contained + dev-only gated (14.6)
 - **Maintenance mode** — `ions down [--secret] [--retry]` / `ions up`; themeable 503 (`errors/503.twig`), HMAC-bound
   bypass cookie, `/up` stays reachable
 - **PSR-15 adapter** — `Psr15Adapter` runs any PSR-15 middleware in the Ions pipeline (nyholm/psr7 + Symfony bridge)
@@ -241,7 +243,8 @@ Both directory names are supported: `app/` is checked first (the convention sinc
   `make:command`, `make:resource`, `make:request`, `make:job`, `make:event`, `make:listener`, `make:test`,
   `make:factory`, `make:seeder`
 - **Host-app skeleton** — `skeleton/`: a minimal bootable host layout with the 4.1 secure defaults pre-filled
-- **Debug error page** — source excerpt, stack/previous chain, redacted request summary (`APP_DEBUG=true` only)
+- **Debug error page** — interactive: clickable frames, highlighted source, redacted request tabs, copy/open-in-editor
+  (`APP_DEBUG=true` only) — see *Debugging UX* above
 - **IDE support** — `.phpstorm.meta.php` ships with the package, so PhpStorm infers concrete types for `app('id')` and
   container `get()`/`make()` lookups automatically
 - **CI** — PHPStan (level 5 full / level 8 core), PHP-CS-Fixer, Rector (Laravel 12), Pest 3 (PHP 8.3 + 8.4 × SQLite +
@@ -281,6 +284,7 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 | [docs/security.md](docs/security.md)                     | `Encrypter` (sodium AEAD), `UrlSigner`, `signedRoute()`/`signedUrl()`, `signed` middleware                                                                         |
 | [docs/security-audit-bundles.md](docs/security-audit-bundles.md) | Legacy `Bundles/` security audit: upload/disk path-traversal containment in `Path`, SVG/HTML/JS/XML deny-list, fail-closed upload content validation, `IonDisk::getSignedUrl()` presigning |
 | [docs/response-cache.md](docs/response-cache.md)         | Opt-in HTTP response caching: `ResponseCache`, `cache.response` middleware, ETag/304 revalidation, auth/session-safe rules, `cache:clear-responses`                |
+| [docs/errors-and-debugging.md](docs/errors-and-debugging.md) | Debugging UX: interactive debug page (frames/tabs/copy/open-in-editor, redaction), expandable debug toolbar (query/request/timing panels, query cap), branded production error pages + host overrides, `app.debug.editor` / `app.debug_toolbar` |
 | [docs/config.md](docs/config.md)                         | All `app.*`, `auth.*`, `filesystem.*`, `session.*`, `cache.*`, `logging.*`, `queue.*`, `events.*`, `media.*`, `notifications.*` config keys                        |
 | [docs/packages.md](docs/packages.md)                     | Building Ions packages: `extra.ions.providers` zero-config discovery, provider conventions, package commands                                                       |
 | [docs/performance.md](docs/performance.md)               | Production caches (`optimize`, route/config/discover), opcache preload, N+1 detector, measured numbers                                                             |

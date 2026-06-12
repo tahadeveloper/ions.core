@@ -150,6 +150,23 @@ test('the queries panel lists captured SQL with HTML-escaped markup', function (
         ->toContain('binding');
 });
 
+test('the queries panel caps rendered rows and shows a "more" marker (Phase 14.6)', function () {
+    config(['database.query_log' => true]);
+    DB::connection()->enableQueryLog();
+
+    $content = (string) Kernel::handle(Request::create('/toolbar-many-queries'))->getContent();
+
+    // 150 statements run; the strip header counts them ALL.
+    expect($content)->toContain('queries: 150');
+
+    // Only the first 100 <tr> query rows are rendered (each carries a binding
+    // count) — never all 150 — plus the escaped overflow marker line.
+    $rendered = substr_count($content, 'binding');
+    expect($rendered)->toBeLessThanOrEqual(100)
+        ->and($content)->toContain('… 50 more queries')
+        ->and($content)->toContain('idt-q-more');
+});
+
 /*
 |--------------------------------------------------------------------------
 | Injection safety unchanged (Phase 14.3)

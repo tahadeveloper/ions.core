@@ -119,6 +119,15 @@ Route::get('/toolbar-xss-query', function () {
     return new Response('<html><body>xss query</body></html>');
 });
 
+// A pathological N+1 page: more than the query render cap (100) statements, to
+// prove the queries panel truncates the row list and shows a "… more" marker.
+Route::get('/toolbar-many-queries', function () {
+    for ($i = 0; $i < 150; $i++) {
+        \Ions\Support\DB::connection()->select('select 1');
+    }
+    return new Response('<html><body>many queries</body></html>');
+});
+
 // An HTML response WITHOUT a closing </body> — must pass through untouched.
 Route::get('/toolbar-no-body', fn () => new Response('<html><p>no body tag here</p></html>'));
 
