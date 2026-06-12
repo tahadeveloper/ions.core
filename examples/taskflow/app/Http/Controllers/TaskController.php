@@ -6,9 +6,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
+use App\Jobs\SendTaskAssignedNotification;
 use App\Models\Attachment;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\User;
 use Ions\Bundles\IonUpload;
 use Ions\Bundles\Path;
 use Ions\Foundation\BaseController;
@@ -123,6 +125,38 @@ final class TaskController extends BaseController
         $task->delete();
 
         return redirect('/projects/' . $project->getKey())->with('status', 'Task deleted.');
+    }
+
+    /**
+     * Assign the task to a project member. On success the task records the new
+     * assignee and a SendTaskAssignedNotification job is dispatched — its
+     * handle() notifies the assignee (mail + database channels). The `assignee`
+     * input must be a member of (or own) the project, else a redirect-back error.
+     */
+    public function assign(Request $request, Project $project, Task $task): RedirectResponse
+    {
+        $this->assertTaskInProject($project, $task);
+        $this->authorize('update', $task);
+
+        $assigneeId = (int) $request->request->get('assignee');
+        $assignee = User::query()->find($assigneeId);
+
+        $isMember = $assignee !== null && (
+            (int) $project->owner_id === $assignee->getKey()
+            || $project->members()->whereKey($assignee->getKey())->exists()
+        );
+
+        if (!$isMember) {
+            return back('/projects/' . $project->getKey() . '/tasks/' . $task->getKey())
+                ->with('error', 'Assignee must be a project member.');
+        }
+
+        $task->update(['assignee_id' => $assignee->getKey()]);
+
+        dispatch(new SendTaskAssignedNotification($task->getKey(), $assignee->getKey()));
+
+        return redirect('/projects/' . $project->getKey() . '/tasks/' . $task->getKey())
+            ->with('status', 'Task assigned.');
     }
 
     /**

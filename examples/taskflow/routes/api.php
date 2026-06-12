@@ -29,3 +29,5 @@ Route::get('/api/projects/{project}', ProjectApiController::class . '::show');
 Route::get('/api/projects/{project}/tasks', TaskApiController::class . '::index');
 Route::post('/api/projects/{project}/tasks', TaskApiController::class . '::store');
 Route::get('/api/projects/{project}/tasks/{task}', TaskApiController::class . '::show');
+// Assigning a task dispatches SendTaskAssignedNotification (13.5).
+Route::post('/api/projects/{project}/tasks/{task}/assign', TaskApiController::class . '::assign');

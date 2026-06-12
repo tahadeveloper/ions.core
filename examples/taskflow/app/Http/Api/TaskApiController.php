@@ -6,11 +6,14 @@ namespace App\Http\Api;
 
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Resources\TaskResource;
+use App\Jobs\SendTaskAssignedNotification;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\User;
 use Ions\Foundation\ApiController;
 use Ions\Http\Resource;
 use Ions\Http\ResourceCollection;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -51,6 +54,35 @@ final class TaskApiController extends ApiController
         ]);
 
         return TaskResource::make($task);
+    }
+
+    /**
+     * Assign the task to a project member, then dispatch the
+     * SendTaskAssignedNotification job (which notifies the assignee on the
+     * mail + database channels). 422 if the `assignee` is not a project member.
+     */
+    public function assign(Project $project, Task $task): Resource
+    {
+        $this->assertTaskInProject($project, $task);
+        $this->authorize('update', $task);
+
+        $assigneeId = (int) $this->request->request->get('assignee');
+        $assignee = User::query()->find($assigneeId);
+
+        $isMember = $assignee !== null && (
+            (int) $project->owner_id === $assignee->getKey()
+            || $project->members()->whereKey($assignee->getKey())->exists()
+        );
+
+        if (!$isMember) {
+            throw new HttpException(422, 'Assignee must be a project member.');
+        }
+
+        $task->update(['assignee_id' => $assignee->getKey()]);
+
+        dispatch(new SendTaskAssignedNotification($task->getKey(), $assignee->getKey()));
+
+        return TaskResource::make($task->refresh());
     }
 
     /** A bound task must belong to the bound project, else a 404. */

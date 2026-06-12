@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Requests\RegisterRequest;
+use App\Mail\WelcomeMail;
 use App\Models\User;
 use Ions\Auth\EmailVerification;
 use Ions\Foundation\BaseController;
@@ -41,6 +42,9 @@ final class RegisterController extends BaseController
         // Mails a signed, expiring link (throttled per-email). Notification::fake
         // records this in tests; a real run sends it through the mail channel.
         EmailVerification::sendVerification($user);
+
+        // Welcome email (13.5) — Mail::fake records this in tests.
+        (new WelcomeMail((string) $user->email, (string) $user->name))->send();
 
         return redirect('/login')->with(
             'status',

@@ -20,6 +20,7 @@ use Ions\Auth\EmailVerification;
 use Ions\Auth\Notifications\VerifyEmail;
 use Ions\Auth\TwoFactor;
 use Ions\Security\Encrypter;
+use Ions\Support\Mail;
 use Ions\Support\Notifications;
 
 beforeEach(function () {
@@ -35,6 +36,7 @@ beforeEach(function () {
 
 test('register creates an unverified user and sends a verification notification', function () {
     $fake = Notifications::fake();
+    Mail::fake(); // registration also sends a WelcomeMail (13.5)
 
     $response = $this->post('/register', [
         'name' => 'Ada Lovelace',
