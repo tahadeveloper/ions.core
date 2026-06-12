@@ -16,5 +16,5 @@ return [
     //   cookie_secure => true, cookie_httponly => true, cookie_samesite => 'lax'
     // Serving over plain HTTP in local dev? Set cookie_secure explicitly —
     // otherwise browsers will not send the session cookie:
-    // 'cookie_secure' => 'auto',   // follows the request scheme; or false
+    'cookie_secure' => 'auto',   // follows the request scheme; or false
 ];
