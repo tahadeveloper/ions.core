@@ -235,7 +235,7 @@ composer install --no-dev --optimize-autoloader
 # .env on the server: real APP_KEY (64-char hex), APP_DEBUG=false,
 # APP_URL=https://example.com, DB_* credentials.
 
-php bin/ions migrate              # run database/schemas (legacy: app/Database/Schema) migrations
+php bin/ions migrate              # run database/migrations (legacy: app/Database/migrations) migrations
 npm ci && npm run build           # only when using install:vue (Vite)
 
 php bin/ions optimize             # route + config + discovery caches

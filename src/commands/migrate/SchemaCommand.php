@@ -19,13 +19,13 @@ class SchemaCommand extends Command
         $name_snake = Str::snake($name_cap); // Example_Text
         $name_lower = Str::lower($name_snake); // example_text
 
-        if (!File::exists(Path::database('Schema'))) {
-            File::makeDirectory(Path::database('Schema'), 0755, true, true);
+        if (!File::exists(Path::database('migrations'))) {
+            File::makeDirectory(Path::database('migrations'), 0755, true, true);
         }
 
         $unique_name = '_'.Carbon::now()->toObject()->timestamp.'_'.$name;
 
-        $new_file = Path::database('Schema/'.$unique_name.'.php');
+        $new_file = Path::database('migrations/'.$unique_name.'.php');
         Storage::copy(Path::bin('commands/stubs/schema.stub'), $new_file);
 
         $replace = Str::replace(

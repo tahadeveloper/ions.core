@@ -19,8 +19,8 @@ projects hold tasks, and tasks carry assignees, file attachments and comments.
 The Eloquent models are `User`, `Project`, `Task`, `Attachment` and `Comment`
 (`app/Models/`); `User` implements the framework's `Authenticatable` and
 `VerifiesEmail` contracts. Tasks move through a `todo | doing | done` status.
-The schema, factories and a `DemoSeeder` live under `database/`
-(`schemas/`, `factories/`, `seeders/`).
+The migrations, factories and a `DemoSeeder` live under `database/`
+(`migrations/`, `factories/`, `seeders/`).
 
 ## Auth
 
@@ -273,7 +273,8 @@ throwaway environment (`SESSION_DRIVER=array`, `APP_DEBUG=true`, a dummy
 | `app/Providers/` | `AuthServiceProvider` (gate policy map + abilities; auto-discovered). |
 | `routes/web.php`, `routes/api.php` | Route definitions (welcome, auth, projects/tasks CRUD, API). |
 | `views/` | Twig templates (`layout.twig`, `auth/*`, `projects/*`, `tasks/*`, `notifications/*`, `emails/*`). |
-| `database/schemas/` | Migrations (`ions migrate` discovers `database/schemas/*.php`). |
+| `database/migrations/` | Migrations (`ions migrate` discovers `database/migrations/*.php`). |
+| `database/schemas/` | Schema dumps written by `ions schema:dump`, replayed by `ions migrate:rollback`. |
 | `database/factories/` | Model factories (`Database\Factories\…`). |
 | `database/seeders/` | Seeders (`Database\Seeders\DemoSeeder`). |
 | `tests/` | Pest suite (`SmokeTest` boot gate, `AuthTest`, `CrudTest`, `AsyncTest`, `SharingTest`, `DatabaseTest`, `FeatureJourneyTest`). |
@@ -304,4 +305,4 @@ done → share → cached board → scheduler), asserting the data stays consist
 | Response cache | `cache.response` middleware, `ResponseCache` (MISS → HIT) | `SharingTest`, `FeatureJourneyTest` |
 | Encryption at rest | `Ions\Security\Encrypter` (`Project.note`, 2FA secret) | `SharingTest`, `AuthTest`, `FeatureJourneyTest` |
 | HTTP client | `Ions\Support\Http` + `Http::fake()` (completion webhook) | `SharingTest`, `FeatureJourneyTest` |
-| Migrations + factories + seeder | `database/{schemas,factories,seeders}`, Eloquent | `DatabaseTest` |
+| Migrations + factories + seeder | `database/{migrations,factories,seeders}`, Eloquent | `DatabaseTest` |

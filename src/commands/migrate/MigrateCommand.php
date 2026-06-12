@@ -37,7 +37,7 @@ class MigrateCommand extends Command
             $this->info('Migrations table exits.');
 
         } elseif ($this->option('refresh')) {
-            foreach (glob(Path::database('Schema').'/*.php') as $file) {
+            foreach (glob(Path::database('migrations').'/*.php') as $file) {
                 $class = basename($file, '.php');
                 $obj = $this->resolveSchema($file, $class);
                 Schema::disableForeignKeyConstraints();
@@ -49,7 +49,7 @@ class MigrateCommand extends Command
             $this->info('Schema removed tables successfully.');
         } else {
             $db_name  = $this->input->getOption('database') ?? 'default';
-            foreach (glob(Path::database('Schema').'/*.php') as $file) {
+            foreach (glob(Path::database('migrations').'/*.php') as $file) {
                 $class = basename($file, '.php');
                 //check if migration is already installed
                 $migration_installed = DB::table($table_name)->where('migration', $class)->first();
@@ -71,7 +71,7 @@ class MigrateCommand extends Command
      * both the classic named-class style (App\Database\Schema\{Class}) and
      * stub-style files that `return new class extends Migration {}` (the
      * shipped jobs/notifications stubs). Loading the file directly is what
-     * lets the host-root database/schemas layout (4.4) run without a
+     * lets the host-root database/migrations layout (4.6) run without a
      * dedicated autoload mapping.
      *
      * The included value is cached per realpath: `require_once` returns the

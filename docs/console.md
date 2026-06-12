@@ -65,10 +65,11 @@ These ship with the framework and are always registered:
 | `make:control` | `ControllerCommand` | Generate a controller. |
 | `make:factory` | `MakeFactoryCommand` | Generate a model factory into `database/factories` (`Database\Factories`; 4.4+ layout) or `{app|src}/Factories` (`App\Factories`; legacy). See [factories.md](factories.md). |
 | `make:seeder` | `SeederCommand` | Generate a seeder into `database/seeders` (`Database\Seeders`; 4.4+ layout) or `{app|src}/Database/Seeders` (`App\Database\Seeders`; legacy). |
-| `make:schema` | `SchemaCommand` | Generate a schema/migration into `database/schemas` (4.4+ layout; legacy: `{app|src}/Database/Schema`). |
+| `make:schema` | `SchemaCommand` | Generate a runnable migration into `database/migrations` (4.6+ layout; legacy: `{app|src}/Database/migrations`). |
 | `route:list` | `Ions\commands\RouteListCommand` | List the registered routes. |
-| `migrate` / `migrate:rollback` | `MigrateCommand` / `RollBackCommand` | Run / roll back migrations from `database/schemas` (4.4+ layout; legacy: `{app|src}/Database/Schema`). |
-| `schema:dump` | `DumpCommand` | Dump a database schema. |
+| `migrate` | `MigrateCommand` | Run runnable migrations from `database/migrations` (4.6+ layout; legacy: `{app|src}/Database/migrations`). |
+| `migrate:rollback` | `RollBackCommand` | Replay a schema dump from `database/schemas` to roll back. |
+| `schema:dump` | `DumpCommand` | Dump a database schema into `database/schemas` (`--prune` deletes `database/migrations`). |
 | `install:super` | `SuperCommand` | Install the bundled super-admin. |
 | `install:vue` | `InstallVueCommand` | Scaffold a Vue 3 + Vite frontend into the host (see [assets.md](assets.md)). |
 | `install:assets` | `InstallAssetsCommand` | Scaffold plain CSS/JS starters into `public/assets/` — no build step (see [assets.md](assets.md)). |

@@ -339,9 +339,9 @@ class Path extends Singleton
     // `{app|src}/Database` fallback the exact legacy names are preserved, so
     // that bug stays latent there (flagged for the 11.4 changelog).
     private const DATABASE_SUB_MAP = [
-        'Schema' => 'schemas',     // MigrateCommand / SchemaCommand / DumpCommand --prune
+        'Schema' => 'schemas',     // schema dumps written by DumpCommand, read by RollBackCommand
         'Schemas' => 'schemas',
-        'Migrations' => 'migrations', // DumpCommand schema dumps
+        'Migrations' => 'migrations', // runnable migrate classes: SchemaCommand creates, MigrateCommand runs, DumpCommand --prune deletes
         'Seeders' => 'seeders',    // SeederCommand
         'Factories' => 'factories',
         'Backups' => 'backups',

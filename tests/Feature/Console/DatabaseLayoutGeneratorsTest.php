@@ -3,9 +3,10 @@
 /**
  * make:seeder / make:schema against the host-root database/ layout (Phase
  * 11.1). Both generators resolve their target directory through
- * Path::database(), so on a 4.4 host they must land in database/seeders and
- * database/schemas; on a legacy host the {app|src}/Database/{Seeders,Schema}
- * targets stay byte-identical.
+ * Path::database(), so on a 4.6 host they must land in database/seeders and
+ * database/migrations (runnable migrations; dumps live in database/schemas);
+ * on a legacy host the {app|src}/Database/{Seeders,migrations} targets stay
+ * byte-identical.
  */
 
 use Ions\Bundles\Path;
@@ -338,7 +339,7 @@ test('make:model --factory wires factory()->make() end to end on the new layout'
     }
 });
 
-test('make:schema generates into database/schemas on a host-root database/ layout', function () {
+test('make:schema generates into database/migrations on a host-root database/ layout', function () {
     $base = makeGeneratorLayoutHost(['database']);
 
     try {
@@ -346,7 +347,7 @@ test('make:schema generates into database/schemas on a host-root database/ layou
 
         $tester = runConsoleCommand(new SchemaCommand(), ['name' => 'WidgetSchema']);
 
-        $created = glob($base . '/database/schemas/*_WidgetSchema.php');
+        $created = glob($base . '/database/migrations/*_WidgetSchema.php');
 
         expect($tester->getStatusCode())->toBe(0)
             ->and($created)->toHaveCount(1);

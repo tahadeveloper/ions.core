@@ -75,9 +75,9 @@ test('migrate --install creates the migrations table', function () {
 });
 
 /**
- * Create a throwaway host root whose schema directory contains $files
+ * Create a throwaway host root whose migrations directory contains $files
  * (name => php source). $schemaDir is relative to the host root, e.g.
- * 'database/schemas' (new layout) or 'src/Database/Schema' (legacy).
+ * 'database/migrations' (new layout) or 'src/Database/migrations' (legacy).
  *
  * @param array<string, string> $files
  */
@@ -125,15 +125,15 @@ test('migrate --install is idempotent when table already exists', function () {
 });
 
 // ---------------------------------------------------------------------------
-// Schema discovery — host-root database/schemas (4.4) vs legacy Database/Schema
+// Schema discovery — host-root database/migrations (4.6) vs legacy Database/migrations
 // ---------------------------------------------------------------------------
 
-test('migrate runs schema classes from host-root database/schemas (new layout)', function () {
+test('migrate runs schema classes from host-root database/migrations (new layout)', function () {
     $schema = Kernel::app()->get('db')->connection()->getSchemaBuilder();
     $schema->dropIfExists('migrations');
     $schema->dropIfExists('phase11_widgets');
 
-    $base = makeMigrateHost('database/schemas', [
+    $base = makeMigrateHost('database/migrations', [
         '_1000_CreatePhase11Widgets.php' => <<<'PHP'
             <?php
 
@@ -182,14 +182,14 @@ test('migrate runs schema classes from host-root database/schemas (new layout)',
     }
 });
 
-test('migrate runs anonymous-class migration stubs (return new class) from database/schemas', function () {
+test('migrate runs anonymous-class migration stubs (return new class) from database/migrations', function () {
     $schema = Kernel::app()->get('db')->connection()->getSchemaBuilder();
     $schema->dropIfExists('migrations');
     $schema->dropIfExists('phase11_stub_jobs');
 
     // The shipped jobs/notifications stubs use this exact shape: a file that
     // `return new class () extends Migration` — no named class to autoload.
-    $base = makeMigrateHost('database/schemas', [
+    $base = makeMigrateHost('database/migrations', [
         'create_phase11_stub_jobs_table.php' => <<<'PHP'
             <?php
 
@@ -246,7 +246,7 @@ test('migrate resolves an anonymous-class stub twice in one process without Clas
     $schema->dropIfExists('migrations');
     $schema->dropIfExists('phase11_stub_twice');
 
-    $base = makeMigrateHost('database/schemas', [
+    $base = makeMigrateHost('database/migrations', [
         'create_phase11_stub_twice_table.php' => <<<'PHP'
             <?php
 
@@ -308,7 +308,7 @@ test('migrate resolves a named-class stub twice in one process without a redecla
     $schema->dropIfExists('migrations');
     $schema->dropIfExists('phase11_named_twice');
 
-    $base = makeMigrateHost('database/schemas', [
+    $base = makeMigrateHost('database/migrations', [
         '_2000_CreatePhase11NamedTwice.php' => <<<'PHP'
             <?php
 
@@ -359,12 +359,12 @@ test('migrate resolves a named-class stub twice in one process without a redecla
     }
 });
 
-test('migrate still discovers legacy {src}/Database/Schema classes when no database/ dir exists', function () {
+test('migrate still discovers legacy {src}/Database/migrations classes when no database/ dir exists', function () {
     $schema = Kernel::app()->get('db')->connection()->getSchemaBuilder();
     $schema->dropIfExists('migrations');
     $schema->dropIfExists('phase11_legacy_widgets');
 
-    $base = makeMigrateHost('src/Database/Schema', [
+    $base = makeMigrateHost('src/Database/migrations', [
         '_1001_CreatePhase11LegacyWidgets.php' => <<<'PHP'
             <?php
 

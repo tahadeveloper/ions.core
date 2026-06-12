@@ -10,7 +10,7 @@ use Ions\Bundles\Path;
 
 /**
  * `taskflow:demo-seed` — (re)build a small demo dataset for exploring Taskflow
- * with `php bin/ions serve`. Runs every database/schemas migration (each is
+ * with `php bin/ions serve`. Runs every database/migrations migration (each is
  * idempotent: dropIfExists + create) so the tables exist, then runs the
  * DemoSeeder. All demo users sign in with the password "password".
  *
@@ -26,7 +26,7 @@ final class DemoSeedCommand extends Command
     public function handle(): int
     {
         $this->info('Migrating schema...');
-        foreach (glob(Path::database('schemas') . '/*.php') ?: [] as $file) {
+        foreach (glob(Path::database('migrations') . '/*.php') ?: [] as $file) {
             $migration = require $file;
             $migration->up();
         }

@@ -7,7 +7,7 @@ declare(strict_types=1);
 | Taskflow domain (13.2)
 |--------------------------------------------------------------------------
 | Boots the example app (in-memory SQLite), runs the host's real migration
-| files (database/schemas/*.php) against the booted connection, then exercises
+| files (database/migrations/*.php) against the booted connection, then exercises
 | the domain: tables exist, every factory builds + persists, relationships
 | resolve, and User satisfies the framework auth contracts.
 */
