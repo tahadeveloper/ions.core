@@ -78,9 +78,15 @@ test('debug mode still renders the DebugPage, not the custom template', function
     $response = Kernel::handle(Request::create('/no-such-page'));
     $content = (string) $response->getContent();
 
+    // The interactive debug page (14.2) renders every trace frame's source
+    // server-side, and THIS test file is in the trace — so asserting a literal
+    // that appears in the custom twig would self-match this file's own source.
+    // Assert positively that the response IS the interactive debug document
+    // (the custom twig would render only its single "CUSTOM-404 …" line).
     expect($response->getStatusCode())->toBe(404)
         ->and($content)->toContain('exc-class')
-        ->and($content)->not->toContain('CUSTOM-404');
+        ->and($content)->toContain('<!DOCTYPE html>')
+        ->and($content)->toContain('ion-debug');
 });
 
 test('api 404 JSON is byte-identical (custom templates never touch the JSON path)', function () {
