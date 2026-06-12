@@ -1,0 +1,28 @@
+{% extends "layout.twig" %}
+{% block title %}New task · Taskflow{% endblock %}
+{% block body %}
+    <h1>New task</h1>
+    <p class="note">in <a href="{{ appUrl('projects/' ~ project.id) }}">{{ project.name }}</a></p>
+
+    {# enctype is required so the optional attachment reaches $request->files #}
+    <form method="post" action="{{ appUrl('projects/' ~ project.id ~ '/tasks') }}" enctype="multipart/form-data">
+        {{ ionToken('web') }}
+        <label>Title
+            <input type="text" name="title" value="{{ old('title') }}" autofocus>
+        </label>
+        <label>Description
+            <textarea name="description" rows="3">{{ old('description') }}</textarea>
+        </label>
+        <label>Status
+            <select name="status">
+                <option value="todo">todo</option>
+                <option value="doing">doing</option>
+                <option value="done">done</option>
+            </select>
+        </label>
+        <label>Attachment (optional)
+            <input type="file" name="attachment">
+        </label>
+        <button type="submit">Create task</button>
+    </form>
+{% endblock %}

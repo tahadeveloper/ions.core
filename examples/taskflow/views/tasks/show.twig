@@ -1,0 +1,35 @@
+{% extends "layout.twig" %}
+{% block title %}{{ task.title }} · Taskflow{% endblock %}
+{% block body %}
+    <h1>{{ task.title }} <span class="pill">{{ task.status }}</span></h1>
+    <p class="note">in <a href="{{ appUrl('projects/' ~ project.id) }}">{{ project.name }}</a></p>
+    {% if task.description %}<p>{{ task.description }}</p>{% endif %}
+
+    <p class="note">
+        <a href="{{ appUrl('projects/' ~ project.id ~ '/tasks/' ~ task.id ~ '/edit') }}">Edit</a>
+    </p>
+
+    <h2>Attachments</h2>
+    {% if attachments|length > 0 %}
+        <ul class="list">
+            {% for attachment in attachments %}
+                <li>{{ attachment.original_name }} <span class="pill">{{ attachment.size }} bytes</span></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="note">No attachments.</p>
+    {% endif %}
+
+    {# Attach a file to this task. IonUpload validates magic-bytes + extension. #}
+    <h2>Add attachment</h2>
+    <form method="post" action="{{ appUrl('projects/' ~ project.id ~ '/tasks/' ~ task.id) }}" enctype="multipart/form-data">
+        {{ ionToken('web') }}
+        <input type="hidden" name="title" value="{{ task.title }}">
+        <input type="hidden" name="description" value="{{ task.description }}">
+        <input type="hidden" name="status" value="{{ task.status }}">
+        <label>File
+            <input type="file" name="attachment">
+        </label>
+        <button type="submit">Upload</button>
+    </form>
+{% endblock %}

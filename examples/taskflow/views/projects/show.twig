@@ -1,0 +1,27 @@
+{% extends "layout.twig" %}
+{% block title %}{{ project.name }} · Taskflow{% endblock %}
+{% block body %}
+    <h1>{{ project.name }}</h1>
+    {% if project.note %}<p class="note">{{ project.note }}</p>{% endif %}
+
+    <p class="note">
+        <a href="{{ appUrl('projects/' ~ project.id ~ '/edit') }}">Edit</a> ·
+        <a href="{{ appUrl('projects') }}">All projects</a>
+    </p>
+
+    <h2>Tasks</h2>
+    <p class="note"><a href="{{ appUrl('projects/' ~ project.id ~ '/tasks/create') }}">+ New task</a></p>
+
+    {% if tasks|length > 0 %}
+        <ul class="list">
+            {% for task in tasks %}
+                <li>
+                    <a href="{{ appUrl('projects/' ~ project.id ~ '/tasks/' ~ task.id) }}">{{ task.title }}</a>
+                    <span class="pill">{{ task.status }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="note">No tasks yet.</p>
+    {% endif %}
+{% endblock %}

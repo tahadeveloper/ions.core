@@ -1,0 +1,21 @@
+{% extends "layout.twig" %}
+{% block title %}Projects · Taskflow{% endblock %}
+{% block body %}
+    <h1>Your projects</h1>
+    <p class="note"><a href="{{ appUrl('projects/create') }}">+ New project</a></p>
+
+    {% if projects.total() > 0 %}
+        <ul class="list">
+            {% for project in projects.items() %}
+                <li>
+                    <a href="{{ appUrl('projects/' ~ project.id) }}">{{ project.name }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+
+        {# pagination() renders nav links, preserving the current query string #}
+        {{ pagination(projects) }}
+    {% else %}
+        <p class="note">No projects yet — create your first one.</p>
+    {% endif %}
+{% endblock %}

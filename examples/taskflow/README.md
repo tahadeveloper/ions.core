@@ -61,6 +61,45 @@ Taskflow wires the full account journey from the framework's public auth APIs:
 
 The journey is covered end-to-end in `tests/AuthTest.php`.
 
+## Projects &amp; tasks CRUD
+
+`ProjectController` / `TaskController` (`app/Http/Controllers/`) and their JSON
+counterparts `ProjectApiController` / `TaskApiController` (`app/Http/Api/`)
+exercise the framework's CRUD surface. All web routes gate on
+`['web.auth', 'verified']`; the API routes sit behind the JWT `AuthMiddleware`.
+
+- **Route model binding** — actions type a placeholder-named `Project $project`
+  / `Task $task`; the resolver fetches the record by route key during dispatch
+  (404 on miss). Tasks are nested under a project
+  (`/projects/{project}/tasks/{task}`, both bound), and the controller asserts
+  the bound task belongs to the bound project (else a 404).
+- **Authorization** — every record action calls `$this->authorize(...)` against
+  the Gate, so `ProjectPolicy`/`TaskPolicy` decide access: owner-or-member may
+  view/update, owner-only may delete; a non-member gets a 403.
+- **Forms (FormRequest)** — `StoreProjectRequest`, `UpdateProjectRequest`,
+  `StoreTaskRequest`, `UpdateTaskRequest` (`app/Http/Requests/`) declare the
+  rules (title/name required, `status` in `todo|doing|done`). A failed web
+  validation redirects **back** with the error bag + old input flashed
+  (`errors()` / `old()` in the Twig forms, CSRF via `ionToken('web')`); the same
+  request as JSON returns a **422** bag.
+- **Pagination** — `index` calls `$query->paginate(5)`; the `pagination()` Twig
+  function renders the page links and preserves the current query string. The
+  API index returns a `ResourceCollection` with `data` + `meta` + `links`.
+- **Uploads** — a task may carry an `attachment`. `TaskController` stores it
+  through `IonUpload::store($file, Path::files('attachments'))`, which validates
+  the extension allow-list **and** the magic bytes before any write (active
+  types such as `.svg`/`.php` are denied, traversal targets refused, oversize
+  files rejected). On success an `Attachment` row records the relative path; on
+  rejection the user is redirected back with an error and **nothing** is written
+  outside the uploads root.
+- **API Resources** — `ProjectResource` / `TaskResource` (`app/Http/Resources/`)
+  shape the single-`data` JSON envelope returned by the API controllers.
+
+The CRUD surface is covered end-to-end in `tests/CrudTest.php` — including the
+upload tests, which use `Ions\Filesystem\Storage::fake()` so the validated
+write is intercepted onto an in-memory disk and never touches the real
+`public/uploads`.
+
 ## Quick start
 
 ```bash
@@ -119,19 +158,20 @@ throwaway environment (`SESSION_DRIVER=array`, `APP_DEBUG=true`, a dummy
 | `bin/ions` | Console entry point (`migrate`, `serve`, `doctor`, …). |
 | `config/` | Per-file config arrays (secure defaults; SQLite by default). |
 | `app/Models/` | Eloquent models (`User`, `Project`, `Task`, `Attachment`, `Comment`). |
-| `app/Http/Controllers/` | Web controllers (`HomeController`, `Auth/*` register/verify/login/2FA). |
-| `app/Http/Api/` | JSON API controllers (`AuthController` JWT login). |
+| `app/Http/Controllers/` | Web controllers (`HomeController`, `Auth/*`, `ProjectController`, `TaskController`). |
+| `app/Http/Api/` | JSON API controllers (`AuthController`, `ProjectApiController`, `TaskApiController`). |
 | `app/Http/Middleware/` | Host middleware (`SessionAuthMiddleware`, alias `web.auth`). |
-| `app/Http/Requests/` | FormRequests (`RegisterRequest`, `LoginRequest`). |
+| `app/Http/Requests/` | FormRequests (`RegisterRequest`, `LoginRequest`, `Store/Update{Project,Task}Request`). |
+| `app/Http/Resources/` | API resources (`ProjectResource`, `TaskResource`). |
 | `app/Auth/` | `UserProvider` resolving the `User` model for JWT/Gate. |
 | `app/Policies/` | `ProjectPolicy`, `TaskPolicy`. |
 | `app/Providers/` | `AuthServiceProvider` (gate policy map + abilities; auto-discovered). |
-| `routes/web.php`, `routes/api.php` | Route definitions (welcome, auth, `/api/ping`, `/api/auth/login`). |
-| `views/` | Twig templates (`auth/*` register/login/2FA forms). |
+| `routes/web.php`, `routes/api.php` | Route definitions (welcome, auth, projects/tasks CRUD, API). |
+| `views/` | Twig templates (`layout.twig`, `auth/*`, `projects/*`, `tasks/*`). |
 | `database/schemas/` | Migrations (`ions migrate` discovers `database/schemas/*.php`). |
 | `database/factories/` | Model factories (`Database\Factories\…`). |
 | `database/seeders/` | Seeders (`Database\Seeders\DemoSeeder`). |
-| `tests/` | Pest suite (`SmokeTest` boot gate). |
+| `tests/` | Pest suite (`SmokeTest` boot gate, `AuthTest`, `CrudTest`, `DatabaseTest`). |
 
 > The full feature → subsystem coverage map (auth, CRUD, uploads, jobs, mail,
 > scheduler, signed links, response cache, encryption) lands with the

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Taskflow{% endblock %}</title>
+    <style>
+        :root { color-scheme: light dark; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh;
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+            color: #d8dce3;
+            background: #101218 radial-gradient(60rem 40rem at 80% -10%, rgba(99, 102, 241, 0.22), transparent 60%);
+            padding: 2.5rem 1.5rem;
+        }
+        main { width: 100%; max-width: 44rem; margin: 0 auto; }
+        h1 { font-size: 1.5rem; color: #fff; margin: 0 0 1.2rem; }
+        h2 { font-size: 1.1rem; color: #fff; margin: 1.6rem 0 0.6rem; }
+        form { display: grid; gap: 0.8rem; max-width: 30rem; }
+        label { font-size: 0.85rem; color: #9aa4b2; display: grid; gap: 0.3rem; }
+        input, textarea, select {
+            padding: 0.6rem 0.7rem; border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.03); color: #e7eaf0; font-size: 0.95rem;
+            font-family: inherit;
+        }
+        button {
+            margin-top: 0.4rem; padding: 0.65rem 1rem; border: 0; border-radius: 8px;
+            background: #6366f1; color: #fff; font-size: 0.95rem; cursor: pointer;
+        }
+        .msg { padding: 0.6rem 0.8rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem; }
+        .msg.status { background: rgba(34, 197, 94, 0.12); color: #86efac; }
+        .msg.error { background: rgba(239, 68, 68, 0.12); color: #fca5a5; }
+        .errors { color: #fca5a5; font-size: 0.8rem; margin: 0 0 0.5rem; padding-left: 1rem; }
+        .note { color: #8b939f; font-size: 0.85rem; line-height: 1.5; }
+        ul.list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; }
+        ul.list li {
+            padding: 0.7rem 0.9rem; border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02);
+        }
+        a { color: #aab2f0; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .pagination { list-style: none; display: flex; gap: 0.4rem; padding: 0; margin: 1rem 0 0; }
+        .pagination .page-link { padding: 0.3rem 0.6rem; border-radius: 6px; display: inline-block; }
+        .pill { font-size: 0.75rem; color: #c7cdd6; border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; padding: 0.05rem 0.5rem; }
+        code { font-family: ui-monospace, Menlo, monospace; word-break: break-all; color: #c7cdd6; }
+    </style>
+</head>
+<body>
+<main>
+    {% if status is defined and status %}<div class="msg status">{{ status }}</div>{% endif %}
+    {% if error is defined and error %}<div class="msg error">{{ error }}</div>{% endif %}
+    {% if errors().any() %}
+        <ul class="errors">
+            {% for message in errors().all() %}<li>{{ message }}</li>{% endfor %}
+        </ul>
+    {% endif %}
+    {% block body %}{% endblock %}
+</main>
+</body>
+</html>
