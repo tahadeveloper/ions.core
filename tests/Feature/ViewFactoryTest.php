@@ -62,3 +62,26 @@ test('re-booting the kernel yields a fresh shared Environment (no stale containe
 
     expect(spl_object_id($second))->not->toBe(spl_object_id($first));
 });
+
+test("tJson is pre-registered at build so a render-initialized env can still set it (worker-mode safe)", function () {
+    /** @var ViewFactory $factory */
+    $factory = Kernel::app()->get('view');
+    $env = $factory->make(sys_get_temp_dir());
+
+    // tJson is a registered global from build (even when empty) — this is what
+    // makes the later addGlobal('tJson', …) calls in BaseController/render() a
+    // safe UPDATE rather than an ADD-after-init.
+    expect(array_key_exists('tJson', $env->getGlobals()))->toBeTrue();
+
+    // Initialize the env the way a Mailable render does (a render loads the
+    // extension set / runtime). After that, adding a NEW global would throw;
+    // updating tJson must NOT — mirroring the next web request's controller.
+    file_put_contents(sys_get_temp_dir() . '/wm_probe.twig', 'hello {{ tJson }}');
+    $env->render('wm_probe.twig');
+
+    // Before the fix this threw: LogicException "Unable to add global tJson …".
+    $env->addGlobal('tJson', '{"k":"v"}');
+    expect($env->getGlobals()['tJson'])->toBe('{"k":"v"}');
+
+    @unlink(sys_get_temp_dir() . '/wm_probe.twig');
+});
