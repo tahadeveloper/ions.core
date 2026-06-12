@@ -64,7 +64,7 @@ final class TwoFactorController extends BaseController
         $secret = (string) session('2fa.setup_secret');
         /** @var list<string> $recovery */
         $recovery = (array) session('2fa.setup_recovery', []);
-        $code = (string) $request->request->get('code', '');
+        $code = (string) $request->string('code');
 
         if ($secret === '' || !TwoFactor::verify($secret, $code)) {
             return back('/2fa')->with('error', 'That code is not valid — try again.');
@@ -109,7 +109,7 @@ final class TwoFactorController extends BaseController
             return redirect('/login');
         }
 
-        $code = (string) $request->request->get('code', '');
+        $code = (string) $request->string('code');
 
         try {
             $secret = $this->encrypter()->decrypt((string) $user->two_factor_secret);

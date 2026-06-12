@@ -173,7 +173,7 @@ final class TaskController extends BaseController
         $this->assertTaskInProject($project, $task);
         $this->authorize('update', $task);
 
-        $assigneeId = (int) $request->request->get('assignee');
+        $assigneeId = $request->integer('assignee');
         $assignee = User::query()->find($assigneeId);
 
         $isMember = $assignee !== null && (
@@ -204,7 +204,7 @@ final class TaskController extends BaseController
         $this->assertTaskInProject($project, $task);
         $this->authorize('update', $task);
 
-        $body = trim((string) $request->request->get('body', ''));
+        $body = (string) $request->string('body')->trim();
         $url = '/projects/' . $project->getKey() . '/tasks/' . $task->getKey();
         if ($body === '') {
             return back($url)->with('error', 'Comment cannot be empty.');
@@ -281,7 +281,7 @@ final class TaskController extends BaseController
      */
     private function storeAttachment(Request $request, Task $task): ?string
     {
-        $file = $request->files->get('attachment');
+        $file = $request->file('attachment');
         if (!$file instanceof UploadedFile || !$file->isValid()) {
             return null;
         }

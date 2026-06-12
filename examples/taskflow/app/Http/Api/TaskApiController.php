@@ -66,7 +66,7 @@ final class TaskApiController extends ApiController
         $this->assertTaskInProject($project, $task);
         $this->authorize('update', $task);
 
-        $assigneeId = (int) $this->request->request->get('assignee');
+        $assigneeId = $this->request->integer('assignee');
         $assignee = User::query()->find($assigneeId);
 
         $isMember = $assignee !== null && (

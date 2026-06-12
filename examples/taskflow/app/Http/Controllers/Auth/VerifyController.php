@@ -22,7 +22,7 @@ final class VerifyController extends BaseController
 {
     public function verify(Request $request): RedirectResponse
     {
-        $user = User::query()->find($request->query->get('id'));
+        $user = User::query()->find($request->query('id'));
 
         if ($user === null || !EmailVerification::verify($request, $user)) {
             return redirect('/login')->with(
