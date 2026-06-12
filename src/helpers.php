@@ -181,6 +181,120 @@ if (!function_exists('appUrl')) {
     }
 }
 
+if (!function_exists('ionJoinPath')) {
+    /**
+     * Join a Laravel-style directory root with an optional sub-path using a
+     * single OS separator. Empty sub-path returns the root with no trailing
+     * separator; a sub-path is appended after trimming separators on both sides
+     * so the result never contains a doubled separator.
+     *
+     * @param string $root
+     * @param string $path
+     * @return string
+     */
+    function ionJoinPath(string $root, string $path = ''): string
+    {
+        $root = rtrim($root, '/' . DIRECTORY_SEPARATOR);
+        $path = ltrim($path, '/' . DIRECTORY_SEPARATOR);
+
+        return $path === '' ? $root : $root . DIRECTORY_SEPARATOR . $path;
+    }
+}
+
+if (!function_exists('base_path')) {
+    /**
+     * Laravel-compatible host-root path helper, mapped to Ions\Bundles\Path::root.
+     *
+     * @param string $path
+     * @return string
+     */
+    function base_path(string $path = ''): string
+    {
+        return ionJoinPath(\Ions\Bundles\Path::root(''), $path);
+    }
+}
+
+if (!function_exists('app_path')) {
+    /**
+     * Laravel-compatible application code path helper ({app|src}), mapped to
+     * Ions\Bundles\Path::src.
+     *
+     * @param string $path
+     * @return string
+     */
+    function app_path(string $path = ''): string
+    {
+        return ionJoinPath(\Ions\Bundles\Path::src(''), $path);
+    }
+}
+
+if (!function_exists('config_path')) {
+    /**
+     * Laravel-compatible config/ path helper, mapped to Ions\Bundles\Path::config.
+     *
+     * @param string $path
+     * @return string
+     */
+    function config_path(string $path = ''): string
+    {
+        return ionJoinPath(\Ions\Bundles\Path::config(''), $path);
+    }
+}
+
+if (!function_exists('database_path')) {
+    /**
+     * Laravel-compatible database/ path helper, mapped to Ions\Bundles\Path::database.
+     *
+     * @param string $path
+     * @return string
+     */
+    function database_path(string $path = ''): string
+    {
+        return ionJoinPath(\Ions\Bundles\Path::database(''), $path);
+    }
+}
+
+if (!function_exists('public_path')) {
+    /**
+     * Laravel-compatible public/ path helper, mapped to Ions\Bundles\Path::public.
+     *
+     * @param string $path
+     * @return string
+     */
+    function public_path(string $path = ''): string
+    {
+        return ionJoinPath(\Ions\Bundles\Path::public(''), $path);
+    }
+}
+
+if (!function_exists('storage_path')) {
+    /**
+     * Laravel-compatible storage path helper. Ions storage lives under var/, so
+     * this is mapped to Ions\Bundles\Path::var.
+     *
+     * @param string $path
+     * @return string
+     */
+    function storage_path(string $path = ''): string
+    {
+        return ionJoinPath(\Ions\Bundles\Path::var(''), $path);
+    }
+}
+
+if (!function_exists('resource_path')) {
+    /**
+     * Laravel-compatible resources/ path helper. Path has no resources() method,
+     * so this resolves <root>/resources via Ions\Bundles\Path::root.
+     *
+     * @param string $path
+     * @return string
+     */
+    function resource_path(string $path = ''): string
+    {
+        return ionJoinPath(\Ions\Bundles\Path::root('resources'), $path);
+    }
+}
+
 if (!function_exists('debugQuery')) {
     /**
      * @return array

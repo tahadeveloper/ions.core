@@ -381,6 +381,12 @@ Paths relative to the host code directory (`app/`, or `src/` on the legacy layou
 
 ---
 
+## Laravel-compatible path globals
+
+Ions registers the familiar Laravel path helpers in `src/helpers.php`, each mapped to `Ions\Bundles\Path`: `base_path()`, `app_path()`, `config_path()`, `database_path()`, `public_path()`, `storage_path()` (Ions storage lives under `var/`) and `resource_path()` (resolves `<root>/resources`). They follow Laravel semantics — calling with no argument returns the directory root with no trailing slash; a sub-path is joined with a single separator. These exist so Illuminate components that call the globals directly (e.g. file-based SQLite via `SQLiteConnector`) work out of the box.
+
+---
+
 ## `app.schedule_class`
 
 **Type:** `class-string`  **Default:** `'App\Schedule'`

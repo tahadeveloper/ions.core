@@ -14,6 +14,10 @@ For migration instructions see [UPGRADE-4.5.md](UPGRADE-4.5.md) (4.4 → 4.5),
 
 ## [Unreleased]
 
+### Fixed
+- **Laravel-compatible path globals**: `src/helpers.php` now defines `base_path()`, `app_path()`, `config_path()`, `database_path()`, `public_path()`, `storage_path()` and `resource_path()`, each mapped to `Ions\Bundles\Path` with Laravel semantics (empty arg → directory root with no trailing slash; sub-path joined with a single separator). Fixes a fatal `Call to undefined function Illuminate\Database\Connectors\base_path()` when using file-based SQLite, where Illuminate components call the global `base_path()`.
+- **Symlink-safe host boot**: the skeleton's `public/index.php` and `bin/ions` now pass the host root explicitly — `Kernel::boot(dirname(__DIR__))` — instead of the bare `Kernel::boot()`. The bare form resolves the host root five directories up from the core package, which is correct for a normal `vendor/` install but wrong when the core is installed via a **symlinked path repository** (local dev / monorepo), where `__DIR__` resolves the symlink to the core's real location. Hosts should pass their root from their own entry points.
+
 ## [4.5.0] - 2026-06-11
 
 The Phase 12 release: hardening, debt paydown, and three additive feature

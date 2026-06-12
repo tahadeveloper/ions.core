@@ -150,6 +150,17 @@ test('the skeleton ships an Apache front-controller .htaccess', function () {
         ->and($contents)->toContain('-MultiViews');
 });
 
+test('the skeleton entry points pass the host root explicitly (symlink-safe boot)', function () {
+    // public/index.php and bin/ions must call boot(dirname(__DIR__)) rather than
+    // bare boot() — the bare form relies on a 5-dirs-up heuristic that resolves
+    // wrong when the core is installed via a symlinked path repository.
+    $index = (string) file_get_contents(skeletonPath() . '/public/index.php');
+    $bin = (string) file_get_contents(skeletonPath() . '/bin/ions');
+
+    expect($index)->toContain('Kernel::boot(dirname(__DIR__))')
+        ->and($bin)->toContain('Kernel::boot(dirname(__DIR__))');
+});
+
 test('GET /api/ping returns 200 JSON', function () {
     $response = Kernel::handle(Request::create('/api/ping'));
 
