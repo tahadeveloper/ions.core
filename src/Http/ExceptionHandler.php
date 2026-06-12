@@ -104,10 +104,12 @@ final class ExceptionHandler
             }
         } else {
             // Custom error pages (10.6): hosts may ship errors/{status}.twig
-            // or a status-class errors/{4xx|5xx}.twig; the built-in minimal
-            // page (pre-4.1 byte shape, pinned by tests) stays the fallback.
+            // or a status-class errors/{4xx|5xx}.twig — that override still
+            // wins (BC). When none exists the branded built-in page (14.4)
+            // renders from the shared DesignSystem identity instead of a bare
+            // <h1>. ErrorPage::render never throws.
             $body = $this->customErrorPage($status, $message, $request)
-                ?? sprintf('<h1>%d %s</h1>', $status, htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+                ?? \Ions\Http\Ui\ErrorPage::render($status, $message);
         }
 
         return new Response($body, $status, ['Content-Type' => 'text/html; charset=UTF-8']);

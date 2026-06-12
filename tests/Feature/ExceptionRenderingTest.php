@@ -16,11 +16,20 @@ test('a generic exception inside a route renders a 500 Response and does not lea
         ->and($response->getContent())->not->toContain('SENSITIVE');
 });
 
-test('production 500 output keeps the exact minimal shape (no debug page leak)', function () {
-    // fixture .env has no APP_DEBUG → production rendering. This pins the
-    // pre-4.1 byte-for-byte shape so the rich debug page can never leak here.
-    $response = Kernel::handle(Request::create('/boom'));
-    expect($response->getContent())->toBe('<h1>500 Internal Server Error</h1>');
+test('production 500 output renders the branded built-in page with no debug page leak', function () {
+    // fixture .env has no APP_DEBUG → production rendering. The 14.4 branded
+    // built-in page replaces the pre-4.1 bare <h1>, but the rich debug page
+    // (and the exception's internals) must still never leak here.
+    $content = (string) Kernel::handle(Request::create('/boom'))->getContent();
+
+    expect($content)
+        ->toContain('<!DOCTYPE html>')
+        ->toContain('500')
+        ->toContain('Server Error')
+        ->toContain('Internal Server Error')        // client-safe message
+        ->and($content)->not->toContain('SENSITIVE') // generic message never leaks
+        ->and($content)->not->toContain('ion-debug') // no debug page
+        ->and(stripos($content, '<script'))->toBeFalse();
 });
 
 test('an unmatched route still renders a 404 Response', function () {

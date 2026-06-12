@@ -58,17 +58,44 @@ test('a 403 with no errors/403.twig falls back to the status-class errors/4xx.tw
         ->and($content)->toContain('403');
 });
 
-test('a broken errors/500.twig falls back to the built-in page and logs a view.log warning', function () {
+test('a broken errors/500.twig falls back to the branded built-in page and logs a view.log warning', function () {
     Logs::reset('view.log');
 
     $response = Kernel::handle(Request::create('/boom'));
+    $content = (string) $response->getContent();
 
-    // Byte-identical built-in fallback (the 8.4 shape).
+    // The branded built-in production page (14.4) replaces the pre-14.4 bare
+    // <h1>: a self-contained, JS-free document with the status, a human title
+    // and the client-safe message, drawn from the shared DesignSystem.
     expect($response->getStatusCode())->toBe(500)
-        ->and((string) $response->getContent())->toBe('<h1>500 Internal Server Error</h1>');
+        ->and($content)->toContain('<!DOCTYPE html>')
+        ->and($content)->toContain('500')
+        ->and($content)->toContain('Server Error')
+        ->and($content)->toContain('Internal Server Error')
+        ->and($content)->toContain('--ion-accent')
+        ->and(stripos($content, '<script'))->toBeFalse();
 
     $log = (string) file_get_contents(Path::logs('view.log'));
     expect($log)->toContain('error page');
+});
+
+test('with no host errors/*.twig the branded built-in page renders (not the bare h1)', function () {
+    // Point the twig source at a dir with no errors/ templates so the built-in
+    // branded page is exercised end-to-end through the production HTML path.
+    config(['app.twig.source' => sys_get_temp_dir()]);
+
+    $response = Kernel::handle(Request::create('/no-such-page'));
+    $content = (string) $response->getContent();
+
+    expect($response->getStatusCode())->toBe(404)
+        ->and($content)->toContain('<!DOCTYPE html>')
+        ->and($content)->toContain('404')
+        ->and($content)->toContain('Not Found')
+        ->and($content)->toContain('Page route not found')   // client-safe message
+        ->and($content)->toContain('href="/"')
+        ->and($content)->not->toContain('CUSTOM-404')         // no host template
+        ->and(stripos($content, '<script'))->toBeFalse()
+        ->and((string) $response->headers->get('Content-Type'))->toContain('text/html');
 });
 
 test('debug mode still renders the DebugPage, not the custom template', function () {
@@ -78,9 +105,15 @@ test('debug mode still renders the DebugPage, not the custom template', function
     $response = Kernel::handle(Request::create('/no-such-page'));
     $content = (string) $response->getContent();
 
+    // The interactive debug page (14.2) renders every trace frame's source
+    // server-side, and THIS test file is in the trace — so asserting a literal
+    // that appears in the custom twig would self-match this file's own source.
+    // Assert positively that the response IS the interactive debug document
+    // (the custom twig would render only its single "CUSTOM-404 …" line).
     expect($response->getStatusCode())->toBe(404)
         ->and($content)->toContain('exc-class')
-        ->and($content)->not->toContain('CUSTOM-404');
+        ->and($content)->toContain('<!DOCTYPE html>')
+        ->and($content)->toContain('ion-debug');
 });
 
 test('api 404 JSON is byte-identical (custom templates never touch the JSON path)', function () {

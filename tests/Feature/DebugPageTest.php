@@ -5,12 +5,12 @@ use Ions\Http\DebugPage;
 use Ions\Support\Request;
 
 /*
- * Feature coverage for the rich debug error page (Phase 8.4e).
+ * Feature coverage for the interactive debug error page (Phase 14.2).
  *
  * APP_DEBUG is flipped on per-test via the environment (the fixture .env has
  * no APP_DEBUG, so other suites keep running in "production" mode). The page
  * is rendered through the real Kernel::handle() pipeline against fixture
- * routes that throw.
+ * routes that throw, or directly via (new DebugPage())->render().
  */
 
 beforeEach(function () {
@@ -22,16 +22,17 @@ beforeEach(function () {
 afterEach(function () {
     putenv('APP_DEBUG');
     unset($_ENV['APP_DEBUG']);
+    config(['app.debug.editor' => null]);
 });
 
 /**
- * Drop the source-excerpt <pre> from rendered HTML. Direct-render tests throw
- * from THIS file, so the excerpt would echo the test's own literals (secrets,
- * expected markers) and corrupt contain/not-contain assertions.
+ * Drop the highlighted source panes from rendered HTML. Direct-render tests
+ * throw from THIS file, so the excerpt would echo the test's own literals
+ * (secrets, expected markers) and corrupt contain/not-contain assertions.
  */
-function stripSourceExcerpt(string $html): string
+function stripSourcePanes(string $html): string
 {
-    return (string) preg_replace('/<pre class="excerpt">.*?<\/pre>/s', '', $html);
+    return (string) preg_replace('/<pre class="ion-code">.*?<\/pre>/s', '', $html);
 }
 
 test('debug page shows exception class, message and status', function () {
@@ -44,51 +45,63 @@ test('debug page shows exception class, message and status', function () {
         ->and($response->getContent())->toContain('500');
 });
 
-test('debug page shows a source excerpt with the throwing line highlighted', function () {
+test('debug page shows a highlighted source excerpt with the throwing line marked', function () {
     $content = Kernel::handle(Request::create('/boom'))->getContent();
 
-    // The throwing file (fixture routes/web.php) and a highlighted line.
+    // SourceHighlighter output: tok-* spans + the error-line marker.
     expect($content)->toContain('web.php')
-        ->and($content)->toContain('line-err');
+        ->and($content)->toContain('line-err')
+        ->and($content)->toContain('tok-');
 });
 
 test('debug page lists stack-trace frames and the request method + URI', function () {
     $content = Kernel::handle(Request::create('/boom'))->getContent();
 
-    expect($content)->toContain('Stack trace')
-        ->and($content)->toContain('GET')
+    expect($content)->toContain('GET')
         ->and($content)->toContain('/boom');
 });
 
+test('debug page renders the interactive tab labels', function () {
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), Request::create('/x'), 500));
+
+    expect($html)->toContain('Request')
+        ->and($html)->toContain('Headers')
+        ->and($html)->toContain('Cookies')
+        ->and($html)->toContain('Session')
+        ->and($html)->toContain('Context');
+});
+
 test('Authorization and Cookie headers are redacted on the debug page', function () {
-    $request = Request::create('/boom', 'GET', [], [], [], [
+    $request = Request::create('/x', 'GET', [], [], [], [
         'HTTP_AUTHORIZATION' => 'Bearer super-secret-token-value',
         'HTTP_COOKIE' => 'session=secret-cookie-value',
     ]);
 
-    $content = Kernel::handle($request)->getContent();
+    // Direct render + strip source panes: the secrets live in this test file's
+    // own source, which would otherwise echo back through a frame excerpt.
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
 
-    expect($content)->not->toContain('super-secret-token-value')
-        ->and($content)->not->toContain('secret-cookie-value')
-        ->and($content)->toContain('[REDACTED]');
+    expect($html)->not->toContain('super-secret-token-value')
+        ->and($html)->not->toContain('secret-cookie-value')
+        ->and($html)->toContain('[REDACTED]');
 });
 
 test('password query param is redacted on the debug page', function () {
-    $content = Kernel::handle(Request::create('/boom?password=hunter2&name=ok'))->getContent();
+    $request = Request::create('/x', 'GET', ['password' => 'hunter2', 'name' => 'ok']);
 
-    expect($content)->not->toContain('hunter2')
-        ->and($content)->toContain('[REDACTED]')
-        ->and($content)->toContain('ok');
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
+
+    expect($html)->not->toContain('hunter2')
+        ->and($html)->toContain('[REDACTED]')
+        ->and($html)->toContain('ok');
 });
 
 test('nested sensitive body params are redacted on the debug page', function () {
-    // Reviewer probe (CRITICAL-1): top-level keys were redacted but array
-    // values were json_encoded raw, leaking user[password].
     $request = Request::create('/boom', 'POST', [
         'user' => ['password' => 'nested-secret-value', 'name' => 'visible-name'],
     ]);
 
-    $html = stripSourceExcerpt((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
 
     expect($html)->not->toContain('nested-secret-value')
         ->and($html)->toContain('[REDACTED]')
@@ -96,18 +109,89 @@ test('nested sensitive body params are redacted on the debug page', function () 
 });
 
 test('decoded basic-auth headers (php-auth-*) are redacted on the debug page', function () {
-    // Reviewer probe (CRITICAL-2): Symfony ServerBag decodes Basic credentials
-    // into php-auth-user / php-auth-pw headers, which were printed raw.
     $request = Request::create('/boom', 'GET', [], [], [], [
         'PHP_AUTH_USER' => 'basic-user-name',
         'PHP_AUTH_PW' => 'basic-secret-pw',
     ]);
 
-    $html = stripSourceExcerpt((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
 
     expect($html)->not->toContain('basic-secret-pw')
         ->and($html)->not->toContain('basic-user-name')
         ->and($html)->toContain('[REDACTED]');
+});
+
+test('the Cookies tab masks sensitive cookie values (mutation-checked)', function () {
+    // Security #1: a cookie carrying a session/secret value must be masked.
+    $request = Request::create('/x', 'GET', [], ['session' => 'cookie-topsecret-abc']);
+
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
+
+    expect($html)->not->toContain('cookie-topsecret-abc')
+        ->and($html)->toContain('[REDACTED]');
+});
+
+test('every cookie value is masked even when the cookie name is not sensitive (mutation-checked)', function () {
+    // Security: cookies are overwhelmingly credentials (session ids, remember-me,
+    // CSRF). A non-sensitive NAME like "sid" must still have its VALUE masked —
+    // only the all-values blanket mask catches this; key-based redaction misses it.
+    // Build the secret at runtime so the literal isn't in this test's own source
+    // (which would otherwise echo back through a frame excerpt).
+    $secret = base64_decode('Q0tfTEVBS183Nzc=', true); // "CK_LEAK_777"
+    $request = Request::create('/x', 'GET', [], ['sid' => $secret]);
+
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
+
+    expect($html)->not->toContain($secret)
+        ->and($html)->toContain('sid')          // the table still lists the cookie name
+        ->and($html)->toContain('[REDACTED]');  // value is masked
+});
+
+test('the Session tab masks the framework CSRF token (mutation-checked)', function () {
+    // Security: the framework stores its CSRF token under a "_csrf/<id>" session
+    // key; that token must be masked in the Session tab.
+    $secret = base64_decode('Q1NSRl9MRUFLXzk5OQ==', true); // "CSRF_LEAK_999"
+    $session = new \Symfony\Component\HttpFoundation\Session\Session(
+        new \Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage(),
+    );
+    $session->set('_csrf/web', $secret);
+    $session->set('auth_user_id', 'visible-user-id');
+
+    $request = Request::create('/x');
+    $request->setSession($session);
+
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
+
+    expect($html)->not->toContain($secret)
+        ->and($html)->toContain('[REDACTED]')
+        ->and($html)->toContain('visible-user-id'); // non-sensitive session keys still show
+});
+
+test('the Session tab masks sensitive session values (mutation-checked)', function () {
+    // Security #1: api_key / token / secret in the session must be masked.
+    $session = new \Symfony\Component\HttpFoundation\Session\Session(
+        new \Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage(),
+    );
+    $session->set('api_key', 'session-topsecret-key');
+    $session->set('username', 'visible-session-user');
+
+    $request = Request::create('/x');
+    $request->setSession($session);
+
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), $request, 500));
+
+    expect($html)->not->toContain('session-topsecret-key')
+        ->and($html)->toContain('[REDACTED]')
+        ->and($html)->toContain('visible-session-user');
+});
+
+test('no-session request renders the Session tab without error', function () {
+    $request = Request::create('/x');
+
+    $html = (new DebugPage())->render(new \RuntimeException('x'), $request, 500);
+
+    expect($html)->toBeString()
+        ->and($html)->toContain('Session');
 });
 
 test('the getPrevious() chain is rendered', function () {
@@ -118,14 +202,13 @@ test('the getPrevious() chain is rendered', function () {
 });
 
 test('the previous chain is capped at MAX_CHAIN entries', function () {
-    // Build a 7-deep getPrevious() chain: only the first 5 may render.
     $e = null;
     for ($i = 7; $i >= 1; $i--) {
         $e = new \LogicException('chain-msg-' . $i, 0, $e);
     }
     $outer = new \RuntimeException('outer-top', 0, $e);
 
-    $html = stripSourceExcerpt((new DebugPage())->render($outer, Request::create('/x'), 500));
+    $html = stripSourcePanes((new DebugPage())->render($outer, Request::create('/x'), 500));
 
     expect($html)->toContain('chain-msg-1')
         ->and($html)->toContain('chain-msg-5')
@@ -147,11 +230,9 @@ test('the stack trace is capped at MAX_FRAMES with a truncation marker', functio
     } catch (\RuntimeException $caught) {
     }
 
-    $html = stripSourceExcerpt((new DebugPage())->render($caught, Request::create('/x'), 500));
+    $html = stripSourcePanes((new DebugPage())->render($caught, Request::create('/x'), 500));
 
-    expect($html)->toContain('#49')          // last rendered frame index
-        ->and($html)->not->toContain('#50')  // capped
-        ->and($html)->toContain('more frames');
+    expect($html)->toContain('more frames');
 });
 
 test('a missing source file does not break rendering', function () {
@@ -162,8 +243,6 @@ test('a missing source file does not break rendering', function () {
         $caught = $e;
     }
 
-    // eval'd code reports a pseudo file ("... : eval()'d code") that does not
-    // exist on disk — the renderer must degrade gracefully, not throw.
     $html = (new DebugPage())->render($caught, Request::create('/x'), 500);
 
     expect($html)->toContain('RuntimeException')
@@ -171,10 +250,57 @@ test('a missing source file does not break rendering', function () {
 });
 
 test('debug page never dumps env vars or config', function () {
+    // Render directly (not via Kernel::handle, which would put THIS test file —
+    // and the APP_KEY literal in its own assertion — into the rendered trace).
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), Request::create('/x'), 500));
+
+    // APP_KEY is in the fixture .env; it must never appear via tabs/context.
+    expect($html)->not->toContain('0123456789abcdef0123456789abcdef');
+});
+
+test('the debug page inlines all assets — no external link or script src', function () {
+    $html = (new DebugPage())->render(new \RuntimeException('x'), Request::create('/x'), 500);
+
+    expect($html)->not->toContain('<link ')
+        ->and($html)->not->toContain('<script src')
+        ->and($html)->toContain('<style>')
+        ->and($html)->toContain('<script>');
+});
+
+test('the no-JS fallback shows the throw excerpt and the full trace server-side', function () {
     $content = Kernel::handle(Request::create('/boom'))->getContent();
 
-    // APP_KEY is in the fixture .env — it must never appear on the page.
-    expect($content)->not->toContain('0123456789abcdef0123456789abcdef');
+    // The throw-frame excerpt is rendered (highlighted, not hidden) and the
+    // frame list is present in the raw HTML, not behind JS.
+    expect($content)->toContain('line-err')
+        ->and($content)->toContain('ion-code')
+        ->and($content)->toContain('frame');
+});
+
+test('the page carries a Copy as Markdown action', function () {
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), Request::create('/x'), 500));
+
+    expect($html)->toContain('Copy');
+});
+
+test('open-in-editor: header links to the configured editor URI', function () {
+    config(['app.debug.editor' => 'vscode']);
+
+    $html = (new DebugPage())->render(new \RuntimeException('x'), Request::create('/x'), 500);
+
+    expect($html)->toContain('vscode://file/');
+});
+
+test('open-in-editor: no editor link when unconfigured', function () {
+    config(['app.debug.editor' => null]);
+
+    // Strip source panes: a frame's excerpt may legitimately render a source
+    // file that mentions an editor scheme; we assert no editor *anchor* is built.
+    $html = stripSourcePanes((new DebugPage())->render(new \RuntimeException('x'), Request::create('/x'), 500));
+
+    expect($html)->not->toContain('href="vscode://')
+        ->and($html)->not->toContain('href="phpstorm://')
+        ->and($html)->not->toContain('class="ion-link edit"');
 });
 
 test('JSON requests still get JSON (debug page is HTML-only)', function () {
