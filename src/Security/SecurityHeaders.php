@@ -39,7 +39,7 @@ final class SecurityHeaders
         $response->headers->set('X-XSS-Protection', '0');
 
         if (!$response->headers->has('Content-Security-Policy')) {
-            $response->headers->set('Content-Security-Policy', config('app.security.csp', "default-src 'self'"));
+            $response->headers->set('Content-Security-Policy', config('app.security.csp', self::defaultCsp()));
         }
 
         if ($request !== null && $request->isSecure() && !$response->headers->has('Strict-Transport-Security')) {
@@ -57,5 +57,34 @@ final class SecurityHeaders
         }
 
         return $response;
+    }
+
+    /**
+     * The default Content-Security-Policy.
+     *
+     * The framework ships self-contained, INLINE-styled pages — the welcome
+     * page, the production error pages, the debug page and the debug toolbar —
+     * whose CSS is embedded in a `<style>` block (an error page must render even
+     * when the asset pipeline is broken, so it cannot link an external
+     * stylesheet). A bare `default-src 'self'` blocks all inline styles, so
+     * every first-party page would render UNSTYLED in the browser. The default
+     * therefore permits inline STYLES (`style-src 'unsafe-inline'`) — a low-risk
+     * relaxation (CSS injection is far weaker than script injection) that real
+     * apps commonly use. Inline SCRIPT stays blocked in production. When
+     * `APP_DEBUG` is on, inline script is also permitted so the interactive
+     * debug page + toolbar (their inline `<script>`) work locally.
+     *
+     * Override entirely with `config('app.security.csp', '…')` — set a stricter
+     * policy (e.g. nonce/hash-based) and externalise your own styles if needed.
+     */
+    private static function defaultCsp(): string
+    {
+        $csp = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:";
+
+        if ((bool) env('APP_DEBUG', false)) {
+            $csp .= "; script-src 'self' 'unsafe-inline'";
+        }
+
+        return $csp;
     }
 }
