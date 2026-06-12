@@ -107,3 +107,25 @@ Route::get('/toolbar-query', function () {
     \Ions\Support\DB::connection()->select('select 1');
     return new Response('<html><body>queried</body></html>');
 });
+
+// --- Expandable toolbar fixtures (Phase 14.3) ---
+// A query whose SQL contains markup, to prove the queries panel escapes it.
+Route::get('/toolbar-xss-query', function () {
+    try {
+        \Ions\Support\DB::connection()->select('select 1 /* <script>alert(1)</script> */');
+    } catch (\Throwable) {
+        // some drivers reject the comment; the log captures the attempted SQL anyway
+    }
+    return new Response('<html><body>xss query</body></html>');
+});
+
+// An HTML response WITHOUT a closing </body> — must pass through untouched.
+Route::get('/toolbar-no-body', fn () => new Response('<html><p>no body tag here</p></html>'));
+
+// An HTML response that sets its own Content-Length — must be stripped on inject.
+Route::get('/toolbar-with-length', function () {
+    $body = '<html><body>length fixture</body></html>';
+    $r = new Response($body);
+    $r->headers->set('Content-Length', (string) strlen($body));
+    return $r;
+});

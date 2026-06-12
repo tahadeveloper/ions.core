@@ -91,3 +91,121 @@ test('app.debug_toolbar => false disables the toolbar even in debug', function (
 
     expect($content)->not->toContain(TOOLBAR_MARKER);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Expandable panels (Phase 14.3)
+|--------------------------------------------------------------------------
+*/
+
+test('the injected bar carries the collapsed strip and the expandable panels', function () {
+    $content = (string) Kernel::handle(Request::create('/toolbar-page'))->getContent();
+
+    expect($content)
+        // collapsed strip + brand + close button
+        ->toContain('class="idt-strip"')
+        ->toContain('idt-brand')
+        ->toContain('class="idt-close"')
+        // each panel marker
+        ->toContain('data-idt-panel="queries"')
+        ->toContain('data-idt-panel="request"')
+        ->toContain('data-idt-panel="timing"')
+        // segments toggle their panel
+        ->toContain('data-idt-toggle="queries"')
+        ->toContain('data-idt-toggle="request"')
+        // inlined assets present once
+        ->toContain('<style>')
+        ->toContain('<script>');
+    expect(substr_count($content, '<style>') >= 1)->toBeTrue();
+});
+
+test('the request panel reports method, path and status', function () {
+    $content = (string) Kernel::handle(Request::create('/toolbar-page'))->getContent();
+
+    // Inside the request panel (key/value rows).
+    expect($content)
+        ->toContain('<td>method</td>')
+        ->toContain('<td>status</td>')
+        ->toContain('<td>content-type</td>')
+        ->toContain('/toolbar-page');
+});
+
+test('the queries panel hints to enable the log when capturing is off', function () {
+    $content = (string) Kernel::handle(Request::create('/toolbar-page'))->getContent();
+
+    expect($content)->toContain('set database.query_log to capture SQL');
+});
+
+test('the queries panel lists captured SQL with HTML-escaped markup', function () {
+    config(['database.query_log' => true]);
+    DB::connection()->enableQueryLog();
+
+    $content = (string) Kernel::handle(Request::create('/toolbar-xss-query'))->getContent();
+
+    expect($content)
+        // the markup in the SQL is escaped, never live
+        ->toContain('&lt;script&gt;')
+        ->not->toContain('<script>alert(1)</script>')
+        // per-query binding count rendered
+        ->toContain('binding');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Injection safety unchanged (Phase 14.3)
+|--------------------------------------------------------------------------
+*/
+
+test('the stale Content-Length header is stripped after injecting', function () {
+    $response = Kernel::handle(Request::create('/toolbar-with-length'));
+
+    expect((string) $response->getContent())->toContain(TOOLBAR_MARKER)
+        ->and($response->headers->has('Content-Length'))->toBeFalse();
+});
+
+test('a response with no </body> is passed through untouched', function () {
+    $response = Kernel::handle(Request::create('/toolbar-no-body'));
+    $content = (string) $response->getContent();
+
+    expect($content)->not->toContain(TOOLBAR_MARKER)
+        ->and($content)->toBe('<html><p>no body tag here</p></html>');
+});
+
+test('a render failure degrades to the original response unmodified', function () {
+    $original = '<html><body>untouched</body></html>';
+
+    // A Response whose setContent throws forces a failure AFTER the </body>
+    // probe — the middleware must swallow it and return the response as-is.
+    $response = new class ($original) extends \Symfony\Component\HttpFoundation\Response {
+        private bool $constructed = false;
+
+        public function setContent(?string $content): static
+        {
+            if ($this->constructed) {
+                throw new \RuntimeException('boom');
+            }
+            $this->constructed = true;
+
+            return parent::setContent($content);
+        }
+    };
+
+    $middleware = new \Ions\Http\Middleware\DebugToolbarMiddleware();
+    $result = $middleware->handle(Request::create('/toolbar-page'), fn () => $response);
+
+    expect($result)->toBe($response)
+        ->and((string) $result->getContent())->toBe($original)
+        ->and((string) $result->getContent())->not->toContain(TOOLBAR_MARKER);
+});
+
+test('the injected styles are scoped and do not restyle the host page', function () {
+    $content = (string) Kernel::handle(Request::create('/toolbar-page'))->getContent();
+
+    $style = substr($content, strpos($content, '<style>') + 7);
+    $style = substr($style, 0, strpos($style, '</style>'));
+
+    // Every rule is nested under the toolbar id; no bare element selectors.
+    expect($style)->toContain('#ions-debug-toolbar')
+        ->not->toMatch('/(^|\})\s*body\s*\{/')
+        ->and($style)->not->toMatch('/(^|\})\s*a\s*\{/');
+});
