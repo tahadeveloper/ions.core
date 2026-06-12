@@ -117,7 +117,12 @@ final class TwoFactorController extends BaseController
             return redirect('/login')->with('error', 'Could not verify two-factor — sign in again.');
         }
 
-        if (!TwoFactor::verify($secret, $code)) {
+        // Replay protection: verifyOnce() rejects a code whose time-step was
+        // already consumed for this user, so a captured OTP can't be replayed
+        // within its ±1-step acceptance window. This is the production-correct
+        // path on the login challenge (vs. plain TwoFactor::verify()).
+        $replay = new \Ions\Auth\TwoFactorReplayStore(app('cache.store'));
+        if (!$replay->verifyOnce((string) $user->getKey(), $secret, $code)) {
             return back('/login/2fa')->with('error', 'That code is not valid — try again.');
         }
 

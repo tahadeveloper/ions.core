@@ -142,6 +142,29 @@ test('login requires the TOTP challenge when 2FA is enabled', function () {
     expect(session('auth_user_id'))->toBe($user->getKey());
 });
 
+test('a TOTP code consumed once cannot be replayed within its window', function () {
+    $secret = TwoFactor::generateSecret();
+    $user = User::factory()->create();
+    /** @var Encrypter $encrypter */
+    $encrypter = app('encrypter');
+    $user->forceFill(['two_factor_secret' => $encrypter->encrypt($secret)])->save();
+
+    $code = TwoFactor::code($secret);
+
+    // First use completes the login.
+    $this->post('/login', ['email' => $user->email, 'password' => 'password']);
+    $this->post('/login/2fa', ['code' => $code])
+        ->assertRedirect('http://localhost:8000/dashboard');
+    expect(session('auth_user_id'))->toBe($user->getKey());
+
+    // Log out, then replay the SAME code — the replay store rejects it.
+    $this->post('/logout');
+    $this->post('/login', ['email' => $user->email, 'password' => 'password']);
+    $this->post('/login/2fa', ['code' => $code])
+        ->assertRedirect('http://localhost:8000/login/2fa');
+    expect(session('auth_user_id'))->toBeNull();
+});
+
 // --- Web session login (no 2FA) ---------------------------------------------
 
 test('login with the correct password sets the web session and reaches the dashboard', function () {
