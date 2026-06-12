@@ -12,6 +12,16 @@ repository to `../../` with `symlink: true` and requires `ionzile/core: @dev`.
 `composer install` therefore symlinks the repo root in as the installed core,
 so the suite always runs against the current working tree.
 
+## Domain
+
+Taskflow models a small project &amp; task tracker: users own and join projects,
+projects hold tasks, and tasks carry assignees, file attachments and comments.
+The Eloquent models are `User`, `Project`, `Task`, `Attachment` and `Comment`
+(`app/Models/`); `User` implements the framework's `Authenticatable` and
+`VerifiesEmail` contracts. Tasks move through a `todo | doing | done` status.
+The schema, factories and a `DemoSeeder` live under `database/`
+(`schemas/`, `factories/`, `seeders/`).
+
 ## Quick start
 
 ```bash
@@ -69,11 +79,14 @@ throwaway environment (`SESSION_DRIVER=array`, `APP_DEBUG=true`, a dummy
 | `public/index.php` | Front controller (`Kernel::boot()` + `run()`). |
 | `bin/ions` | Console entry point (`migrate`, `serve`, `doctor`, …). |
 | `config/` | Per-file config arrays (secure defaults; SQLite by default). |
+| `app/Models/` | Eloquent models (`User`, `Project`, `Task`, `Attachment`, `Comment`). |
 | `app/Http/Controllers/` | Web controllers (`HomeController` welcome page). |
 | `app/Http/Api/` | JSON API controllers (added in later sub-phases). |
 | `routes/web.php`, `routes/api.php` | Route definitions (`/`, `/api/ping`). |
 | `views/` | Twig templates. |
-| `database/` | `migrations/`, `schemas/`, `factories/`, `seeders/`. |
+| `database/schemas/` | Migrations (`ions migrate` discovers `database/schemas/*.php`). |
+| `database/factories/` | Model factories (`Database\Factories\…`). |
+| `database/seeders/` | Seeders (`Database\Seeders\DemoSeeder`). |
 | `tests/` | Pest suite (`SmokeTest` boot gate). |
 
 > The full feature → subsystem coverage map (auth, CRUD, uploads, jobs, mail,
