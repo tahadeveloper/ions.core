@@ -83,3 +83,64 @@ test('cache.response never caches a non-200 response', function () {
     expect($second->headers->get('X-Ions-Cache'))->toBeNull()
         ->and($hits)->toBe(2); // re-rendered every time
 });
+
+test('a FORM-LESS framework-rendered page is response-cached on the 2nd hit (headline 12.5 case)', function () {
+    // Point Twig at the committed fixture views before the first render builds
+    // the shared env (mirrors ViewRenderingTest).
+    config(['app.twig.source' => \Ions\Bundles\Path::root('views')]);
+
+    $hits = 0;
+    Route::get('/cached-view', function () use (&$hits) {
+        $hits++;
+        return view('cache.public');
+    })->middleware(['cache.response']);
+
+    $first = Kernel::handle(Request::create('/cached-view'));
+    expect($first->getStatusCode())->toBe(200)
+        ->and($first->getContent())->toContain('public page')
+        ->and($first->headers->get('X-Ions-Cache'))->toBe('MISS');
+
+    // 2nd hit: served from cache because the lazy _csrf_token global was never
+    // stringified by this form-less template, so the session stayed empty.
+    $second = Kernel::handle(Request::create('/cached-view'));
+    expect($second->headers->get('X-Ions-Cache'))->toBe('HIT')
+        ->and($second->getContent())->toContain('public page')
+        ->and($hits)->toBe(1); // controller ran exactly once
+});
+
+test('a page rendering a FORM via ionToken() is NOT response-cached (CSRF safety preserved)', function () {
+    config(['app.twig.source' => \Ions\Bundles\Path::root('views')]);
+
+    $hits = 0;
+    Route::get('/cached-form', function () use (&$hits) {
+        $hits++;
+        return view('cache.form');
+    })->middleware(['cache.response']);
+
+    $first = Kernel::handle(Request::create('/cached-form'));
+    expect($first->getContent())->toContain('_ion_token')
+        ->and($first->headers->get('X-Ions-Cache'))->not->toBe('HIT');
+
+    // 2nd hit re-renders (the per-session token in the session made it stateful).
+    $second = Kernel::handle(Request::create('/cached-form'));
+    expect($second->headers->get('X-Ions-Cache'))->not->toBe('HIT')
+        ->and($hits)->toBe(2);
+});
+
+test('a page outputting {{ _csrf_token }} directly is NOT response-cached (CSRF safety preserved)', function () {
+    config(['app.twig.source' => \Ions\Bundles\Path::root('views')]);
+
+    $hits = 0;
+    Route::get('/cached-token', function () use (&$hits) {
+        $hits++;
+        return view('cache.token');
+    })->middleware(['cache.response']);
+
+    $first = Kernel::handle(Request::create('/cached-token'));
+    expect($first->getContent())->toContain('page with token')
+        ->and($first->headers->get('X-Ions-Cache'))->not->toBe('HIT');
+
+    $second = Kernel::handle(Request::create('/cached-token'));
+    expect($second->headers->get('X-Ions-Cache'))->not->toBe('HIT')
+        ->and($hits)->toBe(2);
+});

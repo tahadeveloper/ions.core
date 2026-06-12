@@ -165,16 +165,21 @@ final class ViewFactory
      * Re-evaluate the per-request Twig globals on an already-built Environment.
      *
      * Twig globals are plain values frozen at registration time; on a shared
-     * per-process Environment (worker mode) `_csrf_token` would otherwise be
-     * the FIRST request's token — stale and cross-user. Kernel::resetForRequest()
+     * per-process Environment (worker mode) `_trans`/`tJson`/`appUrl` would
+     * otherwise be the FIRST request's values — stale. Kernel::resetForRequest()
      * calls this so every request renders with fresh values. Twig allows
      * updating an EXISTING global after the runtime is initialised, which is
      * why the same names registered in addCoreFunctions() are re-set here.
      *
-     * Design note: lazy (per-access) globals were considered, but Twig globals
-     * cannot be closures and wrapping them in stringable proxies changes their
-     * type in templates (`{% if _trans %}`, comparisons), so explicit
-     * re-registration on reset was chosen instead.
+     * Design note: lazy (per-access) globals were rejected for the COMPARISON-
+     * used globals — Twig globals cannot be closures, and wrapping `_trans` in a
+     * stringable proxy changes its type in `{% if _trans %}`/comparisons — so
+     * those are explicitly re-registered on reset. `_csrf_token` is the
+     * EXCEPTION: it is OUTPUT-ONLY (never compared), so it IS a lazy Stringable
+     * (CsrfTokenProxy). That laziness is load-bearing: an eager `_csrf_token`
+     * wrote the session on every render, defeating the 12.5 response cache for
+     * form-less pages. As a stable object read lazily, it is also worker-safe
+     * and its re-registration here is a harmless no-op.
      */
     public function refreshRequestGlobals(Environment $env): void
     {
@@ -195,18 +200,16 @@ final class ViewFactory
         // unrelated errors that a broad catch would hide.
         $trans = isset(Localization::$localization) ? trans() : '';
 
-        // _csrf_token: csrfToken() uses NativeSessionTokenStorage which can fail in CLI/test SAPI.
-        // A narrow try/catch is required here; unlike _trans there is no cheap precondition we can
-        // check, so we log any failure (making it visible in production) before falling back to ''.
-        // Always use the CsrfMiddleware token id ('web') so the rendered _csrf_token
-        // validates in the pipeline. Using app_name here would issue tokens under an id
-        // the middleware never checks (419 on every form for hosts that set app_name).
-        try {
-            $csrf = csrfToken('web');
-        } catch (\Throwable $e) {
-            Logs::create('view.log')->warning('csrfToken() failed building _csrf_token global: ' . $e->getMessage());
-            $csrf = '';
-        }
+        // _csrf_token: a LAZY, output-only Stringable proxy (CsrfTokenProxy) — its
+        // __toString() resolves the CURRENT request's 'web' token (the id CsrfMiddleware
+        // checks) ONLY when a template actually prints `{{ _csrf_token }}`. Seeding it
+        // eagerly here would call csrfToken('web') on EVERY render, writing the token into
+        // the session and making ResponseCache::requestIsStateful() true — which blocked
+        // response-caching of every framework-rendered page, even form-less ones. The proxy
+        // is a stable object registered once: it reads the live request lazily, so it never
+        // goes stale across worker requests and needs no per-request refresh (it stays in
+        // this map so refreshRequestGlobals() re-registers the same object harmlessly).
+        $csrf = new CsrfTokenProxy();
 
         // tJson: the locale translations as JSON, consumed by client-side i18n.
         // Seeded here (even as '') so the global is REGISTERED at env-build time.

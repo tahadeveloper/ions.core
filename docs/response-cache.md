@@ -65,6 +65,24 @@ A response is stored only when **all** of these hold (see
 Per-user state is stripped before storing: `Set-Cookie` and hop-by-hop headers
 (`Connection`, `Transfer-Encoding`, …) are never written to the cache.
 
+### Framework-rendered pages
+
+A **form-less** Twig page rendered through the framework view layer (`view()` /
+`render()` / `BaseController::view()`) **is cacheable**. The `_csrf_token` Twig
+global is lazy (`Ions\View\CsrfTokenProxy`): it only generates and writes the
+session token when a template actually outputs `{{ _csrf_token }}`. A page that
+never references it leaves the session empty, so it passes the "no session
+state" gate above.
+
+> Earlier versions seeded `_csrf_token` eagerly on every render, which wrote the
+> token into the session unconditionally and made **every** framework-rendered
+> page stateful — so none could be response-cached. That is fixed.
+
+A page that **renders the CSRF token** — either directly via `{{ _csrf_token }}`
+or through a form helper (`{{ ionToken('web') }}`) — writes the per-session token
+and is therefore **not** cached. This is the correct safety property: such a page
+embeds per-session state that must never be shared across users.
+
 ## HIT / MISS
 
 On a cache **MISS** the response is generated, stored, and stamped
