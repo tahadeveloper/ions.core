@@ -5,22 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ app_name }}</title>
     <style>
-        :root { color-scheme: light dark; }
+        /* Self-contained: these tokens mirror Ions\Http\Ui\DesignSystem so the
+           start page shares the framework's identity with the debug page,
+           toolbar and error pages — no external CSS/asset pipeline needed. */
+        :root {
+            color-scheme: dark light;
+            --ion-bg: #101218;
+            --ion-surface: #16181d;
+            --ion-text: #d8dce3;
+            --ion-muted: #9aa4b2;
+            --ion-accent: #818cf8;
+            --ion-border: #2a2e36;
+            --ion-code-bg: #0e1013;
+            --ion-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+            --ion-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
         * { box-sizing: border-box; }
         body {
             margin: 0; min-height: 100vh;
-            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-            color: #d8dce3;
-            background: #101218 radial-gradient(60rem 40rem at 80% -10%, rgba(99, 102, 241, 0.22), transparent 60%);
+            font-family: var(--ion-font-sans);
+            color: var(--ion-text);
+            background: var(--ion-bg) radial-gradient(60rem 40rem at 80% -10%, rgba(129, 140, 248, 0.22), transparent 60%);
             display: flex; align-items: center; justify-content: center;
             padding: 2.5rem 1.5rem;
         }
         main { width: 100%; max-width: 52rem; }
         .wordmark { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.4rem; }
         .wordmark .logo { font-size: 3rem; font-weight: 800; letter-spacing: -0.03em; color: #fff; }
-        .wordmark .logo span { color: #818cf8; }
-        .version { font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace; color: #8b939f; }
-        .tagline { color: #9aa4b2; margin: 0 0 2rem; }
+        .wordmark .logo span { color: var(--ion-accent); }
+        .version {
+            font: 0.8rem var(--ion-font-mono); color: var(--ion-muted);
+            background: rgba(129, 140, 248, 0.1); border-radius: 999px; padding: 0.15rem 0.6rem;
+        }
+        .tagline { color: var(--ion-muted); margin: 0 0 2rem; font-size: 1.05rem; }
         .tagline strong { color: #c7cdd6; font-weight: 600; }
         .cards {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
@@ -28,30 +45,30 @@
         }
         .card {
             display: block; text-decoration: none;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.09);
+            background: var(--ion-surface);
+            border: 1px solid var(--ion-border);
             border-radius: 10px; padding: 1rem 1.1rem;
             transition: border-color 0.15s ease, background 0.15s ease;
         }
-        .card:hover { border-color: #818cf8; background: rgba(99, 102, 241, 0.08); }
+        .card:hover { border-color: var(--ion-accent); background: rgba(129, 140, 248, 0.08); }
         .card h2 { margin: 0 0 0.3rem; font-size: 0.95rem; color: #e7eaf0; }
-        .card p { margin: 0; font-size: 0.82rem; line-height: 1.45; color: #9aa4b2; }
+        .card p { margin: 0; font-size: 0.82rem; line-height: 1.45; color: var(--ion-muted); }
         .quickstart {
-            background: #0b0d12; border: 1px solid rgba(255, 255, 255, 0.09);
+            background: var(--ion-code-bg); border: 1px solid var(--ion-border);
             border-radius: 10px; padding: 1rem 1.2rem;
         }
         .quickstart h2 {
             margin: 0 0 0.6rem; font-size: 0.75rem; text-transform: uppercase;
-            letter-spacing: 0.08em; color: #8b939f;
+            letter-spacing: 0.08em; color: var(--ion-muted);
         }
         .quickstart pre {
             margin: 0; overflow-x: auto;
-            font: 0.85rem/1.8 ui-monospace, SFMono-Regular, Menlo, monospace; color: #c7cdd6;
+            font: 0.85rem/1.8 var(--ion-font-mono); color: #c7cdd6;
         }
         .quickstart .c { color: #6b7280; }
         footer { margin-top: 1.5rem; font-size: 0.78rem; color: #6b7280; }
         footer code {
-            background: rgba(99, 102, 241, 0.12); border-radius: 4px;
+            background: rgba(129, 140, 248, 0.12); border-radius: 4px;
             padding: 0.1rem 0.35rem; font-size: 0.95em; color: #aab2f0;
         }
     </style>
