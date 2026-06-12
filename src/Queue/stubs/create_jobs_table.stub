@@ -7,8 +7,8 @@ use Ions\Support\DB;
 /**
  * Schema for the 'database' queue connection.
  *
- * Copy this into the host's database/schemas directory (4.4+ layout; legacy:
- * {app|src}/Database/Schema), dropping the .stub extension, and run
+ * Copy this into the host's database/migrations directory (4.6+ layout; legacy:
+ * {app|src}/Database/migrations), dropping the .stub extension, and run
  * `ions migrate` to create the jobs and failed_jobs tables used by
  * config('queue.connections.database').
  */

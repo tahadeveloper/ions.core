@@ -28,12 +28,12 @@ class RollBackCommand extends Command
             $last_batch = $last_item->batch;
             $target_batch = $last_batch - $step;
             $target_rollback =  DB::connection($connection->getName())->table($table_name)->where('batch', $target_batch)->orderBy('batch', 'desc')->first();
-            if ($target_rollback && Storage::exists(Path::database('migrations/'.$target_rollback->migration))) {
+            if ($target_rollback && Storage::exists(Path::database('schemas/'.$target_rollback->migration))) {
 
                 Schema::connection($connection->getName())->dropAllTables();
                 Schema::connection($connection->getName())->dropAllViews();
 
-                DB::connection($connection->getName())->unprepared(file_get_contents(Path::database('migrations/'.$target_rollback->migration)));
+                DB::connection($connection->getName())->unprepared(file_get_contents(Path::database('schemas/'.$target_rollback->migration)));
                 $this->info('Database Rollback schema install successfully.');
 
                 exit();

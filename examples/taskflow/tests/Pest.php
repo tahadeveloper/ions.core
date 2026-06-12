@@ -46,7 +46,7 @@ $_ENV['DB_DATABASE'] = $_ENV['DB_DATABASE'] ?? ':memory:';
 |--------------------------------------------------------------------------
 | migrateTaskflow()
 |--------------------------------------------------------------------------
-| Run the host's real migration files (database/schemas/*.php) against the
+| Run the host's real migration files (database/migrations/*.php) against the
 | booted connection. Each schema file `return new class extends Migration`,
 | exactly what `ions migrate` discovers and runs — so exercising them here
 | proves the migrations themselves. Call it from a test's beforeEach() (after
@@ -54,7 +54,7 @@ $_ENV['DB_DATABASE'] = $_ENV['DB_DATABASE'] ?? ':memory:';
 */
 function migrateTaskflow(): void
 {
-    $schemas = glob(dirname(__DIR__) . '/database/schemas/*.php');
+    $schemas = glob(dirname(__DIR__) . '/database/migrations/*.php');
 
     foreach ($schemas ?: [] as $file) {
         $migration = require $file;

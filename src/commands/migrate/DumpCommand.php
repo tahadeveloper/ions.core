@@ -48,7 +48,7 @@ class DumpCommand extends Command
 
         if ($this->option('prune')) {
             (new Filesystem())->deleteDirectory(
-                Path::database('Schema'),
+                Path::database('migrations'),
                 false
             );
 
@@ -85,7 +85,7 @@ class DumpCommand extends Command
     {
         $table_name = config('database.migrations', 'migrations');
         $migration_value = date('Y_m_d_His') . '_' . $connection->getName() . '_schema.dump';
-        return tap($this->option('path') ?: Path::database('Migrations/' . $migration_value), function ($path) use ($migration_value, $table_name, $connection) {
+        return tap($this->option('path') ?: Path::database('schemas/' . $migration_value), function ($path) use ($migration_value, $table_name, $connection) {
             (new Filesystem())->ensureDirectoryExists(dirname($path));
 
             $this->prepareDatabase($connection);
@@ -104,7 +104,7 @@ class DumpCommand extends Command
             if ($this->option('database')) {
                 $args = '--database='.$this->option('database');
             }
-            exec('php bin/ion migrate --install '.$args);
+            exec('php bin/ions migrate --install '.$args);
         }
     }
 }

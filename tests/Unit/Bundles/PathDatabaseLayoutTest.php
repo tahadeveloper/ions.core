@@ -72,10 +72,10 @@ test('Path::database() maps the legacy subfolder names onto the lowercase standa
     try {
         Path::setBasePath($base);
 
-        // The EXACT names the framework commands pass in today:
-        // MigrateCommand/SchemaCommand/DumpCommand --prune → 'Schema',
-        // DumpCommand → 'Migrations/...', RollBackCommand → 'migrations/...',
-        // SeederCommand → 'Seeders/...'.
+        // The EXACT names the framework commands pass in today (4.6 layout):
+        // SchemaCommand/MigrateCommand/DumpCommand --prune → 'migrations',
+        // DumpCommand dump target → 'schemas/...', RollBackCommand → 'schemas/...',
+        // SeederCommand → 'Seeders/...'. The map normalizes casing only.
         expect(Path::database('Schema'))->toBe($root . 'schemas')
             ->and(Path::database('Schema/_123_users.php'))->toBe($root . 'schemas' . DIRECTORY_SEPARATOR . '_123_users.php')
             ->and(Path::database('Migrations/2026_01_01_000000_default_schema.dump'))->toBe($root . 'migrations' . DIRECTORY_SEPARATOR . '2026_01_01_000000_default_schema.dump')
