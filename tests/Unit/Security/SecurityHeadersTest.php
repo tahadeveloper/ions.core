@@ -11,7 +11,36 @@ test('applies hardening headers', function () {
         ->and($r->headers->get('X-Frame-Options'))->toBe('SAMEORIGIN')
         ->and($r->headers->get('Referrer-Policy'))->toBe('strict-origin-when-cross-origin')
         ->and($r->headers->get('X-XSS-Protection'))->toBe('0')
-        ->and($r->headers->get('Content-Security-Policy'))->toBe("default-src 'self'");
+        // Default CSP permits inline STYLES so the framework's self-contained
+        // inline-styled pages (welcome, error pages, debug page/toolbar) render.
+        ->and($r->headers->get('Content-Security-Policy'))->toContain("default-src 'self'")
+        ->and($r->headers->get('Content-Security-Policy'))->toContain("style-src 'self' 'unsafe-inline'");
+});
+
+test('default CSP allows inline script only in debug', function () {
+    bootFixtureKernel();
+
+    $prev = $_ENV['APP_DEBUG'] ?? null;
+
+    $_ENV['APP_DEBUG'] = 'false';
+    putenv('APP_DEBUG=false');
+    $prod = SecurityHeaders::apply(new Response('ok'))->headers->get('Content-Security-Policy');
+
+    $_ENV['APP_DEBUG'] = 'true';
+    putenv('APP_DEBUG=true');
+    $debug = SecurityHeaders::apply(new Response('ok'))->headers->get('Content-Security-Policy');
+
+    // Restore.
+    if ($prev === null) {
+        unset($_ENV['APP_DEBUG']);
+        putenv('APP_DEBUG');
+    } else {
+        $_ENV['APP_DEBUG'] = $prev;
+        putenv('APP_DEBUG=' . $prev);
+    }
+
+    expect($prod)->not->toContain("script-src")          // production: inline script blocked
+        ->and($debug)->toContain("script-src 'self' 'unsafe-inline'"); // debug: allowed
 });
 
 test('does not overwrite a CSP already set by the caller', function () {

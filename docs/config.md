@@ -255,9 +255,11 @@ When `true`, `CsrfMiddleware` is included in the default web stack. State-changi
 
 ## `app.security.csp`
 
-**Type:** `string`  **Default:** `"default-src 'self'"`
+**Type:** `string`  **Default (production):** `"default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"` — with `APP_DEBUG` on, `script-src 'self' 'unsafe-inline'` is appended.
 
 Value of the `Content-Security-Policy` header applied by `SecurityHeaders::apply()`. Only set when the header is not already present on the response (controllers may set a stricter route-specific policy).
+
+The default permits inline **styles** because the framework's self-contained pages (the welcome page, the production error pages, and the dev debug page/toolbar) embed their CSS in a `<style>` block — an error page must render even when the asset pipeline is broken, so it can't link an external stylesheet. Inline-style is a low-risk relaxation; inline **script** stays blocked in production (and is permitted only under `APP_DEBUG`, so the interactive debug page/toolbar work locally). Override this key with a stricter policy (e.g. nonce/hash-based) and externalise your own styles if your threat model requires it.
 
 ```php
 'security' => [
