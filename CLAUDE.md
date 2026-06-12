@@ -65,7 +65,7 @@ Dispatched controllers (`instanceTheController`) get these called in order if th
 Routes can also be declared in YAML.
 
 ### Config & helpers
-`config('app.foo', $default)` reads/writes the merged config. `src/helpers.php` defines global functions used throughout host apps: `config()`, `app()`, `trans()`/`appSetLocale()`/`appGetLocale()`, `render()` (Twig), `validate()` (Illuminate Validation), `csrfToken()`/`ionToken()`/`csrfCheck()`, `abort()`, `toJson()`/`toObject()`/`toString()`, `display()`, `newMailerDsn()`, `debugQuery()`. When adding helpers, wrap each in `if (!function_exists(...))`.
+`config('app.foo', $default)` reads/writes the merged config. `src/helpers.php` defines global functions used throughout host apps: `config()`, `app()`, `trans()`/`appSetLocale()`/`appGetLocale()`, `render()` (Twig), `validate()` (Illuminate Validation), `csrfToken()`/`ionToken()`/`csrfCheck()`, `abort()`, `toJson()`/`toObject()`/`toString()`, `display()`, `newMailerDsn()`, `debugQuery()`, plus Laravel-compatible path globals `base_path()`/`app_path()`/`config_path()`/`database_path()`/`public_path()`/`storage_path()`/`resource_path()` (mapped to `Ions\Bundles\Path`; needed because Illuminate components call these globals — e.g. file-based SQLite). When adding helpers, wrap each in `if (!function_exists(...))`.
 
 ### Database (`src/Foundation/RegisterDB.php`)
 Driven by `config('app.database_engine')` which may contain `'db'` (Illuminate Eloquent via Capsule `Manager`, bound as container `db`/`db.connection`/`db.schema`) and/or `'redbean'` (RedBeanPHP). Connections come from `config/database.php`. `RegisterDB::boot()` is idempotent and called per-request from controllers. `Ions\Support\DB` extends the Illuminate `DB` facade.

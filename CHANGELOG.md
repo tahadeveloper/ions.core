@@ -14,6 +14,9 @@ For migration instructions see [UPGRADE-4.5.md](UPGRADE-4.5.md) (4.4 → 4.5),
 
 ## [Unreleased]
 
+### Fixed
+- **Laravel-compatible path globals**: `src/helpers.php` now defines `base_path()`, `app_path()`, `config_path()`, `database_path()`, `public_path()`, `storage_path()` and `resource_path()`, each mapped to `Ions\Bundles\Path` with Laravel semantics (empty arg → directory root with no trailing slash; sub-path joined with a single separator). Fixes a fatal `Call to undefined function Illuminate\Database\Connectors\base_path()` when using file-based SQLite, where Illuminate components call the global `base_path()`.
+
 ## [4.5.0] - 2026-06-11
 
 The Phase 12 release: hardening, debt paydown, and three additive feature
