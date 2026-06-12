@@ -297,6 +297,26 @@ Both directory names are supported: `app/` is checked first (the convention sinc
 
 ---
 
+## Reference application
+
+[`examples/taskflow/`](examples/taskflow/) is a complete, working host
+application — a project/task tracker — that exercises every framework
+subsystem once and ships its own Pest suite as living documentation. It is
+path-linked to this working-tree core (`repositories: path → ../../`,
+symlinked), so it runs against the exact code in this repo and a dedicated
+CI `example` job keeps it green.
+
+It dogfoods the public API end-to-end: registration + signed email
+verification, TOTP two-factor, session + JWT auth with Gate policies,
+project/task CRUD with route-model binding, FormRequests, pagination and
+`IonUpload` attachments, queued jobs, notifications (mail + database),
+mailables, the cron scheduler, signed/expiring share links, response
+caching, encryption-at-rest, and the outbound HTTP client. See its
+[README](examples/taskflow/README.md) for the full feature → subsystem map
+and `tests/FeatureJourneyTest.php` for the whole journey in one narrative.
+
+---
+
 ## License
 
 MIT — see [LICENSE.md](LICENSE.md).
