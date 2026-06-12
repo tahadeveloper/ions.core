@@ -1,0 +1,14 @@
+/vendor/
+/composer.lock
+/.env
+/.phpunit.cache/
+/var/cache/*
+!/var/cache/.gitkeep
+/var/logs/*
+!/var/logs/.gitkeep
+/var/templates/*
+!/var/templates/.gitkeep
+/var/app.key
+/database/*.sqlite
+/public/uploads/*
+!/public/uploads/.gitkeep

@@ -1,0 +1,21 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+|--------------------------------------------------------------------------
+| Console entry point
+|--------------------------------------------------------------------------
+| Boots the framework container and runs the console Kernel, which registers
+| the framework commands (make:*, migrate, queue:work, optimize, …) plus
+| this application's commands: the config('console.commands') list and any
+| classes auto-discovered from app/Commands.
+|
+|     php bin/ions list
+|     php bin/ions make:command SendReports
+*/
+
+require __DIR__ . '/../vendor/autoload.php';
+
+exit(Ions\Console\Kernel::boot()->run());
