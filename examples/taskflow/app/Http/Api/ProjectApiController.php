@@ -54,7 +54,8 @@ final class ProjectApiController extends ApiController
         $project = Project::query()->create([
             'owner_id' => $user->getKey(),
             'name' => $data['name'],
-            'note' => $data['note'] ?? null,
+            // Encrypt the note at rest (13.6) — symmetric with the web controller.
+            'note' => Project::encryptNote($data['note'] ?? null),
         ]);
 
         return ProjectResource::make($project);
