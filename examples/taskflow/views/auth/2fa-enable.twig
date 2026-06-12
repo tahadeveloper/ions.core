@@ -1,0 +1,25 @@
+{% extends "auth/layout.twig" %}
+{% block title %}Enable two-factor · Taskflow{% endblock %}
+{% block body %}
+    <h1>Enable two-factor</h1>
+
+    <p class="note">
+        Scan this with an authenticator app. A real app renders the URI below as a
+        QR code (with any QR library); the framework only emits the otpauth URI:
+    </p>
+    <p><a href="{{ otpauth_uri }}"><code>{{ otpauth_uri }}</code></a></p>
+    <p class="note">Or enter the secret manually: <code>{{ secret }}</code></p>
+
+    <p class="note">Save these one-time recovery codes somewhere safe:</p>
+    <ul class="note">
+        {% for code in recovery_codes %}<li><code>{{ code }}</code></li>{% endfor %}
+    </ul>
+
+    <form method="post" action="{{ appUrl('2fa') }}">
+        {{ ionToken('web') }}
+        <label>Enter the 6-digit code to confirm
+            <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" autofocus>
+        </label>
+        <button type="submit">Confirm &amp; enable</button>
+    </form>
+{% endblock %}

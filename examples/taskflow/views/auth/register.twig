@@ -1,0 +1,29 @@
+{% extends "auth/layout.twig" %}
+{% block title %}Register · Taskflow{% endblock %}
+{% block body %}
+    <h1>Create your account</h1>
+
+    {% if errors().any() %}
+        <ul class="errors">
+            {% for message in errors().all() %}<li>{{ message }}</li>{% endfor %}
+        </ul>
+    {% endif %}
+
+    <form method="post" action="{{ appUrl('register') }}">
+        {{ ionToken('web') }}
+        <label>Name
+            <input type="text" name="name" value="{{ old('name') }}" autofocus>
+        </label>
+        <label>Email
+            <input type="email" name="email" value="{{ old('email') }}">
+        </label>
+        <label>Password
+            <input type="password" name="password">
+        </label>
+        <label>Confirm password
+            <input type="password" name="password_confirmation">
+        </label>
+        <button type="submit">Register</button>
+    </form>
+    <p class="note">Already have an account? <a href="{{ appUrl('login') }}">Sign in</a>.</p>
+{% endblock %}
