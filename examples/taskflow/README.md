@@ -276,8 +276,32 @@ throwaway environment (`SESSION_DRIVER=array`, `APP_DEBUG=true`, a dummy
 | `database/schemas/` | Migrations (`ions migrate` discovers `database/schemas/*.php`). |
 | `database/factories/` | Model factories (`Database\Factories\…`). |
 | `database/seeders/` | Seeders (`Database\Seeders\DemoSeeder`). |
-| `tests/` | Pest suite (`SmokeTest` boot gate, `AuthTest`, `CrudTest`, `AsyncTest`, `SharingTest`, `DatabaseTest`). |
+| `tests/` | Pest suite (`SmokeTest` boot gate, `AuthTest`, `CrudTest`, `AsyncTest`, `SharingTest`, `DatabaseTest`, `FeatureJourneyTest`). |
 
-> The full feature → subsystem coverage map (auth, CRUD, uploads, jobs, mail,
-> scheduler, signed links, response cache, encryption) lands with the
-> coverage suite in a later sub-phase (13.7).
+## Feature → subsystem coverage map
+
+Each user-facing feature maps to the Ions subsystem(s) it exercises and the
+test file(s) that cover it. The per-feature suites test each capability in
+isolation; `FeatureJourneyTest` threads them all through one end-to-end user
+story (register → verify → 2FA → project/task/attachment → assign → comment →
+done → share → cached board → scheduler), asserting the data stays consistent.
+
+| Feature | Ions subsystem(s) | Test file(s) |
+| --- | --- | --- |
+| Registration + email verify | `EmailVerification`, signed URLs, notifications, FormRequest | `AuthTest`, `FeatureJourneyTest` |
+| Two-factor (TOTP) | `Ions\Auth\TwoFactor`, `Encrypter` (secret at rest) | `AuthTest`, `FeatureJourneyTest` |
+| Session login + JWT API login | host session auth, `Ions\Auth\Http\AuthController` (JWT) | `AuthTest`, `FeatureJourneyTest` |
+| Gate / policies | `Ions\Auth\Gate`, `ProjectPolicy` / `TaskPolicy` | `AuthTest`, `CrudTest` |
+| Project / task CRUD + route-model binding | routing, route-model binding, Eloquent | `CrudTest`, `FeatureJourneyTest` |
+| FormRequest validation + redirect-back | Illuminate Validation, web form flow (errors/old) | `CrudTest`, `AuthTest` |
+| Pagination | `paginate()` + the `pagination()` Twig function | `CrudTest` |
+| File uploads | `IonUpload` (magic-bytes + allow-list), `Storage::fake()` | `CrudTest`, `FeatureJourneyTest` |
+| Jobs / queue | `Ions\Queue\Job`, `dispatch()`, in-process `queue:work` | `AsyncTest`, `FeatureJourneyTest` |
+| Notifications (mail + db) | `Ions\Notifications`, mail + database channels | `AsyncTest`, `FeatureJourneyTest` |
+| Mailables | `Ions\Mail\Mailable` (`WelcomeMail`, `DigestMail`) | `AsyncTest`, `FeatureJourneyTest` |
+| Scheduler | `App\Schedule` + `Ions\Schedule` (prune / weekly digest) | `AsyncTest`, `FeatureJourneyTest` |
+| Signed / expiring links | `signedRoute()`, `UrlSigner`, `signed` middleware | `SharingTest`, `FeatureJourneyTest` |
+| Response cache | `cache.response` middleware, `ResponseCache` (MISS → HIT) | `SharingTest`, `FeatureJourneyTest` |
+| Encryption at rest | `Ions\Security\Encrypter` (`Project.note`, 2FA secret) | `SharingTest`, `AuthTest`, `FeatureJourneyTest` |
+| HTTP client | `Ions\Support\Http` + `Http::fake()` (completion webhook) | `SharingTest`, `FeatureJourneyTest` |
+| Migrations + factories + seeder | `database/{schemas,factories,seeders}`, Eloquent | `DatabaseTest` |
