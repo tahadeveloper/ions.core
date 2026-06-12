@@ -1,0 +1,7 @@
+# Keep development-only trees out of the `ionzile/core` Composer dist archive
+# (composer install --prefer-dist / Packagist tarball). The reference app,
+# the test suite, the docs and the benchmarks never ship to consumers.
+examples/ export-ignore
+tests/    export-ignore
+docs/     export-ignore
+bench/    export-ignore
