@@ -58,3 +58,21 @@ jobs:
           MYSQL_USERNAME: "root"
           MYSQL_PASSWORD: "root"
         run: composer test
+
+  # ── Example job: runs the in-repo Taskflow reference app's Pest suite against
+  #    the working-tree core. The example path-links ../../ (symlink: true), so
+  #    the CORE deps must be installed at the repo root first for the symlink
+  #    target to resolve. The example uses SQLite :memory: (no DB service).
+  example:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: openssl, zip, pdo_sqlite
+          coverage: none
+      # Install core deps at the repo root so the path-repo symlink resolves.
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer install --no-interaction --prefer-dist --working-dir=examples/taskflow
+      - run: composer test --working-dir=examples/taskflow
