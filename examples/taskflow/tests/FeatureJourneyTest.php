@@ -45,7 +45,6 @@ use App\Notifications\TaskAssigned;
 use App\Schedule;
 use Ions\Auth\EmailVerification;
 use Ions\Auth\TwoFactor;
-use Ions\Bundles\Path;
 use Ions\Filesystem\Storage;
 use Ions\Security\Encrypter;
 use Ions\Support\Http;
@@ -187,8 +186,9 @@ test('the full Taskflow journey threads every subsystem with consistent end stat
     expect($attachment)->not->toBeNull()
         ->and($attachment->original_name)->toBe('diagram.png')
         ->and($attachment->path)->toStartWith('attachments/');
-    // The validated write landed on the FAKE disk, never the real uploads dir.
-    $disk->assertStored(Path::files('attachments') . '/' . basename((string) $attachment->path));
+    // The validated write landed on the FAKE (private) disk at its recorded
+    // key — under attachments/, never the public web root.
+    $disk->assertStored((string) $attachment->path);
 
     // -- 8. ASSIGN THE TASK (dispatch the notification job) -------------------
     // Subsystem: TaskController::assign → dispatch(SendTaskAssignedNotification).

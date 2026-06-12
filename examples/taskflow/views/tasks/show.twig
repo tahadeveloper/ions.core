@@ -13,7 +13,7 @@
     {% if attachments|length > 0 %}
         <ul class="list">
             {% for attachment in attachments %}
-                <li>{{ attachment.original_name }} <span class="pill">{{ attachment.size }} bytes</span></li>
+                <li><a href="{{ appUrl('projects/' ~ project.id ~ '/tasks/' ~ task.id ~ '/attachments/' ~ attachment.id) }}">{{ attachment.original_name }}</a> <span class="pill">{{ attachment.size }} bytes</span></li>
             {% endfor %}
         </ul>
     {% else %}

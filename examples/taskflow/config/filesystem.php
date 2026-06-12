@@ -10,9 +10,13 @@ return [
         // BC: IonDisk/IonUpload read filesystem.disks.default for their adapter.
         'default' => env('FILESYSTEM_DISK', 'local'),
 
+        // The default 'local' disk is PRIVATE: it roots under var/storage —
+        // OUTSIDE the public web root — so task attachments written here are
+        // NOT directly fetchable by URL. They are served only through the
+        // authorized TaskController download action (which streams them).
         'local' => [
             'driver' => 'local',
-            'root' => \Ions\Bundles\Path::public('uploads'),
+            'root' => \Ions\Bundles\Path::var('storage'),
         ],
 
         's3' => [

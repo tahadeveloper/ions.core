@@ -23,7 +23,6 @@ use App\Models\Attachment;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
-use Ions\Bundles\Path;
 use Ions\Filesystem\Storage;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
@@ -157,10 +156,9 @@ test('a task create with a valid attachment stores the file and records an Attac
         ->and($attachment->original_name)->toBe('diagram.png')
         ->and($attachment->path)->toStartWith('attachments/');
 
-    // The file landed on the FAKE disk (key = the absolute dir IonUpload wrote
-    // to + the stored name), and the recorded path's basename matches it.
-    $storeName = basename((string) $attachment->path);
-    $fake->assertStored(Path::files('attachments') . '/' . $storeName);
+    // The file landed on the FAKE (private) disk at exactly the recorded
+    // disk-relative key — under attachments/, NOT the public web root.
+    $fake->assertStored((string) $attachment->path);
 });
 
 // --- Web: attachment rejection (no write outside uploads) -------------------

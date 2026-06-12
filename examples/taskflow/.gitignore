@@ -8,6 +8,8 @@
 !/var/logs/.gitkeep
 /var/templates/*
 !/var/templates/.gitkeep
+/var/storage/*
+!/var/storage/.gitkeep
 /var/app.key
 /database/*.sqlite
 /public/uploads/*

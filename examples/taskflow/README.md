@@ -85,20 +85,42 @@ exercise the framework's CRUD surface. All web routes gate on
 - **Pagination** — `index` calls `$query->paginate(5)`; the `pagination()` Twig
   function renders the page links and preserves the current query string. The
   API index returns a `ResourceCollection` with `data` + `meta` + `links`.
-- **Uploads** — a task may carry an `attachment`. `TaskController` stores it
-  through `IonUpload::store($file, Path::files('attachments'))`, which validates
-  the extension allow-list **and** the magic bytes before any write (active
-  types such as `.svg`/`.php` are denied, traversal targets refused, oversize
-  files rejected). On success an `Attachment` row records the relative path; on
-  rejection the user is redirected back with an error and **nothing** is written
-  outside the uploads root.
+- **Uploads (private + authorized download)** — a task may carry an
+  `attachment`. Before any write, `TaskController` validates it with the
+  framework `UploadValidator` (the same engine `IonUpload` uses): the extension
+  allow-list **and** the magic bytes must agree (active types such as
+  `.svg`/`.php` are denied, content/extension mismatches rejected), plus a 2 MiB
+  cap. The validated file is then written through the `Ions\Filesystem\Storage`
+  abstraction onto the **PRIVATE default disk** — for `local` that disk is rooted
+  at `var/storage` (config/filesystem.php), **outside** the public web root, so
+  attachments are **not** directly fetchable by URL; for `s3` it is the bucket.
+  An `Attachment` row records the disk-relative key (e.g. `attachments/{random}.png`);
+  on rejection the user is redirected back with an error and **nothing** is
+  written.
+
+  Attachments are served only through an authorized, route-model-bound action —
+  `GET /projects/{project}/tasks/{task}/attachments/{attachment}` (named
+  `tasks.attachments.show`, gated by `['web.auth','verified']`). It asserts the
+  attachment belongs to the bound task and the task to the bound project (404
+  otherwise), then `authorize('view', $task)` (members only — a non-member gets
+  a **403**). Serving is **storage-aware**: on a **local** disk it streams the
+  bytes from the private store as a `Content-Disposition: attachment` download
+  (`Storage::download()`); on **s3** it redirects to a short-lived (5-minute)
+  **presigned URL** (`Storage::temporaryUrl()`), so the bytes never proxy through
+  the app. The branch is chosen by capability — `temporaryUrl()` succeeds on s3
+  and throws on local/memory, where we fall back to streaming. The task show page
+  links each attachment to this route.
 - **API Resources** — `ProjectResource` / `TaskResource` (`app/Http/Resources/`)
   shape the single-`data` JSON envelope returned by the API controllers.
 
 The CRUD surface is covered end-to-end in `tests/CrudTest.php` — including the
 upload tests, which use `Ions\Filesystem\Storage::fake()` so the validated
-write is intercepted onto an in-memory disk and never touches the real
-`public/uploads`.
+write is intercepted onto an in-memory disk and never touches the real private
+store. The private-storage / authorized-download security behaviour
+(member-only **200** stream with the right `Content-Disposition` + bytes,
+non-member **403**, cross-task/cross-project **404**, the stored key never under
+the public root, and validation still rejecting disallowed/mismatched types)
+lives in `tests/AttachmentTest.php`.
 
 ## Async: jobs, notifications, mail &amp; the scheduler
 
@@ -277,7 +299,7 @@ throwaway environment (`SESSION_DRIVER=array`, `APP_DEBUG=true`, a dummy
 | `database/schemas/` | Schema dumps written by `ions schema:dump`, replayed by `ions migrate:rollback`. |
 | `database/factories/` | Model factories (`Database\Factories\…`). |
 | `database/seeders/` | Seeders (`Database\Seeders\DemoSeeder`). |
-| `tests/` | Pest suite (`SmokeTest` boot gate, `AuthTest`, `CrudTest`, `AsyncTest`, `SharingTest`, `DatabaseTest`, `FeatureJourneyTest`). |
+| `tests/` | Pest suite (`SmokeTest` boot gate, `AuthTest`, `CrudTest`, `AttachmentTest`, `AsyncTest`, `SharingTest`, `DatabaseTest`, `FeatureJourneyTest`). |
 
 ## Feature → subsystem coverage map
 
@@ -296,7 +318,8 @@ done → share → cached board → scheduler), asserting the data stays consist
 | Project / task CRUD + route-model binding | routing, route-model binding, Eloquent | `CrudTest`, `FeatureJourneyTest` |
 | FormRequest validation + redirect-back | Illuminate Validation, web form flow (errors/old) | `CrudTest`, `AuthTest` |
 | Pagination | `paginate()` + the `pagination()` Twig function | `CrudTest` |
-| File uploads | `IonUpload` (magic-bytes + allow-list), `Storage::fake()` | `CrudTest`, `FeatureJourneyTest` |
+| File uploads (private store + magic-bytes) | `UploadValidator` (magic-bytes + allow-list), `Ions\Filesystem\Storage` (private disk), `Storage::fake()` | `CrudTest`, `AttachmentTest`, `FeatureJourneyTest` |
+| Authorized, storage-aware attachment download | `Storage::download()` (local stream) / `Storage::temporaryUrl()` (s3 presigned), route-model binding, `TaskPolicy` | `AttachmentTest` |
 | Jobs / queue | `Ions\Queue\Job`, `dispatch()`, in-process `queue:work` | `AsyncTest`, `FeatureJourneyTest` |
 | Notifications (mail + db) | `Ions\Notifications`, mail + database channels | `AsyncTest`, `FeatureJourneyTest` |
 | Mailables | `Ions\Mail\Mailable` (`WelcomeMail`, `DigestMail`) | `AsyncTest`, `FeatureJourneyTest` |

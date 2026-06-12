@@ -62,6 +62,11 @@ Route::post('/projects/{project}/delete', ProjectController::class . '::destroy'
 Route::get('/projects/{project}/tasks/create', TaskController::class . '::create')->middleware($crud);
 Route::post('/projects/{project}/tasks', TaskController::class . '::store')->middleware($crud);
 Route::get('/projects/{project}/tasks/{task}', TaskController::class . '::show')->middleware($crud);
+// Authorized, storage-aware attachment download (member-gated like show):
+// local disk streams the bytes from the PRIVATE store; s3 redirects to a
+// short-lived presigned URL. {attachment} is route-model-bound; the action
+// asserts it belongs to the bound task (404 otherwise).
+Route::get('/projects/{project}/tasks/{task}/attachments/{attachment}', TaskController::class . '::downloadAttachment', [], 'tasks.attachments.show')->middleware($crud);
 Route::get('/projects/{project}/tasks/{task}/edit', TaskController::class . '::edit')->middleware($crud);
 Route::post('/projects/{project}/tasks/{task}', TaskController::class . '::update')->middleware($crud);
 Route::post('/projects/{project}/tasks/{task}/delete', TaskController::class . '::destroy')->middleware($crud);
