@@ -208,10 +208,27 @@ final class ViewFactory
             $csrf = '';
         }
 
+        // tJson: the locale translations as JSON, consumed by client-side i18n.
+        // Seeded here (even as '') so the global is REGISTERED at env-build time.
+        // BaseController::_loadInit() and the render() helper later call
+        // addGlobal('tJson', …) once Localization::init() has run — Twig forbids
+        // ADDING a new global after the environment is initialized but allows
+        // UPDATING an existing one, so pre-registering it keeps those per-request
+        // calls safe. Without this, a process that first initializes the shared
+        // env via some other render (e.g. a Mailable's Twig view) — common in
+        // worker mode — would throw "Unable to add global \"tJson\"" on the next
+        // controller render.
+        $tJson = '';
+        if (isset(Localization::$localization)) {
+            $json = Localization::localeJson((string) config('app.localization.locale', 'en'));
+            $tJson = is_string($json) ? $json : '';
+        }
+
         return [
             'appUrl' => config('app.app_url'),
             '_trans' => $trans,
             '_csrf_token' => $csrf,
+            'tJson' => $tJson,
         ];
     }
 }
