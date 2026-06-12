@@ -2,10 +2,24 @@
 {% block title %}{{ project.name }} · Taskflow{% endblock %}
 {% block body %}
     <h1>{{ project.name }}</h1>
-    {% if project.note %}<p class="note">{{ project.note }}</p>{% endif %}
+    {# `note` is decrypted in the controller (encrypted at rest, 13.6). #}
+    {% if note %}<p class="note">{{ note }}</p>{% endif %}
+
+    {% if status %}<p class="msg status">{{ status }}</p>{% endif %}
+    {% if error %}<p class="msg error">{{ error }}</p>{% endif %}
+
+    {% if shareUrl %}
+        <p class="note">Public read-only board link (expires in 7 days):<br>
+            <code>{{ shareUrl }}</code></p>
+    {% endif %}
 
     <p class="note">
         <a href="{{ appUrl('projects/' ~ project.id ~ '/edit') }}">Edit</a> ·
+        <a href="{{ appUrl('projects/' ~ project.id ~ '/share') }}"
+           onclick="event.preventDefault();this.nextElementSibling.submit();">Create share link</a>
+        <form method="post" action="{{ appUrl('projects/' ~ project.id ~ '/share') }}" style="display:none">
+            {{ ionToken('web') }}
+        </form> ·
         <a href="{{ appUrl('projects') }}">All projects</a>
     </p>
 

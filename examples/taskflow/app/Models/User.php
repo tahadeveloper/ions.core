@@ -25,6 +25,7 @@ use Ions\Database\HasIonsFactory;
  * @property ?string                $email_verified_at
  * @property ?string                $two_factor_secret
  * @property ?string                $two_factor_recovery_codes
+ * @property bool                   $notifications_opt_out
  */
 class User extends Model implements Authenticatable, VerifiesEmail
 {
@@ -40,6 +41,12 @@ class User extends Model implements Authenticatable, VerifiesEmail
         'email_verified_at',
         'two_factor_secret',
         'two_factor_recovery_codes',
+        'notifications_opt_out',
+    ];
+
+    /** @var array<string, string> */
+    protected $casts = [
+        'notifications_opt_out' => 'boolean',
     ];
 
     /** @var list<string> */

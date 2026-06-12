@@ -62,7 +62,12 @@ final class ProjectController extends BaseController
 
         return $this->view('show', [
             'project' => $project,
+            // The note is encrypted at rest; decrypt it here for the authorized
+            // viewer (authorize('view') already passed). noteText() returns null
+            // on a DecryptException, so the page never breaks on a bad value.
+            'note' => $project->noteText(),
             'tasks' => $project->tasks()->orderByDesc('id')->get(),
+            'shareUrl' => flash('shareUrl'),
             'status' => flash('status'),
             'error' => flash('error'),
         ]);
@@ -81,7 +86,8 @@ final class ProjectController extends BaseController
         $project = Project::query()->create([
             'owner_id' => $user->getKey(),
             'name' => $data['name'],
-            'note' => $data['note'] ?? null,
+            // Encrypt the note at rest (13.6): the column holds ciphertext only.
+            'note' => Project::encryptNote($data['note'] ?? null),
         ]);
 
         return redirect('/projects/' . $project->getKey())
@@ -92,7 +98,8 @@ final class ProjectController extends BaseController
     {
         $this->authorize('update', $project);
 
-        return $this->view('edit', ['project' => $project]);
+        // The form pre-fills the decrypted note (encrypted at rest, 13.6).
+        return $this->view('edit', ['project' => $project, 'note' => $project->noteText()]);
     }
 
     public function update(Request $request, Project $project): RedirectResponse
@@ -102,7 +109,7 @@ final class ProjectController extends BaseController
 
         $project->update([
             'name' => $data['name'],
-            'note' => $data['note'] ?? null,
+            'note' => Project::encryptNote($data['note'] ?? null),
         ]);
 
         return redirect('/projects/' . $project->getKey())

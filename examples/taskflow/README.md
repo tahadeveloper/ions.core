@@ -150,6 +150,55 @@ in-process worker against the `database` queue connection.
   `DemoSeeder` so you can explore the app with `ions serve`. Demo users
   `alice@example.com` / `bob@example.com` sign in with the password `password`.
 
+## Sharing, caching, HTTP &amp; encryption
+
+The 13.6 surface — signed URLs, the response cache, the HTTP client and the
+encrypter — is covered in `tests/SharingTest.php`.
+
+- **Signed, expiring share links** — `ShareController::share`
+  (`POST /projects/{project}/share`, owner-only) mints a link with
+  `signedRoute('share.board', ['project' => id], now + 7 days)`. The framework's
+  `UrlSigner` HMACs the path+query over `APP_KEY` and stamps an `expires` epoch.
+- **Public read-only board** — `GET /share/board/{project}` (named `share.board`,
+  guarded by `['signed', 'cache.response']`) renders an anonymous, read-only
+  board (project name + tasks). The `signed` middleware verifies the signature
+  and expiry up front, so **anyone with a valid link** reaches it and a
+  **tampered or expired link is rejected with a 403** — no auth, no session.
+- **Response caching** — because the board is anonymous and sessionless, the
+  `cache.response` middleware (12.5) caches the `200`: the first hit is stamped
+  `X-Ions-Cache: MISS`, the second `HIT` (served without re-running the
+  controller). An authenticated request on the same route is **never** cached —
+  `ResponseCache::requestIsStateful()` sees the session user and skips the store.
+- **One-click unsubscribe** — `ShareController::unsubscribe`
+  (`GET /unsubscribe/{user}`, named `share.unsubscribe`, guarded by `signed`)
+  flips the user's `notifications_opt_out` flag. The signature **is** the
+  authorization, so no login is needed; a tampered link `403`s and never flips
+  the flag.
+- **Encrypted note at rest** — `Project.note` is encrypted with the framework
+  `Encrypter` (`app('encrypter')`, XChaCha20-Poly1305 keyed off `APP_KEY`):
+  `Project::encryptNote()` on write (web + API create/update), `noteText()` on
+  read (decrypts for an authorized owner/member, returns `null` on a
+  `DecryptException`). The DB column only ever holds the `iev1:` ciphertext; a
+  non-member is `403`'d by `ProjectPolicy::view` and never sees the plaintext.
+- **HTTP client + webhook** — `app/Services/AvatarFetcher.php` uses the `Http`
+  facade (8.5). When a task transitions to `done`
+  (`POST /projects/{project}/tasks/{task}` with `status=done`), it POSTs a
+  completion webhook; it also exposes a Gravatar avatar-URL probe. Tests assert
+  the call with `Http::fake()` (no real network).
+
+> **Caching note.** The public board controller (`PublicBoardController`)
+> returns a normal `return new View('share/board.twig', …)` and is still
+> response-cached. That works because the board prints **no CSRF token and no
+> form**: since core 4.6 the `ViewFactory`'s `_csrf_token` Twig global is a
+> lazy `Stringable` (`CsrfTokenProxy`) that persists a `_csrf/web` session
+> entry **only when a template actually outputs `{{ _csrf_token }}`**. A
+> form-less page never writes the session, so the request stays anonymous and
+> `cache.response` caches it (2nd hit → `X-Ions-Cache: HIT`); a page with a
+> form (using `{{ ionToken('web') }}`) writes the session and is correctly
+> never cached. This was the 13.6 dogfood finding: before 4.6 the global was
+> seeded eagerly on every render, which forced this controller to bypass the
+> view layer with a raw Twig environment — the core fix removed that rough edge.
+
 ## Quick start
 
 ```bash
@@ -208,7 +257,8 @@ throwaway environment (`SESSION_DRIVER=array`, `APP_DEBUG=true`, a dummy
 | `bin/ions` | Console entry point (`migrate`, `serve`, `doctor`, …). |
 | `config/` | Per-file config arrays (secure defaults; SQLite by default). |
 | `app/Models/` | Eloquent models (`User`, `Project`, `Task`, `Attachment`, `Comment`). |
-| `app/Http/Controllers/` | Web controllers (`HomeController`, `Auth/*`, `ProjectController`, `TaskController`, `NotificationController`). |
+| `app/Http/Controllers/` | Web controllers (`HomeController`, `Auth/*`, `ProjectController`, `TaskController`, `NotificationController`, `ShareController`, `PublicBoardController`). |
+| `app/Services/` | `AvatarFetcher` (HTTP client: completion webhook + avatar probe). |
 | `app/Http/Api/` | JSON API controllers (`AuthController`, `ProjectApiController`, `TaskApiController`). |
 | `app/Jobs/` | Queue jobs (`SendTaskAssignedNotification`, `FlakyDemoJob`). |
 | `app/Notifications/` | Notifications (`TaskAssigned`, `CommentAdded`; mail + database channels). |
@@ -226,7 +276,7 @@ throwaway environment (`SESSION_DRIVER=array`, `APP_DEBUG=true`, a dummy
 | `database/schemas/` | Migrations (`ions migrate` discovers `database/schemas/*.php`). |
 | `database/factories/` | Model factories (`Database\Factories\…`). |
 | `database/seeders/` | Seeders (`Database\Seeders\DemoSeeder`). |
-| `tests/` | Pest suite (`SmokeTest` boot gate, `AuthTest`, `CrudTest`, `DatabaseTest`). |
+| `tests/` | Pest suite (`SmokeTest` boot gate, `AuthTest`, `CrudTest`, `AsyncTest`, `SharingTest`, `DatabaseTest`). |
 
 > The full feature → subsystem coverage map (auth, CRUD, uploads, jobs, mail,
 > scheduler, signed links, response cache, encryption) lands with the

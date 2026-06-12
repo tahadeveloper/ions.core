@@ -13,6 +13,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use App\Notifications\CommentAdded;
+use App\Services\AvatarFetcher;
 use Ions\Bundles\IonUpload;
 use Ions\Bundles\Path;
 use Ions\Foundation\BaseController;
@@ -105,11 +106,20 @@ final class TaskController extends BaseController
         $this->authorize('update', $task);
         $data = UpdateTaskRequest::validate($request);
 
+        $wasDone = $task->status === Task::STATUS_DONE;
+        $newStatus = $data['status'] ?? $task->status;
+
         $task->update([
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
-            'status' => $data['status'] ?? $task->status,
+            'status' => $newStatus,
         ]);
+
+        // Fire the completion webhook on the todo/doing -> done transition only
+        // (8.5 Http client). Http::fake() intercepts this in tests.
+        if (!$wasDone && $newStatus === Task::STATUS_DONE) {
+            (new AvatarFetcher())->notifyTaskDone($task);
+        }
 
         $error = $this->storeAttachment($request, $task);
         if ($error !== null) {

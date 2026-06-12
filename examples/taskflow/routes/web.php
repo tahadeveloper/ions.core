@@ -9,6 +9,8 @@ use App\Http\Controllers\Auth\VerifyController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\PublicBoardController;
+use App\Http\Controllers\ShareController;
 use App\Http\Controllers\TaskController;
 use Ions\Bundles\Route;
 
@@ -66,6 +68,21 @@ Route::post('/projects/{project}/tasks/{task}/delete', TaskController::class . '
 // Assigning a task dispatches SendTaskAssignedNotification (13.5).
 Route::post('/projects/{project}/tasks/{task}/assign', TaskController::class . '::assign')->middleware($crud);
 Route::post('/projects/{project}/tasks/{task}/comment', TaskController::class . '::comment')->middleware($crud);
+
+// --- Sharing, signed links, public cached board (13.6) ----------------------
+// Owner generates a signed, 7-day-expiring link to the public board.
+Route::post('/projects/{project}/share', ShareController::class . '::share')->middleware($crud);
+
+// The PUBLIC read-only board: NO auth/session (anonymous → cacheable). 'signed'
+// verifies signedRoute()'s HMAC + expiry (tampered/expired → 403); 'cache.response'
+// serves the 2nd hit from cache (X-Ions-Cache: HIT).
+Route::get('/share/board/{project}', PublicBoardController::class . '::board', [], 'share.board')
+    ->middleware(['signed', 'cache.response']);
+
+// Signed one-click unsubscribe: the signature is the authorization, so no
+// login required — but a tampered link is rejected by 'signed' (403).
+Route::get('/unsubscribe/{user}', ShareController::class . '::unsubscribe', [], 'share.unsubscribe')
+    ->middleware(['signed']);
 
 // --- In-app notifications (13.5) --------------------------------------------
 // Lists the logged-in user's database-channel notifications.
