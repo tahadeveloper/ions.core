@@ -167,6 +167,51 @@ test('the job notifies the assignee: Mail::fake + Notifications::fake', function
     $notifications->assertSentTo($assignee, TaskAssigned::class);
 });
 
+test('posting a comment notifies the task assignee (CommentAdded)', function () {
+    $notifications = Notifications::fake();
+
+    $owner = User::factory()->create();
+    $assignee = User::factory()->create();
+    $project = projectWithMember($owner, $assignee);
+    $task = Task::factory()->create([
+        'project_id' => $project->getKey(),
+        'assignee_id' => $assignee->getKey(),
+        'title' => 'Review PR',
+    ]);
+
+    loginAsync($owner); // the owner comments → the assignee is notified
+
+    $this->post(
+        '/projects/' . $project->getKey() . '/tasks/' . $task->getKey() . '/comment',
+        ['body' => 'Looks good, ship it.']
+    )->assertRedirect();
+
+    expect($task->comments()->count())->toBe(1);
+    $notifications->assertSentTo($assignee, \App\Notifications\CommentAdded::class);
+});
+
+test('a comment by the assignee does not notify themselves', function () {
+    $notifications = Notifications::fake();
+
+    $owner = User::factory()->create();
+    $assignee = User::factory()->create();
+    $project = projectWithMember($owner, $assignee);
+    $task = Task::factory()->create([
+        'project_id' => $project->getKey(),
+        'assignee_id' => $assignee->getKey(),
+    ]);
+
+    loginAsync($assignee); // the assignee comments on their own task
+
+    $this->post(
+        '/projects/' . $project->getKey() . '/tasks/' . $task->getKey() . '/comment',
+        ['body' => 'On it.']
+    )->assertRedirect();
+
+    expect($task->comments()->count())->toBe(1);
+    $notifications->assertNothingSent();
+});
+
 test('the database channel writes a notifications row for the assignee', function () {
     // Real notifications dispatcher (no fake) so the DatabaseChannel + MailChannel
     // run; fake only the mailer so no SMTP is touched.

@@ -15,6 +15,7 @@
                     {{ n.message }}
                     {% if not n.read %}
                         <form method="post" action="/notifications/{{ n.id }}/read" style="display:inline">
+                            {{ ionToken('web') }}
                             <button type="submit">Mark read</button>
                         </form>
                     {% endif %}

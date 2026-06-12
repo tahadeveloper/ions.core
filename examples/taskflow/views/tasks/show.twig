@@ -32,4 +32,24 @@
         </label>
         <button type="submit">Upload</button>
     </form>
+
+    {# Comments — posting one notifies the task's assignee (CommentAdded). #}
+    <h2>Comments</h2>
+    {% if comments|length %}
+        <ul class="list">
+            {% for comment in comments %}
+                <li>{{ comment.body }} <span class="pill">#{{ comment.author_id }}</span></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="note">No comments yet.</p>
+    {% endif %}
+
+    <form method="post" action="{{ appUrl('projects/' ~ project.id ~ '/tasks/' ~ task.id ~ '/comment') }}">
+        {{ ionToken('web') }}
+        <label>Comment
+            <textarea name="body" rows="2"></textarea>
+        </label>
+        <button type="submit">Post comment</button>
+    </form>
 {% endblock %}

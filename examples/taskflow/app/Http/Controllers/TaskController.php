@@ -8,9 +8,11 @@ use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use App\Jobs\SendTaskAssignedNotification;
 use App\Models\Attachment;
+use App\Models\Comment;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use App\Notifications\CommentAdded;
 use Ions\Bundles\IonUpload;
 use Ions\Bundles\Path;
 use Ions\Foundation\BaseController;
@@ -55,6 +57,7 @@ final class TaskController extends BaseController
             'project' => $project,
             'task' => $task,
             'attachments' => $task->attachments()->orderByDesc('id')->get(),
+            'comments' => $task->comments()->orderBy('id')->get(),
             'status' => flash('status'),
             'error' => flash('error'),
         ]);
@@ -157,6 +160,38 @@ final class TaskController extends BaseController
 
         return redirect('/projects/' . $project->getKey() . '/tasks/' . $task->getKey())
             ->with('status', 'Task assigned.');
+    }
+
+    /**
+     * Post a comment on the task (member-only). Notifies the task's assignee
+     * — when it isn't the commenter — on the mail + database channels via the
+     * CommentAdded notification (the in-app list reads the database row).
+     */
+    public function comment(Request $request, Project $project, Task $task): RedirectResponse
+    {
+        $this->assertTaskInProject($project, $task);
+        $this->authorize('update', $task);
+
+        $body = trim((string) $request->request->get('body', ''));
+        $url = '/projects/' . $project->getKey() . '/tasks/' . $task->getKey();
+        if ($body === '') {
+            return back($url)->with('error', 'Comment cannot be empty.');
+        }
+
+        /** @var User $author */
+        $author = $request->attributes->get('auth_user');
+        $task->comments()->create(['author_id' => $author->getKey(), 'body' => $body]);
+
+        // Notify the assignee (unless they wrote the comment themselves).
+        $assigneeId = $task->assignee_id;
+        if ($assigneeId !== null && (int) $assigneeId !== $author->getKey()) {
+            $assignee = User::query()->find($assigneeId);
+            if ($assignee !== null) {
+                notify($assignee, new CommentAdded($task->getKey(), (string) $task->title, (string) $author->name));
+            }
+        }
+
+        return redirect($url)->with('status', 'Comment posted.');
     }
 
     /**

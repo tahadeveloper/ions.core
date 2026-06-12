@@ -65,6 +65,7 @@ Route::post('/projects/{project}/tasks/{task}', TaskController::class . '::updat
 Route::post('/projects/{project}/tasks/{task}/delete', TaskController::class . '::destroy')->middleware($crud);
 // Assigning a task dispatches SendTaskAssignedNotification (13.5).
 Route::post('/projects/{project}/tasks/{task}/assign', TaskController::class . '::assign')->middleware($crud);
+Route::post('/projects/{project}/tasks/{task}/comment', TaskController::class . '::comment')->middleware($crud);
 
 // --- In-app notifications (13.5) --------------------------------------------
 // Lists the logged-in user's database-channel notifications.
