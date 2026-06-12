@@ -21,7 +21,7 @@ use Ions\Http\ResourceCollection;
  * - show  — route-model-bound Project, gated by ProjectPolicy::view (403 for a
  *           non-member); a single-`data` ProjectResource.
  * - store — StoreProjectRequest validation (422 on bad input, JSON bag); the
- *           token user owns the new project; 201 ProjectResource.
+ *           token user owns the new project; a single-`data` ProjectResource.
  */
 final class ProjectApiController extends ApiController
 {
@@ -30,8 +30,9 @@ final class ProjectApiController extends ApiController
         $user = $this->user();
 
         $projects = Project::query()
-            ->where('owner_id', $user->getKey())
-            ->orWhereHas('members', fn ($q) => $q->where('users.id', $user->getKey()))
+            ->where(fn ($q) => $q
+                ->where('owner_id', $user->getKey())
+                ->orWhereHas('members', fn ($m) => $m->where('users.id', $user->getKey())))
             ->orderByDesc('id')
             ->paginate(5);
 

@@ -40,9 +40,12 @@ final class ProjectController extends BaseController
 
         // Owned + member projects, newest first. paginate() reads ?page from the
         // request via the DatabaseProvider's currentPageResolver.
+        // The owner-or-member condition is grouped so a future added filter
+        // (e.g. ->where('status', ...)) can't leak rows via OR precedence.
         $projects = Project::query()
-            ->where('owner_id', $user->getKey())
-            ->orWhereHas('members', fn ($q) => $q->where('users.id', $user->getKey()))
+            ->where(fn ($q) => $q
+                ->where('owner_id', $user->getKey())
+                ->orWhereHas('members', fn ($m) => $m->where('users.id', $user->getKey())))
             ->orderByDesc('id')
             ->paginate(5);
 
