@@ -18,5 +18,7 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Ions\Foundation\Kernel;
 
-Kernel::boot();
+// Pass the host root explicitly so the app boots under a symlinked
+// path-repository install too (local dev / monorepo).
+Kernel::boot(dirname(__DIR__));
 Kernel::run();

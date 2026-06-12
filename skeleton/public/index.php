@@ -18,5 +18,10 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Ions\Foundation\Kernel;
 
-Kernel::boot();
+// Pass the host root explicitly (this file lives at <root>/public/index.php).
+// Without it, Kernel resolves the root five directories up from the core
+// package — correct for a normal vendor/ install, but wrong when the core is
+// installed via a symlinked path repository (local dev / monorepo), where
+// __DIR__ resolves the symlink to the core's real location.
+Kernel::boot(dirname(__DIR__));
 Kernel::run();
