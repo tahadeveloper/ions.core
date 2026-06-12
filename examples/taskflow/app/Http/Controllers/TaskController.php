@@ -14,13 +14,16 @@ use App\Models\Task;
 use App\Models\User;
 use App\Notifications\CommentAdded;
 use App\Services\AvatarFetcher;
-use Ions\Bundles\IonUpload;
-use Ions\Bundles\Path;
+use DateTimeImmutable;
+use Ions\Filesystem\Storage;
 use Ions\Foundation\BaseController;
 use Ions\Http\RedirectResponse;
+use Ions\Security\UploadValidator;
 use Ions\Support\Request;
 use Ions\View\View;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -33,21 +36,40 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * Authorization delegates to TaskPolicy (which defers to the parent project's
  * ProjectPolicy): view/update for owner-or-member, delete owner-only.
  *
- * store()/update() accept an optional `attachment` file: it is stored through
- * IonUpload::store() — magic-bytes + extension allow-list validated, traversal
- * targets refused — and an Attachment row records the relative path. Disallowed
- * types (e.g. .svg/.php) and oversize files are rejected without writing, and
- * the user is redirected back with an error.
+ * store()/update() accept an optional `attachment` file: its extension
+ * allow-list AND magic bytes are validated (the same UploadValidator IonUpload
+ * uses — active types such as .svg/.php and content/extension mismatches are
+ * refused, oversize files rejected) BEFORE it is written, via the Storage
+ * abstraction, onto the PRIVATE default disk (var/storage for local; the bucket
+ * for s3) — never under the public web root. An Attachment row records the
+ * disk-relative key. On rejection the user is redirected back with an error and
+ * nothing is written.
+ *
+ * Attachments are downloadable only through show()'s authorized,
+ * member-gated downloadAttachment() action — storage-aware: a local disk
+ * streams the bytes (Content-Disposition: attachment), an s3 disk redirects to
+ * a short-lived (5-minute) presigned URL.
  */
 final class TaskController extends BaseController
 {
     protected string $viewPath = 'tasks';
 
-    /** Relative uploads sub-directory for task attachments. */
+    /** Disk-relative sub-directory (key prefix) for task attachments. */
     private const ATTACHMENT_DIR = 'attachments';
 
     /** Hard cap on an accepted attachment (bytes). */
     private const MAX_ATTACHMENT_BYTES = 2_097_152; // 2 MiB
+
+    /**
+     * Allow-list for attachment extensions (mirrors IonUpload's default).
+     * UploadValidator additionally denies active-content types (.php/.svg/…)
+     * and enforces magic-bytes agreement, regardless of this list.
+     *
+     * @var list<string>
+     */
+    private const ALLOWED_EXTENSIONS = [
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'zip',
+    ];
 
     public function show(Request $request, Project $project, Task $task): View
     {
@@ -205,11 +227,57 @@ final class TaskController extends BaseController
     }
 
     /**
+     * Stream/redirect an attachment download (member-only).
+     *
+     * The attachment is route-model-bound; we assert it belongs to the bound
+     * task AND the task to the bound project (404 otherwise), then authorize
+     * 'view' on the task (members only). Serving is storage-aware:
+     *   - s3 (or any disk supporting temporary URLs): redirect to a short-lived
+     *     (5-minute) presigned URL, so the bytes never proxy through the app;
+     *   - local (and other non-presignable disks): stream the file from the
+     *     PRIVATE disk as a Content-Disposition: attachment download.
+     *
+     * The stored path is a framework-generated disk key (never user input); we
+     * still reject any traversal segment defensively before serving.
+     */
+    public function downloadAttachment(Request $request, Project $project, Task $task, Attachment $attachment): RedirectResponse|StreamedResponse
+    {
+        $this->assertTaskInProject($project, $task);
+
+        if ((int) $attachment->task_id !== (int) $task->getKey()) {
+            throw new NotFoundHttpException('No such attachment on this task.');
+        }
+
+        $this->authorize('view', $task);
+
+        $path = (string) $attachment->path;
+        if ($path === '' || in_array('..', explode('/', str_replace('\\', '/', $path)), true)) {
+            throw new NotFoundHttpException('Invalid attachment path.');
+        }
+
+        // Storage-aware: prefer a short-lived presigned URL when the active disk
+        // supports it (s3). Local/memory disks throw, so we fall back to a
+        // direct stream from the private disk.
+        try {
+            $url = Storage::temporaryUrl($path, new DateTimeImmutable('+5 minutes'));
+
+            return redirect($url);
+        } catch (RuntimeException) {
+            return Storage::download($path, (string) $attachment->original_name);
+        }
+    }
+
+    /**
      * Store an uploaded `attachment` (when present) for the task, recording an
-     * Attachment row. Returns a human error string on rejection (oversize, or
-     * IonUpload's validation: disallowed extension, content/extension mismatch,
-     * traversal target) — nothing is written outside the uploads root in any of
-     * those cases — or null on success / when no file was sent.
+     * Attachment row. Returns a human error string on rejection (oversize,
+     * disallowed extension, or content/extension mismatch) — nothing is written
+     * in any of those cases — or null on success / when no file was sent.
+     *
+     * Validation mirrors IonUpload (the framework UploadValidator: allow-list +
+     * active-content deny-list + magic-bytes agreement) BUT the validated file
+     * is written through the Storage abstraction onto the PRIVATE default disk
+     * (var/storage for local; the bucket for s3), so attachments are never
+     * placed under the public web root. The recorded path is the disk key.
      */
     private function storeAttachment(Request $request, Task $task): ?string
     {
@@ -218,26 +286,34 @@ final class TaskController extends BaseController
             return null;
         }
 
-        // Cheap size gate before touching IonUpload.
+        // Cheap size gate first.
         if ((int) $file->getSize() > self::MAX_ATTACHMENT_BYTES) {
             return 'Attachment is too large (max 2 MiB).';
         }
 
+        // Same validation engine IonUpload uses: extension allow-list (with the
+        // active-content deny-list) AND magic-bytes agreement, BEFORE any write.
+        $validator = new UploadValidator(self::ALLOWED_EXTENSIONS, (array) config('app.uploads.mime_map', []));
+        $originalName = $file->getClientOriginalName();
+
+        if (!$validator->isAllowed($originalName)) {
+            return 'Attachment rejected: file extension not allowed';
+        }
+
+        if (!$validator->isContentValid($file->getPathname(), $originalName)) {
+            return 'Attachment rejected: file content does not match its extension';
+        }
+
         $size = (int) $file->getSize();
 
-        // Path::files() resolves the absolute uploads sub-dir (containment
-        // enforced); IonUpload validates magic-bytes + the allow-list and, under
-        // Storage::fake(), the write is intercepted onto the fake disk.
-        $result = IonUpload::store($file, Path::files(self::ATTACHMENT_DIR))->response();
-
-        if ((int) ($result['error'] ?? 1) !== 0) {
-            return 'Attachment rejected: ' . ($result['message'] ?? 'invalid file');
-        }
+        // Write onto the PRIVATE default disk under attachments/. Storage::fake()
+        // intercepts this onto the in-memory disk in tests. Returns the disk key.
+        $path = Storage::putFile(self::ATTACHMENT_DIR, $file);
 
         Attachment::query()->create([
             'task_id' => $task->getKey(),
-            'path' => self::ATTACHMENT_DIR . '/' . $result['store_name'],
-            'original_name' => $result['original_name'],
+            'path' => $path,
+            'original_name' => $originalName,
             'size' => $size,
         ]);
 
