@@ -121,7 +121,58 @@ test('migrate --install is idempotent when table already exists', function () {
     // Second run: table already exists — command should report so and NOT error.
     $tester->execute(['--install' => true]);
     expect($tester->getStatusCode())->toBe(0)
-        ->and($tester->getDisplay())->toContain('Migrations table exits.');
+        ->and($tester->getDisplay())->toContain('Migrations table exists.');
+});
+
+test('migrate without --install auto-creates the migrations table on a fresh database', function () {
+    $schema = Kernel::app()->get('db')->connection()->getSchemaBuilder();
+    $schema->dropIfExists('migrations');
+    $schema->dropIfExists('phase14_autocreate');
+
+    $base = makeMigrateHost('database/migrations', [
+        '_2000_CreateAutocreate.php' => <<<'PHP'
+            <?php
+
+            namespace App\Database\Schema;
+
+            use Illuminate\Database\Schema\Blueprint;
+            use Ions\Support\DB;
+
+            class _2000_CreateAutocreate
+            {
+                public function up(): void
+                {
+                    DB::connection()->getSchemaBuilder()->create('phase14_autocreate', function (Blueprint $table) {
+                        $table->id();
+                    });
+                }
+
+                public function down(): void
+                {
+                    DB::connection()->getSchemaBuilder()->dropIfExists('phase14_autocreate');
+                }
+            }
+            PHP,
+    ]);
+
+    $app = buildConsoleApp();
+    $app->add(new MigrateCommand());
+    $tester = new CommandTester($app->find('migrate'));
+
+    try {
+        \Ions\Bundles\Path::setBasePath($base);
+        // NO --install — the very first migrate must create the table itself.
+        $tester->execute([]);
+
+        expect($tester->getStatusCode())->toBe(0)
+            ->and($schema->hasTable('migrations'))->toBeTrue()
+            ->and($tester->getDisplay())->toContain('Migrations table created.')
+            ->and($schema->hasTable('phase14_autocreate'))->toBeTrue();
+    } finally {
+        \Ions\Bundles\Path::resetBasePath();
+        removeMigrateHost($base);
+        $schema->dropIfExists('phase14_autocreate');
+    }
 });
 
 // ---------------------------------------------------------------------------

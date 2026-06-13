@@ -3,9 +3,10 @@
 namespace {{ namespace }};
 
 use Faker\Factory;
+use Ions\Database\Seeder;
 use Ions\Support\DB;
 
-class {{ class }}
+class {{ class }} extends Seeder
 {
     protected string $table = '{{ table }}';
 

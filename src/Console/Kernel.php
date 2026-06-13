@@ -52,6 +52,7 @@ class Kernel
         \MakeFactoryCommand::class,
         \ControllerCommand::class,
         \MigrateCommand::class,
+        \SeedCommand::class,
         \RollBackCommand::class,
         \SchemaCommand::class,
         \DumpCommand::class,
