@@ -14,6 +14,8 @@ For migration instructions see [UPGRADE-4.5.md](UPGRADE-4.5.md) (4.4 → 4.5),
 
 ## [Unreleased]
 
+## [4.6.0] - 2026-06-13
+
 ### Changed
 - **BREAKING — migration/dump folders swapped to the Laravel layout.** The Ions database convention was inverted from Laravel: `make:schema` wrote runnable migration files to `database/schemas/` and `schema:dump` wrote dumps to `database/migrations/`. These roles are now swapped to match Laravel: **runnable migrations live in `database/migrations/`** (created by `make:schema`, run by `migrate`, deleted by `schema:dump --prune`) and **schema dumps live in `database/schemas/`** (written by `schema:dump`, replayed by `migrate:rollback`). Only the command target directories changed — the `App\Database\Schema` stub namespace, the `Path::database()` casing-normalization map values, and the legacy `{app|src}/Database` fallback chain are unchanged (a legacy host now reads runnable migrations from `{app|src}/Database/migrations`). **Action:** existing hosts must move runnable `database/schemas/*.php` → `database/migrations/` and any `database/migrations/*_schema.dump` → `database/schemas/`. See [UPGRADE-4.6.md](UPGRADE-4.6.md).
 
