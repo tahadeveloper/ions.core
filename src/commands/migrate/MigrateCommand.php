@@ -22,19 +22,9 @@ class MigrateCommand extends Command
         $table_name = config('database.migrations', 'migrations');
 
         if ($this->option('install')) {
-            Schema::connection($connection->getName());
-            if (!Schema::connection($connection->getName())->hasTable($table_name)) {
-                Schema::connection($connection->getName())->create($table_name, static function (Blueprint $table) {
-                    $table->id();
-                    $table->string('migration');
-                    $table->integer('batch');
-                });
-
-                $this->info('Migrations table created successfully.');
-                return;
-            }
-
-            $this->info('Migrations table exits.');
+            $this->info($this->ensureMigrationsTable($connection->getName(), $table_name)
+                ? 'Migrations table created successfully.'
+                : 'Migrations table exists.');
 
         } elseif ($this->option('refresh')) {
             foreach (glob(Path::database('migrations').'/*.php') as $file) {
@@ -49,6 +39,15 @@ class MigrateCommand extends Command
             $this->info('Schema removed tables successfully.');
         } else {
             $db_name  = $this->input->getOption('database') ?? 'default';
+
+            // Auto-create the bookkeeping table on first run — `migrate` should
+            // just work without a separate `migrate --install` step (Laravel
+            // parity). Without this, the very first `migrate` on a fresh database
+            // throws "Table 'migrations' doesn't exist" on the lookup below.
+            if ($this->ensureMigrationsTable($connection->getName(), $table_name)) {
+                $this->info('Migrations table created.');
+            }
+
             foreach (glob(Path::database('migrations').'/*.php') as $file) {
                 $class = basename($file, '.php');
                 //check if migration is already installed
@@ -64,6 +63,26 @@ class MigrateCommand extends Command
 
             $this->info('Migrated successfully.');
         }
+    }
+
+    /**
+     * Ensure the migrations bookkeeping table exists on the given connection,
+     * creating it if missing. Returns true when it was created, false when it
+     * already existed. Idempotent — safe to call on every `migrate`.
+     */
+    private function ensureMigrationsTable(string $connection, string $table): bool
+    {
+        if (Schema::connection($connection)->hasTable($table)) {
+            return false;
+        }
+
+        Schema::connection($connection)->create($table, static function (Blueprint $table) {
+            $table->id();
+            $table->string('migration');
+            $table->integer('batch');
+        });
+
+        return true;
     }
 
     /**
