@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests;
+
 use Ions\Testing\TestCase;
 
 final class ExampleTest extends TestCase
