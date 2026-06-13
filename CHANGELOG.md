@@ -14,6 +14,15 @@ For migration instructions see [UPGRADE-4.5.md](UPGRADE-4.5.md) (4.4 → 4.5),
 
 ## [Unreleased]
 
+## [4.7.0] - 2026-06-13
+
+### Added
+- **`db:seed` runner + composable `Ions\Database\Seeder`.** The framework could scaffold seeders (`make:seeder`) but had no command to run them — every host had to write its own. New `db:seed {--class= : defaults to DatabaseSeeder} {--database=}` resolves a seeder by FQCN, by the layout namespace (`Database\Seeders\X` on the host-root layout, `App\Database\Seeders\X` legacy), or by requiring the file directly when the host hasn't dumped autoload — then runs its `seed()` (or `run()`, Laravel-style). A new base `Ions\Database\Seeder` adds `call([A::class, B::class])` for composing seeders (a `DatabaseSeeder` orchestrating others); the `make:seeder` stub now extends it and the skeleton ships a `database/seeders/DatabaseSeeder.php`. Plain seeders — a class with `seed()` and no base (the previous shape) — still run unchanged (BC).
+
+### Fixed
+- **`migrate` auto-creates the migrations table on first run.** `php bin/ions migrate` on a fresh database threw `SQLSTATE[42S02] … Table 'migrations' doesn't exist`, because the bookkeeping table only existed after a separate `migrate --install`. `migrate` now creates it itself when missing (Laravel parity); `--install` remains as an explicit, idempotent alias. Also fixes the `Migrations table exits` → `exists` message typo.
+- **No `composer create-project` autoload warning.** The skeleton's `tests/ExampleTest.php` declared a non-namespaced class while `composer.json` maps `Tests\ => tests/`, so scaffolding printed `Class ExampleTest … does not comply with psr-4 autoloading standard … Skipping`. The test is now `namespace Tests;` (PSR-4 compliant); harmless before (Pest ran it anyway), just noisy on first impression.
+
 ## [4.6.0] - 2026-06-13
 
 ### Changed
